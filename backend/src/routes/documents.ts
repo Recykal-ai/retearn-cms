@@ -2,7 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
-import { localStorage } from "../lib/storage.js";
+import { storage } from "../lib/storage.js";
 import { sanitizeFilename } from "../lib/filename.js";
 import { logger } from "../lib/logger.js";
 import { documentInclude, serializeDocument, loadPinnedIds } from "../lib/document-serializer.js";
@@ -406,7 +406,7 @@ documentsRouter.post("/", requireAuth, upload.single("file"), async (req, res) =
   let s3Key: string | null = null;
   if (sourceType === "FILE" && req.file) {
     s3Key = `${document.id}/1/${sanitizeFilename(req.file.originalname)}`;
-    await localStorage.save(s3Key, req.file.buffer);
+    await storage.save(s3Key, req.file.buffer);
     await prisma.document.update({ where: { id: document.id }, data: { s3Key } });
   }
 
@@ -467,7 +467,7 @@ documentsRouter.post<{ id: string }>("/:id/versions", requireAuth, upload.single
   let s3Key: string | null = null;
   if (sourceType === "FILE" && req.file) {
     s3Key = `${existing.id}/${nextVersion}/${sanitizeFilename(req.file.originalname)}`;
-    await localStorage.save(s3Key, req.file.buffer);
+    await storage.save(s3Key, req.file.buffer);
   }
   const externalUrl = sourceType === "LINK" ? body.externalUrl!.trim() : null;
   // Same scope-aware auto-publish rule as the initial upload — a scoped
@@ -892,7 +892,7 @@ documentsRouter.get<{ id: string }>("/:id/view-url", requireAuth, async (req, re
     logger.error("published FILE document missing s3Key", { documentId: doc.id });
     return res.status(500).json({ error: "File is missing" });
   }
-  const { url, expiresIn } = await localStorage.getSignedUrl(doc.s3Key);
+  const { url, expiresIn } = await storage.getSignedUrl(doc.s3Key);
   res.json({ url, sourceType: "FILE", expiresIn });
 });
 
@@ -928,6 +928,6 @@ documentsRouter.get<{ id: string; version: string }>("/:id/versions/:version/vie
     logger.error("FILE version missing s3Key", { documentId: doc.id, version: versionNumber });
     return res.status(500).json({ error: "File is missing for this version" });
   }
-  const { url, expiresIn } = await localStorage.getSignedUrl(version.s3Key);
+  const { url, expiresIn } = await storage.getSignedUrl(version.s3Key);
   res.json({ url, sourceType: "FILE", expiresIn });
 });
