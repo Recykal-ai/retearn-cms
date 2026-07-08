@@ -71,20 +71,25 @@ documentsRouter.get("/", requireAuth, async (req, res) => {
   if (q) where.title = { contains: q, mode: "insensitive" };
   if (modifiedSince) where.updatedAt = { gte: new Date(modifiedSince) };
 
-  // A scoped Admin's approvals queue only shows Pending items they can
-  // actually act on — otherwise it'd list documents from every team/product
-  // whose Approve/Reject buttons just 403 when clicked. Browsing anything
-  // else (Published docs, etc.) stays unrestricted; scoping only limits
-  // admin *powers*, not what someone can see as a viewer.
-  if (where.status === "PENDING" && isAdminRole(req.user!.role)) {
-    const scope = await loadAdminScope(req.user!.userId, req.user!.role);
-    if (scope !== null) {
-      const teamIds = [...scope.teamIds];
-      const productIds = [...scope.productIds];
-      where.OR = [
-        ...(teamIds.length ? [{ ownerTeamId: { in: teamIds } }] : []),
-        ...(productIds.length ? [{ products: { some: { productId: { in: productIds } } } }] : []),
-      ];
+  // Pending/Rejected documents haven't been vetted for publication yet, so
+  // they're not visible org-wide the way Published docs are — a plain User
+  // only sees their own (their "My Uploads" view), and a scoped Admin only
+  // sees the ones they can actually act on (otherwise Approve/Reject buttons
+  // would just 403 on items outside their scope). Global Admins/Super Admins
+  // are unrestricted, matching their org-wide approval authority.
+  if (where.status !== "PUBLISHED") {
+    if (isAdminRole(req.user!.role)) {
+      const scope = await loadAdminScope(req.user!.userId, req.user!.role);
+      if (scope !== null) {
+        const teamIds = [...scope.teamIds];
+        const productIds = [...scope.productIds];
+        where.OR = [
+          ...(teamIds.length ? [{ ownerTeamId: { in: teamIds } }] : []),
+          ...(productIds.length ? [{ products: { some: { productId: { in: productIds } } } }] : []),
+        ];
+      }
+    } else {
+      where.uploadedById = req.user!.userId;
     }
   }
 
@@ -309,6 +314,20 @@ documentsRouter.get<{ id: string }>("/:id", requireAuth, async (req, res) => {
     include: { ...documentInclude, versions: { orderBy: { version: "desc" } } },
   });
   if (!doc) return res.status(404).json({ error: "Document not found" });
+
+  // Same rule as the list endpoint — a Pending/Rejected doc isn't visible
+  // org-wide by id any more than it is by listing.
+  if (doc.status !== "PUBLISHED") {
+    const isOwner = doc.uploadedById === req.user!.userId;
+    const isAdmin = isAdminRole(req.user!.role);
+    const scope = isAdmin ? await loadAdminScope(req.user!.userId, req.user!.role) : null;
+    const allowed =
+      isOwner || (isAdmin && canManageTeamOrProducts(scope, doc.ownerTeamId, doc.products.map((p) => p.productId)));
+    if (!allowed) {
+      return res.status(403).json({ error: "This document is not published yet" });
+    }
+  }
+
   const pinnedIds = await loadPinnedIds(req.user!.userId, [doc.id]);
   res.json(serializeDocument(doc, pinnedIds));
 });

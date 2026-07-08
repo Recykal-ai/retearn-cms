@@ -13,9 +13,12 @@ export interface AppJwtPayload {
 }
 
 export function signAppJwt(payload: AppJwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "12h" });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: "12h", algorithm: "HS256" });
 }
 
+// Pinning the algorithm here is deliberate defense-in-depth (OWASP JWT
+// guidance) — without it, verify() infers the algorithm from the token's own
+// header, which is the class of bug behind "alg confusion" JWT attacks.
 export function verifyAppJwt(token: string): AppJwtPayload {
-  return jwt.verify(token, JWT_SECRET) as unknown as AppJwtPayload;
+  return jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as unknown as AppJwtPayload;
 }

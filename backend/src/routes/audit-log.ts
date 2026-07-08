@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
+import { loadAdminScope } from "../lib/admin-scope.js";
 
 export const auditLogRouter = Router();
 
@@ -24,11 +25,32 @@ const DOCUMENT_ACTIONS = [
 
 // GET /api/audit-log?limit= — admin only, most recent first. A write-only
 // table for the MVP (§9/§13): this is the read side kept intentionally simple,
-// no filtering or pagination beyond a max row count.
+// no filtering or pagination beyond a max row count. A scoped Admin only sees
+// entries for documents within their own team/product scope — same principle
+// as everywhere else scoping applies, so a scoped Admin's "audit visibility"
+// doesn't quietly exceed their actual management powers.
 auditLogRouter.get("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 100, 500);
+  const scope = await loadAdminScope(req.user!.userId, req.user!.role);
+
+  const where: Record<string, unknown> = { action: { in: DOCUMENT_ACTIONS } };
+  if (scope !== null) {
+    const teamIds = [...scope.teamIds];
+    const productIds = [...scope.productIds];
+    const scopedDocs = await prisma.document.findMany({
+      where: {
+        OR: [
+          ...(teamIds.length ? [{ ownerTeamId: { in: teamIds } }] : []),
+          ...(productIds.length ? [{ products: { some: { productId: { in: productIds } } } }] : []),
+        ],
+      },
+      select: { id: true },
+    });
+    where.targetId = { in: scopedDocs.map((d) => d.id) };
+  }
+
   const entries = await prisma.auditLog.findMany({
-    where: { action: { in: DOCUMENT_ACTIONS } },
+    where,
     orderBy: { createdAt: "desc" },
     take: limit,
     include: { user: { select: { id: true, name: true, email: true } } },
