@@ -1,0 +1,340 @@
+"use client";
+
+import { useMemo, useRef, useState } from "react";
+import type { Team, Product, Category } from "@/lib/api";
+import { colorForScope, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
+
+export function UploadModal({
+  teams,
+  products,
+  categoriesByScope,
+  action,
+}: {
+  teams: Team[];
+  products: Product[];
+  categoriesByScope: Record<string, Category[]>;
+  action: (formData: FormData) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [ownerTeamId, setOwnerTeamId] = useState<string | null>(null);
+  const [productIds, setProductIds] = useState<string[]>([]);
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  const [fileName, setFileName] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [tagQuery, setTagQuery] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const linkUrlRef = useRef<HTMLInputElement>(null);
+  const linkTitleRef = useRef<HTMLInputElement>(null);
+
+  const availableCategories = useMemo(() => {
+    const scopes = [ownerTeamId, ...productIds].filter((v): v is string => Boolean(v));
+    const byId = new Map<string, Category>();
+    for (const scope of scopes) {
+      for (const c of categoriesByScope[scope] ?? []) byId.set(c.id, c);
+    }
+    return Array.from(byId.values());
+  }, [ownerTeamId, productIds, categoriesByScope]);
+
+  const selectedCategoryIds = categoryIds.filter((id) => availableCategories.some((c) => c.id === id));
+  const filteredCategories = tagQuery.trim()
+    ? availableCategories.filter((c) => c.name.toLowerCase().includes(tagQuery.trim().toLowerCase()))
+    : availableCategories;
+  const sourceType = fileName ? "FILE" : "LINK";
+
+  function toggle(list: string[], setList: (v: string[]) => void, id: string) {
+    setList(list.includes(id) ? list.filter((v) => v !== id) : [...list, id]);
+  }
+
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    setFileName(file?.name ?? "");
+    if (file) {
+      setLinkUrl("");
+      if (linkUrlRef.current) linkUrlRef.current.value = "";
+      if (linkTitleRef.current) linkTitleRef.current.value = "";
+    }
+  }
+
+  function onLinkChange() {
+    const hasLinkInput = (linkUrlRef.current?.value ?? "").length > 0;
+    if (hasLinkInput && fileName) {
+      setFileName("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+    setLinkUrl(linkUrlRef.current?.value ?? "");
+  }
+
+  function close() {
+    setOpen(false);
+    setOwnerTeamId(null);
+    setProductIds([]);
+    setCategoryIds([]);
+    setFileName("");
+    setLinkUrl("");
+    setTagQuery("");
+    setError("");
+    setSubmitting(false);
+  }
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    if (!ownerTeamId && productIds.length === 0) {
+      e.preventDefault();
+      setError("Pick at least one team or product tag.");
+      return;
+    }
+    // Only force a pick when there's actually something to pick from — a
+    // team/product with no tags set up yet falls back to "Others" server-side.
+    if (availableCategories.length > 0 && selectedCategoryIds.length === 0) {
+      e.preventDefault();
+      setError("Pick at least one category tag.");
+      return;
+    }
+    if (!fileName && !linkUrl) {
+      e.preventDefault();
+      setError("Choose a file or paste a link.");
+      return;
+    }
+    setError("");
+    setSubmitting(true);
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-1.5 text-sm font-semibold text-neutral-700 transition-colors hover:text-neutral-900"
+      >
+        <span aria-hidden className="text-base leading-none text-neutral-500">
+          +
+        </span>
+        Upload
+      </button>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6"
+          style={{ fontFamily: "var(--font-ui)" }}
+          onClick={(e) => e.target === e.currentTarget && close()}
+        >
+          <form
+            action={action}
+            onSubmit={handleSubmit}
+            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+          >
+            <div className="mb-5 flex items-center justify-between">
+              <h1 className="text-lg font-semibold text-neutral-900">Upload a document</h1>
+              <button
+                type="button"
+                onClick={close}
+                aria-label="Close"
+                className="text-xl leading-none text-neutral-400 hover:text-neutral-600"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mb-5">
+              <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Team</label>
+              <div className="flex flex-wrap gap-2">
+                {teams.map((t) => {
+                  const selected = ownerTeamId === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setOwnerTeamId(selected ? null : t.id)}
+                      className="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+                      style={
+                        selected
+                          ? { background: TEAM_TAG_COLOR.fg, color: "white" }
+                          : { background: TEAM_TAG_COLOR.bg, color: TEAM_TAG_COLOR.fg }
+                      }
+                    >
+                      {t.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <input type="hidden" name="ownerTeamId" value={ownerTeamId ?? ""} />
+            </div>
+
+            {products.length > 0 && (
+              <div className="mb-5">
+                <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Product</label>
+                <div className="flex flex-wrap gap-2">
+                  {products.map((p) => {
+                    const selected = productIds.includes(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => toggle(productIds, setProductIds, p.id)}
+                        className="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+                        style={
+                          selected
+                            ? { background: PRODUCT_TAG_COLOR.fg, color: "white" }
+                            : { background: PRODUCT_TAG_COLOR.bg, color: PRODUCT_TAG_COLOR.fg }
+                        }
+                      >
+                        {p.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                <input type="hidden" name="productIds" value={JSON.stringify(productIds)} />
+              </div>
+            )}
+
+            <div className="mb-5">
+              <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Tags</label>
+              {availableCategories.length === 0 ? (
+                <p className="text-xs text-neutral-400">
+                  {ownerTeamId || productIds.length > 0
+                    ? 'No tags set up here yet — this will be filed under "Others".'
+                    : "Pick a team or product above to see its tags."}
+                </p>
+              ) : (
+                <>
+                  {availableCategories.length > 8 && (
+                    <div className="relative mb-2">
+                      <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400" />
+                      <input
+                        type="text"
+                        value={tagQuery}
+                        onChange={(e) => setTagQuery(e.target.value)}
+                        placeholder="Find a tag"
+                        className="w-full rounded-md border border-neutral-200 py-1.5 pr-3 pl-8 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
+                      />
+                    </div>
+                  )}
+                  <div className="flex max-h-36 flex-wrap gap-2 overflow-y-auto">
+                    {filteredCategories.length === 0 && (
+                      <p className="text-xs text-neutral-400 italic">No matching tags</p>
+                    )}
+                    {filteredCategories.map((c) => {
+                      const selected = selectedCategoryIds.includes(c.id);
+                      const color = colorForScope(c.scope);
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => toggle(categoryIds, setCategoryIds, c.id)}
+                          className="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+                          style={
+                            selected
+                              ? { background: color.fg, color: "white" }
+                              : { background: color.bg, color: color.fg }
+                          }
+                        >
+                          {c.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+              <input type="hidden" name="categoryIds" value={JSON.stringify(selectedCategoryIds)} />
+            </div>
+
+            <input type="hidden" name="sourceType" value={sourceType} />
+
+            <div className="mb-4">
+              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-neutral-600">
+                <FolderIcon />
+                Upload a file
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                name="file"
+                onChange={onFileChange}
+                className="w-full rounded-md border border-dashed border-neutral-300 px-3 py-4 text-sm text-neutral-600"
+              />
+            </div>
+
+            <div className="mb-2 flex items-center gap-3 text-xs font-medium text-neutral-400">
+              <div className="h-px flex-1 bg-neutral-200" />
+              or
+              <div className="h-px flex-1 bg-neutral-200" />
+            </div>
+
+            <div className="mb-5">
+              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-neutral-600">
+                <LinkIcon />
+                Link an existing doc
+              </label>
+              <input
+                ref={linkTitleRef}
+                name="title"
+                placeholder="Title"
+                onChange={onLinkChange}
+                className="mb-2 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
+              />
+              <input
+                ref={linkUrlRef}
+                type="url"
+                name="externalUrl"
+                placeholder="https://docs.google.com/document/d/…"
+                onChange={onLinkChange}
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
+              />
+              <p className="mt-1.5 text-xs text-neutral-400">
+                Set the Drive share to viewer-only so it stays view-only once linked here.
+              </p>
+            </div>
+
+            {error && <p className="mb-3 text-xs font-medium text-red-600">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full rounded-md py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-60"
+              style={{ background: "var(--brand-purple)" }}
+            >
+              {submitting ? "Uploading…" : "Submit"}
+            </button>
+          </form>
+        </div>
+      )}
+    </>
+  );
+}
+
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+      <path d="M21 21l-4.3-4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function FolderIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: "#8a8a8a" }}>
+      <path
+        d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4.5l2 2.5H19a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5v-9Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function LinkIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: "#8a8a8a" }}>
+      <path
+        d="M9.5 14.5 14.5 9.5M11 7l1.5-1.5a3.5 3.5 0 0 1 5 5L16 12M13 17l-1.5 1.5a3.5 3.5 0 0 1-5-5L8 12"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

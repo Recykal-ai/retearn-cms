@@ -1,0 +1,171 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
+
+enum DocStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+}
+
+enum DocSourceType {
+  FILE // stored via the storage adapter (local disk today, S3 later)
+  LINK // points at an externally-hosted doc (e.g. Google Drive) — we store the URL only
+}
+
+model User {
+  id          String           @id @default(uuid())
+  email       String           @unique // verified @recykal.com address from Google
+  name        String
+  role        Role             @default(USER)
+  active      Boolean          @default(true) // Super Admin can deactivate an account instead of deleting it
+  createdAt   DateTime         @default(now())
+  documents   Document[]       @relation("UploadedBy")
+  auditLogs   AuditLog[]
+  adminScopes AdminScope[]
+  pinnedDocs  PinnedDocument[]
+}
+
+model Team {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  documents   Document[]   @relation("OwningTeam")
+  adminScopes AdminScope[]
+}
+
+model Product {
+  id          String            @id @default(uuid())
+  name        String            @unique
+  documents   DocumentProduct[]
+  adminScopes AdminScope[]
+}
+
+// Scopes an ADMIN's management powers (approve/reject, category creation) to
+// specific teams/products instead of every team/product. A role=ADMIN user
+// with zero rows here is a "global" admin (unrestricted) — this preserves the
+// original flat-role behavior as the default; scoping is opt-in per user.
+// SUPER_ADMIN never has rows here — that role stays global-only by definition.
+model AdminScope {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  teamId    String?
+  team      Team?    @relation(fields: [teamId], references: [id])
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, teamId, productId])
+}
+
+model Category {
+  id        String             @id @default(uuid())
+  name      String
+  scope     String // team id or product id this category is scoped to
+  documents DocumentCategory[]
+
+  @@unique([name, scope])
+}
+
+model Document {
+  id                    String             @id @default(uuid())
+  title                 String
+  status                DocStatus          @default(PENDING)
+  rejectionNote         String?
+  // Timestamp of the most recent PENDING -> PUBLISHED transition (approval or
+  // auto-publish) — separate from `updatedAt`, which also moves on unrelated
+  // edits like retagging. Drives the "just approved" green status dot; null
+  // once that hasn't happened yet, or for docs published before this field existed.
+  publishedAt           DateTime?
+  // Set when any signed-in user requests deletion of a doc they don't have
+  // delete rights to outright (admins delete directly, no request needed —
+  // see DELETE /:id). Surfaced in the admin Approvals queue alongside
+  // pending uploads; cleared on either approve (soft-delete goes through) or
+  // reject (doc stays exactly as it was, request just gets dismissed).
+  deletionRequestedAt   DateTime?
+  deletionRequestedById String?
+  deletionRequestNote   String?
+  ownerTeamId           String? // optional — a document needs at least one tag (team or product), not necessarily a team
+  ownerTeam             Team?              @relation("OwningTeam", fields: [ownerTeamId], references: [id])
+  uploadedById          String
+  uploadedBy            User               @relation("UploadedBy", fields: [uploadedById], references: [id])
+  currentVersion        Int                @default(1)
+  sourceType            DocSourceType      @default(FILE)
+  s3Key                 String? // current version's storage key — set when sourceType = FILE
+  externalUrl           String? // current version's external link — set when sourceType = LINK
+  deletedAt             DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  products              DocumentProduct[]
+  categories            DocumentCategory[]
+  versions              DocumentVersion[]
+  pinnedBy              PinnedDocument[]
+}
+
+// A personal bookmark — per-user, doesn't affect what anyone else sees.
+// Pinning a doc you don't otherwise have access to isn't specially guarded;
+// it's just a private note, not a source of data exposure.
+model PinnedDocument {
+  userId     String
+  documentId String
+  user       User     @relation(fields: [userId], references: [id])
+  document   Document @relation(fields: [documentId], references: [id])
+  pinnedAt   DateTime @default(now())
+
+  @@id([userId, documentId])
+}
+
+model DocumentProduct {
+  documentId String
+  productId  String
+  document   Document @relation(fields: [documentId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@id([documentId, productId])
+}
+
+model DocumentCategory {
+  documentId String
+  categoryId String
+  document   Document @relation(fields: [documentId], references: [id])
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  @@id([documentId, categoryId])
+}
+
+model DocumentVersion {
+  id          String        @id @default(uuid())
+  documentId  String
+  document    Document      @relation(fields: [documentId], references: [id])
+  version     Int
+  sourceType  DocSourceType @default(FILE)
+  s3Key       String?
+  externalUrl String?
+  note        String?
+  uploadedBy  String
+  createdAt   DateTime      @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String // e.g. "upload", "approve", "reject", "view", "delete"
+  targetId  String // document id (or other entity) affected
+  metadata  Json?
+  createdAt DateTime @default(now())
+}

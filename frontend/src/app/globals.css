@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+
+  /* Retearn brand purple, pulled from retearn.in's own stylesheet */
+  --brand-purple: #6a398c;
+  --brand-purple-light: #9c539c;
+  --brand-purple-dark: #522c6d;
+  --brand-purple-tint: #f4eef8;
+
+  /* Warm-tinted neutrals for the dashboard canvas — Notion-style, so the
+     white content card has lift without reading as cold corporate gray. */
+  --canvas: #f7f6f8;
+  --canvas-border: #e7e5ea;
+
+  /* System UI stack — same fonts SharePoint/Confluence render with natively,
+     used for dense dashboard chrome instead of the marketing (Poppins) font. */
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-brand-purple: var(--brand-purple);
+  --color-brand-purple-light: var(--brand-purple-light);
+  --font-poppins: var(--font-poppins);
+  --font-roboto: var(--font-roboto);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-roboto), Arial, Helvetica, sans-serif;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes blob-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+}
+
+@keyframes blob-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(28px, -22px) scale(1.06);
+  }
+}
+
+.animate-fade-up {
+  opacity: 0;
+  animation: fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-blob {
+  animation:
+    blob-in 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+    blob-float 12s ease-in-out 1.4s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up {
+    opacity: 1;
+    animation: none;
+  }
+
+  .animate-blob {
+    opacity: 0.8;
+    animation: none;
+  }
+}

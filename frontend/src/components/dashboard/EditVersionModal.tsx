@@ -1,0 +1,310 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { DocumentSummary, Team, Product, Category } from "@/lib/api";
+import { pushVersionAction, updateDocumentTagsAction, getTagCatalogAction } from "@/app/dashboard/documents-actions";
+import { colorForScope, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
+
+export function EditVersionModal({
+  doc,
+  onClose,
+}: {
+  doc: DocumentSummary;
+  onClose: () => void;
+}) {
+  const [fileName, setFileName] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const linkUrlRef = useRef<HTMLInputElement>(null);
+
+  const [catalog, setCatalog] = useState<{
+    teams: Team[];
+    products: Product[];
+    categoriesByScope: Record<string, Category[]>;
+  } | null>(null);
+  const [ownerTeamId, setOwnerTeamId] = useState<string | null>(doc.ownerTeam?.id ?? null);
+  const [productIds, setProductIds] = useState<string[]>(doc.products.map((p) => p.id));
+  const [categoryIds, setCategoryIds] = useState<string[]>(doc.categories.map((c) => c.id));
+  const [tagQuery, setTagQuery] = useState("");
+
+  useEffect(() => {
+    getTagCatalogAction().then(setCatalog);
+  }, []);
+
+  const availableCategories = useMemo(() => {
+    if (!catalog) return [];
+    const scopes = [ownerTeamId, ...productIds].filter((v): v is string => Boolean(v));
+    const byId = new Map<string, Category>();
+    for (const scope of scopes) {
+      for (const c of catalog.categoriesByScope[scope] ?? []) byId.set(c.id, c);
+    }
+    return Array.from(byId.values());
+  }, [catalog, ownerTeamId, productIds]);
+
+  const selectedCategoryIds = categoryIds.filter((id) => availableCategories.some((c) => c.id === id));
+  const filteredCategories = tagQuery.trim()
+    ? availableCategories.filter((c) => c.name.toLowerCase().includes(tagQuery.trim().toLowerCase()))
+    : availableCategories;
+
+  function toggle(list: string[], setList: (v: string[]) => void, id: string) {
+    setList(list.includes(id) ? list.filter((v) => v !== id) : [...list, id]);
+  }
+
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    setFileName(file?.name ?? "");
+    if (file) {
+      setLinkUrl("");
+      if (linkUrlRef.current) linkUrlRef.current.value = "";
+    }
+  }
+
+  function onLinkChange() {
+    const hasLinkInput = (linkUrlRef.current?.value ?? "").length > 0;
+    if (hasLinkInput && fileName) {
+      setFileName("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+    setLinkUrl(linkUrlRef.current?.value ?? "");
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    if (!ownerTeamId && productIds.length === 0) {
+      setError("Pick at least one team or product tag.");
+      return;
+    }
+    // Only force a pick when there's actually something to pick from — a
+    // team/product with no tags set up yet falls back to "Others" server-side.
+    if (availableCategories.length > 0 && selectedCategoryIds.length === 0) {
+      setError("Pick at least one category tag.");
+      return;
+    }
+
+    setError("");
+    setSubmitting(true);
+
+    // Tags first, then the (optional) new version — so a scoped-admin/soft-lock
+    // rejection on the tag change never leaves a half-applied edit.
+    const tagsResult = await updateDocumentTagsAction(doc.id, {
+      ownerTeamId,
+      productIds,
+      categoryIds: selectedCategoryIds,
+    });
+    if (tagsResult.error) {
+      setError(tagsResult.error);
+      setSubmitting(false);
+      return;
+    }
+
+    if (fileName || linkUrl) {
+      const versionFormData = new FormData();
+      versionFormData.set("sourceType", fileName ? "FILE" : "LINK");
+      if (fileName && fileInputRef.current?.files?.[0]) {
+        versionFormData.set("file", fileInputRef.current.files[0]);
+      }
+      if (linkUrl) versionFormData.set("externalUrl", linkUrl);
+      if (note.trim()) versionFormData.set("note", note.trim());
+      try {
+        await pushVersionAction(doc.id, versionFormData);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to upload new version");
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    setSubmitting(false);
+    onClose();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6"
+      style={{ fontFamily: "var(--font-ui)" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <form
+        onSubmit={handleSubmit}
+        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+      >
+        <div className="mb-1 flex items-center justify-between">
+          <h1 className="text-lg font-semibold text-neutral-900">Edit document</h1>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="text-xl leading-none text-neutral-400 hover:text-neutral-600"
+          >
+            ×
+          </button>
+        </div>
+        <p className="mb-5 truncate text-xs text-neutral-400">&ldquo;{doc.title}&rdquo;</p>
+
+        {!catalog ? (
+          <p className="mb-5 text-sm text-neutral-400">Loading tags…</p>
+        ) : (
+          <>
+            <div className="mb-4">
+              <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Team</label>
+              <div className="flex flex-wrap gap-2">
+                {catalog.teams.map((t) => {
+                  const selected = ownerTeamId === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setOwnerTeamId(selected ? null : t.id)}
+                      className="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+                      style={
+                        selected
+                          ? { background: TEAM_TAG_COLOR.fg, color: "white" }
+                          : { background: TEAM_TAG_COLOR.bg, color: TEAM_TAG_COLOR.fg }
+                      }
+                    >
+                      {t.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {catalog.products.length > 0 && (
+              <div className="mb-4">
+                <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Product</label>
+                <div className="flex flex-wrap gap-2">
+                  {catalog.products.map((p) => {
+                    const selected = productIds.includes(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => toggle(productIds, setProductIds, p.id)}
+                        className="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+                        style={
+                          selected
+                            ? { background: PRODUCT_TAG_COLOR.fg, color: "white" }
+                            : { background: PRODUCT_TAG_COLOR.bg, color: PRODUCT_TAG_COLOR.fg }
+                        }
+                      >
+                        {p.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="mb-5">
+              <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Tags</label>
+              {availableCategories.length === 0 ? (
+                <p className="text-xs text-neutral-400">
+                  {ownerTeamId || productIds.length > 0
+                    ? 'No tags set up here yet — this will be filed under "Others".'
+                    : "Pick a team or product above to see its tags."}
+                </p>
+              ) : (
+                <>
+                  {availableCategories.length > 8 && (
+                    <input
+                      type="text"
+                      value={tagQuery}
+                      onChange={(e) => setTagQuery(e.target.value)}
+                      placeholder="Find a tag"
+                      className="mb-2 w-full rounded-md border border-neutral-200 px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
+                    />
+                  )}
+                  <div className="flex max-h-36 flex-wrap gap-2 overflow-y-auto">
+                    {filteredCategories.length === 0 && (
+                      <p className="text-xs text-neutral-400 italic">No matching tags</p>
+                    )}
+                    {filteredCategories.map((c) => {
+                      const selected = selectedCategoryIds.includes(c.id);
+                      const color = colorForScope(c.scope);
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => toggle(categoryIds, setCategoryIds, c.id)}
+                          className="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+                          style={
+                            selected
+                              ? { background: color.fg, color: "white" }
+                              : { background: color.bg, color: color.fg }
+                          }
+                        >
+                          {c.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
+
+        <div className="mb-2 flex items-center gap-3 text-xs font-medium text-neutral-400">
+          <div className="h-px flex-1 bg-neutral-200" />
+          Replace the file (optional)
+          <div className="h-px flex-1 bg-neutral-200" />
+        </div>
+
+        <div className="mb-4">
+          <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Replace with a file</label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            name="file"
+            onChange={onFileChange}
+            className="w-full rounded-md border border-dashed border-neutral-300 px-3 py-4 text-sm text-neutral-600"
+          />
+        </div>
+
+        <div className="mb-4 flex items-center gap-3 text-xs font-medium text-neutral-400">
+          <div className="h-px flex-1 bg-neutral-200" />
+          or
+          <div className="h-px flex-1 bg-neutral-200" />
+        </div>
+
+        <div className="mb-4">
+          <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Replace with a link</label>
+          <input
+            ref={linkUrlRef}
+            type="url"
+            name="externalUrl"
+            placeholder="https://docs.google.com/document/d/…"
+            onChange={onLinkChange}
+            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
+          />
+        </div>
+
+        <div className="mb-5">
+          <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Description (optional)</label>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            placeholder="Describe what changed in this version, for anyone checking version history later."
+            className="w-full resize-none rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
+          />
+        </div>
+
+        {error && <p className="mb-3 text-xs font-medium text-red-600">{error}</p>}
+
+        <button
+          type="submit"
+          disabled={submitting || !catalog}
+          className="w-full rounded-md py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-60"
+          style={{ background: "var(--brand-purple)" }}
+        >
+          {submitting ? "Saving…" : "Save changes"}
+        </button>
+      </form>
+    </div>
+  );
+}

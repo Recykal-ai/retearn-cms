@@ -1,0 +1,188 @@
+"use client";
+
+import { useState } from "react";
+import type { DocumentSummary } from "@/lib/api";
+import { relativeTime } from "@/lib/relative-time";
+import { Tag } from "@/components/dashboard/Tag";
+import { FileTypeIcon } from "@/components/dashboard/FileTypeIcon";
+import { fileTypeOf } from "@/lib/file-type";
+import { colorForScope, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
+import { StatusDot } from "@/components/dashboard/StatusDot";
+import { PinButton } from "@/components/dashboard/PinButton";
+import { useDocumentViewer } from "@/components/dashboard/useDocumentViewer";
+
+const STATUS_STYLE: Record<DocumentSummary["status"], { bg: string; fg: string; label: string }> = {
+  PUBLISHED: { bg: "#eaf6ec", fg: "#2e7d3f", label: "Published" },
+  PENDING: { bg: "#fdf3e2", fg: "#9a6a12", label: "Pending" },
+  REJECTED: { bg: "#fbe9e9", fg: "#b3342c", label: "Rejected" },
+};
+
+const MAX_VISIBLE_TAGS = 4;
+
+export function DocumentsCardGrid({
+  documents,
+  entityName,
+  showStatus,
+}: {
+  documents: DocumentSummary[];
+  entityName?: string;
+  showStatus?: boolean;
+}) {
+  const [query, setQuery] = useState("");
+  const { view, isOpening, viewerNode } = useDocumentViewer();
+  const filtered = query.trim()
+    ? documents.filter((d) => d.title.toLowerCase().includes(query.trim().toLowerCase()))
+    : documents;
+
+  return (
+    <div>
+      <div className="relative mb-4 max-w-xs">
+        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={`Find in ${entityName ?? "this list"}…`}
+          className="w-full rounded-md border border-neutral-200 bg-white py-1.5 pr-3 pl-8 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-16 text-center">
+          <DocumentStackIcon />
+          <div>
+            <p className="text-sm font-medium text-neutral-600">
+              {query ? `No matches for "${query}"` : `No documents in ${entityName ?? "this view"} yet`}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((doc) => (
+            <DocumentCard
+              key={doc.id}
+              doc={doc}
+              showStatus={showStatus}
+              onView={view}
+              opening={isOpening(doc.id)}
+            />
+          ))}
+        </div>
+      )}
+      {viewerNode}
+    </div>
+  );
+}
+
+function DocumentCard({
+  doc,
+  showStatus,
+  onView,
+  opening,
+}: {
+  doc: DocumentSummary;
+  showStatus?: boolean;
+  onView: (doc: DocumentSummary) => void;
+  opening: boolean;
+}) {
+  const status = STATUS_STYLE[doc.status];
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => !opening && onView(doc)}
+      onKeyDown={(e) => {
+        if (!opening && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onView(doc);
+        }
+      }}
+      aria-disabled={opening}
+      className="flex cursor-pointer flex-col items-start rounded-lg border border-neutral-200 p-4 text-left transition-colors hover:border-neutral-300 hover:shadow-sm aria-disabled:cursor-default aria-disabled:opacity-60"
+    >
+      <div className="mb-2 flex w-full items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} />
+          <StatusDot status={doc.status} recentlyPublished={doc.recentlyPublished} />
+          {doc.deletionRequestedAt && (
+            <span
+              title="An admin has been asked to delete this document"
+              className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap"
+              style={{ background: "#f2e8fb", color: "#7c3aed" }}
+            >
+              Deletion requested
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5">
+          {showStatus && (
+            <span
+              className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+              style={{ background: status.bg, color: status.fg }}
+            >
+              {status.label}
+            </span>
+          )}
+          {doc.status === "PUBLISHED" && <PinButton documentId={doc.id} pinned={doc.pinned} />}
+        </div>
+      </div>
+      <p className="mb-1.5 line-clamp-2 text-sm font-medium text-neutral-800">{doc.title}</p>
+      <div className="mb-2 flex flex-wrap gap-1">
+        {(() => {
+          const allTags = [
+            ...(doc.ownerTeam ? [{ key: `team-${doc.ownerTeam.id}`, label: doc.ownerTeam.name, bg: TEAM_TAG_COLOR.bg, fg: TEAM_TAG_COLOR.fg }] : []),
+            ...doc.products.map((p) => ({ key: `product-${p.id}`, label: p.name, bg: PRODUCT_TAG_COLOR.bg, fg: PRODUCT_TAG_COLOR.fg })),
+            ...doc.categories.map((c) => {
+              const color = colorForScope(c.scope);
+              return { key: `cat-${c.id}`, label: c.name, bg: color.bg, fg: color.fg };
+            }),
+          ];
+          const visible = allTags.slice(0, MAX_VISIBLE_TAGS);
+          const hidden = allTags.slice(MAX_VISIBLE_TAGS);
+          return (
+            <>
+              {visible.map((t) => (
+                <Tag key={t.key} label={t.label} bg={t.bg} fg={t.fg} />
+              ))}
+              {hidden.length > 0 && (
+                <span
+                  title={hidden.map((t) => t.label).join(", ")}
+                  className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500"
+                >
+                  +{hidden.length} more
+                </span>
+              )}
+            </>
+          );
+        })()}
+      </div>
+      <p className="text-xs text-neutral-400">
+        <span suppressHydrationWarning>{relativeTime(doc.updatedAt)}</span> · {doc.uploadedBy.name}
+      </p>
+    </div>
+  );
+}
+
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+      <path d="M21 21l-4.3-4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function DocumentStackIcon() {
+  return (
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: "#c9c2ce" }}>
+      <path
+        d="M7 3.5h7.5L18 7v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M14 3.5V7h3.5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M9 12h6M9 15.5h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}

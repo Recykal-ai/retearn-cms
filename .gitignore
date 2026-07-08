@@ -1,0 +1,6 @@
+# Claude Code's local, per-machine tool-permission settings — not shared config.
+.claude/settings.local.json
+
+# OS junk
+.DS_Store
+Thumbs.db

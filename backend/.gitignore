@@ -1,0 +1,8 @@
+node_modules
+# Keep environment variables out of version control
+.env
+
+/src/generated/prisma
+
+# Phase 1 local file storage — not meant to be committed, and gets replaced by S3
+/uploads
