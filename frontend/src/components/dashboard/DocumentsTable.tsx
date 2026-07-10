@@ -58,7 +58,12 @@ export function DocumentsTable({
   }
 
   return (
-    <div>
+    // flex column filling the panel's full height — pushes pagination down
+    // to the bottom edge via the table wrapper's flex-1, instead of it
+    // sitting directly under the last row (which made it visibly jump
+    // upward on a short last page instead of staying put at the bottom).
+    <div className="flex h-full flex-col">
+    <div className="flex-1">
     <table className="w-full text-left text-sm">
       <thead>
         <tr className="text-xs font-semibold text-neutral-500">
@@ -148,6 +153,7 @@ export function DocumentsTable({
         )}
       </tbody>
     </table>
+    </div>
     {pageCount > 1 && (
       <Pagination page={currentPage} pageCount={pageCount} onChange={setPage} />
     )}

@@ -13,9 +13,13 @@ categoriesRouter.get("/", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "scope query param is required" });
   }
 
+  // Global tags surface first (isGlobal: desc puts true before false),
+  // alphabetical within each group — global categories are the ones an
+  // admin deliberately made visible everywhere, so they should stand out
+  // at the top of the list rather than being interleaved alphabetically.
   const categories = await prisma.category.findMany({
     where: { scope },
-    orderBy: { name: "asc" },
+    orderBy: [{ isGlobal: "desc" }, { name: "asc" }],
     include: { _count: { select: { documents: { where: { document: { deletedAt: null } } } } } },
   });
   res.json(categories.map(({ _count, ...c }) => ({ ...c, documentCount: _count.documents })));
@@ -116,10 +120,11 @@ categoriesRouter.post("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), asy
       return res.status(403).json({ error: "Only a Super Admin can create a global category" });
     }
 
-    const [teams, products] = await Promise.all([
-      prisma.team.findMany({ where: { name: { not: "Others" } } }),
-      prisma.product.findMany({ where: { name: { not: "Others" } } }),
-    ]);
+    // Others is included here (unlike the regular per-scope creation path
+    // below, which still blocks adding a scoped, non-global category to it)
+    // — a global tag is supposed to mean "every team and product," and
+    // that's genuinely true of Others too, not just an exception to it.
+    const [teams, products] = await Promise.all([prisma.team.findMany(), prisma.product.findMany()]);
 
     const created: Awaited<ReturnType<typeof prisma.category.create>>[] = [];
     let skipped = 0;

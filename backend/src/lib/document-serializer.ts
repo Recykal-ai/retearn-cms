@@ -1,8 +1,25 @@
 import { prisma } from "./prisma.js";
+import { Prisma } from "../generated/prisma/client.js";
+
+// Declared separately (rather than inline in documentInclude below) so it
+// keeps its own mutable-array type — documentInclude's `as const` would
+// otherwise freeze this into a readonly tuple, which Prisma's generated
+// input types don't accept for orderBy.
+const categoryOrderBy: Prisma.DocumentCategoryOrderByWithRelationInput[] = [
+  { category: { isGlobal: "desc" } },
+  { category: { name: "asc" } },
+];
 
 export const documentInclude = {
   ownerTeam: { select: { id: true, name: true } },
-  categories: { include: { category: { select: { id: true, name: true, scope: true, isGlobal: true } } } },
+  // Global tags first, alphabetical within each group — matches the order
+  // GET /api/categories returns for a scope (see routes/categories.ts), so
+  // a document's own tag chips (DocumentRow, DocumentsCardGrid, search
+  // results, recycle bin) aren't left in arbitrary join-row insertion order.
+  categories: {
+    include: { category: { select: { id: true, name: true, scope: true, isGlobal: true } } },
+    orderBy: categoryOrderBy,
+  },
   uploadedBy: { select: { id: true, name: true, email: true } },
   products: { include: { product: { select: { id: true, name: true } } } },
 } as const;

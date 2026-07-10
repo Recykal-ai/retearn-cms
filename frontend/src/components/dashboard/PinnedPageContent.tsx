@@ -40,7 +40,12 @@ export function PinnedPageContent({ documents }: { documents: DocumentSummary[] 
         if (!byName.has(c.name)) byName.set(c.name, c);
       }
     }
-    return Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
+    // Global tags first, alphabetical within each group — matches the order
+    // used everywhere else categories are listed.
+    return Array.from(byName.values()).sort((a, b) => {
+      const globalDiff = Number(b.isGlobal) - Number(a.isGlobal);
+      return globalDiff !== 0 ? globalDiff : a.name.localeCompare(b.name);
+    });
   }, [documents]);
 
   const activeCount = selectedTypes.length + selectedCategories.length;

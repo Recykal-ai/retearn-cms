@@ -30,7 +30,13 @@ function groupCategories(categoriesByScope: Record<string, Category[]>, scopes: 
     if (existing) existing.memberIds.push(c.id);
     else groups.set(key, { id: c.id, name: c.name, scope: c.scope, isGlobal: c.isGlobal, memberIds: [c.id] });
   }
-  return Array.from(groups.values());
+  // Global tags first, alphabetical within each group — merging across
+  // multiple scopes above can otherwise interleave them with per-scope tags
+  // depending on which scope's rows happened to be inserted first.
+  return Array.from(groups.values()).sort((a, b) => {
+    const globalDiff = Number(b.isGlobal) - Number(a.isGlobal);
+    return globalDiff !== 0 ? globalDiff : a.name.localeCompare(b.name);
+  });
 }
 
 export function UploadModal({

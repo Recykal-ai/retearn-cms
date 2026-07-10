@@ -1,4 +1,5 @@
 import { prisma } from "./prisma.js";
+import { backfillGlobalCategories } from "./global-categories.js";
 
 const OTHERS_NAME = "Others";
 
@@ -6,6 +7,10 @@ export async function getOrCreateOthersTeam(): Promise<string> {
   const existing = await prisma.team.findUnique({ where: { name: OTHERS_NAME } });
   if (existing) return existing.id;
   const created = await prisma.team.create({ data: { name: OTHERS_NAME } });
+  // Others is lazily created here rather than via POST /api/teams (which is
+  // where every other team picks up existing global categories), so that
+  // backfill has to happen explicitly on this path too.
+  await backfillGlobalCategories(created.id);
   return created.id;
 }
 
@@ -13,6 +18,7 @@ export async function getOrCreateOthersProduct(): Promise<string> {
   const existing = await prisma.product.findUnique({ where: { name: OTHERS_NAME } });
   if (existing) return existing.id;
   const created = await prisma.product.create({ data: { name: OTHERS_NAME } });
+  await backfillGlobalCategories(created.id);
   return created.id;
 }
 

@@ -4,6 +4,7 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 import { isUniqueConstraintError } from "../lib/prisma-errors.js";
 import { loadAdminScope } from "../lib/admin-scope.js";
 import { getOrCreateOthersTeam, reconcileDocumentFallbacks } from "../lib/fallback-entities.js";
+import { backfillGlobalCategories } from "../lib/global-categories.js";
 
 export const teamsRouter = Router();
 
@@ -33,6 +34,7 @@ teamsRouter.post("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (r
 
   try {
     const team = await prisma.team.create({ data: { name } });
+    await backfillGlobalCategories(team.id);
     res.status(201).json(team);
   } catch (err) {
     if (isUniqueConstraintError(err)) {

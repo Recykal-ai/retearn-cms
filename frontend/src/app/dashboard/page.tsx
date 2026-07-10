@@ -98,8 +98,13 @@ export default async function DashboardPage({
         // shouldn't be painted with the reserved global color.
         categoryNameIsGlobal.set(c.name, (categoryNameIsGlobal.get(c.name) ?? true) && c.isGlobal);
       }
+      // Global tags first (matching the per-scope GET /api/categories order),
+      // alphabetical within each group.
       const allModeCategories: Category[] = [...categoryNameToIds.keys()]
-        .sort((a, b) => a.localeCompare(b))
+        .sort((a, b) => {
+          const globalDiff = Number(categoryNameIsGlobal.get(b) ?? false) - Number(categoryNameIsGlobal.get(a) ?? false);
+          return globalDiff !== 0 ? globalDiff : a.localeCompare(b);
+        })
         .map((name) => ({ id: name, name, scope: "all", documentCount: 0, isGlobal: categoryNameIsGlobal.get(name) ?? false }));
 
       const categories = isGlobal ? allModeCategories : categoriesByScope[selected!.id] ?? [];
