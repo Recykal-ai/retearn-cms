@@ -112,6 +112,13 @@ export interface ViewUrlResponse {
   url: string;
   sourceType: DocSourceType;
   expiresIn: number | null;
+  // Set (to "spreadsheet") when a Google Sheets LINK doc was exported
+  // server-side for in-app rendering instead of being opened as a plain
+  // external link — see backend's buildLinkViewResponse. `externalUrl` is
+  // the original Sheets link, kept as a fallback if the export ever fails
+  // (access revoked, grant expired, etc.) after the URL was already handed out.
+  kind?: "spreadsheet";
+  externalUrl?: string;
 }
 
 export interface DocumentVersionEntry {

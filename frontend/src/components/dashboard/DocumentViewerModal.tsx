@@ -56,12 +56,16 @@ export function DocumentViewerModal({
   url,
   kind,
   getFreshUrl,
+  fallbackUrl,
   onClose,
 }: {
   title: string;
   url: string;
   kind: ViewerKind;
   getFreshUrl: FreshUrlFetcher;
+  // Only meaningful for kind: "spreadsheet" sourced from a Google Sheets
+  // LINK doc — the original Sheets URL, offered if the in-app export fails.
+  fallbackUrl?: string;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -96,7 +100,7 @@ export function DocumentViewerModal({
         {kind === "pdf" && <PdfViewer url={url} />}
         {kind === "image" && <ImageViewer url={url} title={title} />}
         {kind === "text" && <TextViewer url={url} />}
-        {kind === "spreadsheet" && <SpreadsheetViewer url={url} />}
+        {kind === "spreadsheet" && <SpreadsheetViewer url={url} fallbackUrl={fallbackUrl} />}
       </div>
     </div>
   );
@@ -264,10 +268,11 @@ async function tryEnrichWithExcelJS(buffer: ArrayBuffer): Promise<Map<string, St
 // just as naturally, .csv/.tsv too (a parsed table reads far better than raw
 // comma-separated text). Font color/alignment/wrap/borders are then layered
 // on top via ExcelJS, see tryEnrichWithExcelJS above.
-function SpreadsheetViewer({ url }: { url: string }) {
+function SpreadsheetViewer({ url, fallbackUrl }: { url: string; fallbackUrl?: string }) {
   const [sheets, setSheets] = useState<SheetData[] | null>(null);
   const [activeSheet, setActiveSheet] = useState(0);
   const [error, setError] = useState("");
+  const [noAccess, setNoAccess] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -275,7 +280,14 @@ function SpreadsheetViewer({ url }: { url: string }) {
       try {
         const XLSX = await import("xlsx");
         const res = await fetch(url);
-        if (!res.ok) throw new Error();
+        if (!res.ok) {
+          // 403 from our own /sheet-export route specifically means "this
+          // Google account doesn't have Drive access to this sheet (or the
+          // grant expired)" — worth a distinct message + a way to still open
+          // it directly, rather than reading as a generic parse failure.
+          if (res.status === 403 && fallbackUrl) setNoAccess(true);
+          throw new Error();
+        }
         const buffer = await res.arrayBuffer();
         const [workbook, extras] = await Promise.all([
           Promise.resolve(XLSX.read(buffer, { type: "array", cellStyles: true })),
@@ -353,8 +365,24 @@ function SpreadsheetViewer({ url }: { url: string }) {
     return () => {
       cancelled = true;
     };
-  }, [url]);
+  }, [url, fallbackUrl]);
 
+  if (noAccess && fallbackUrl) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+        <p className="text-sm text-white/80">You don&apos;t have access to this sheet in Google.</p>
+        <a
+          href={fallbackUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm font-medium underline underline-offset-2"
+          style={{ color: "white" }}
+        >
+          Try opening it directly in Google Sheets ↗
+        </a>
+      </div>
+    );
+  }
   if (error) {
     return <p className="flex h-full items-center justify-center text-sm text-white/80">{error}</p>;
   }

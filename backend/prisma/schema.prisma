@@ -43,6 +43,24 @@ model User {
   teamNoteMemberships    TeamNoteMembership[]
   notifications          Notification[]
   triggeredNotifications Notification[]       @relation("NotificationTrigger")
+  googleOAuthToken       GoogleOAuthToken?
+}
+
+// This user's Google OAuth grant for the drive.readonly scope (see auth.ts's
+// access_type=offline) — lets the backend export a Google Sheet the user
+// already has Drive access to as .xlsx, authenticated as them, so it can be
+// rendered in our own view-only spreadsheet viewer instead of opening
+// Sheets' own UI (where a viewer with any access can still download).
+// A row only exists once the user has actually granted this scope; absence
+// just means "fall back to opening the link normally" — see
+// lib/google-drive.ts. Never exposed to the frontend.
+model GoogleOAuthToken {
+  userId       String   @id
+  user         User     @relation(fields: [userId], references: [id])
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  updatedAt    DateTime @updatedAt
 }
 
 model Team {

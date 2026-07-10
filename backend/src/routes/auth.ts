@@ -21,7 +21,12 @@ export const authRouter = Router();
 // for who's allowed in) for our own short-lived JWT, auto-provisioning the
 // User row on first sign-in.
 authRouter.post("/google", async (req, res) => {
-  const { idToken } = req.body as { idToken?: string };
+  const { idToken, accessToken, refreshToken, expiresAt } = req.body as {
+    idToken?: string;
+    accessToken?: string;
+    refreshToken?: string;
+    expiresAt?: number; // unix seconds, from NextAuth's account.expires_at
+  };
   if (!idToken) {
     return res.status(400).json({ error: "idToken is required" });
   }
@@ -63,12 +68,33 @@ authRouter.post("/google", async (req, res) => {
     },
   });
 
+  // Google only returns a refresh token on the *first* grant of a scope —
+  // absent here just means "already granted, nothing new to store," not
+  // "revoked," so the existing row (if any) is left as-is rather than
+  // wiped. A fresh accessToken/expiresAt still gets saved when present,
+  // since re-signing in is itself proof the access token is current.
+  if (refreshToken) {
+    await prisma.googleOAuthToken.upsert({
+      where: { userId: user.id },
+      update: { accessToken: accessToken ?? "", refreshToken, expiresAt: expiresAtToDate(expiresAt) },
+      create: { userId: user.id, accessToken: accessToken ?? "", refreshToken, expiresAt: expiresAtToDate(expiresAt) },
+    });
+  } else if (accessToken) {
+    await prisma.googleOAuthToken
+      .update({ where: { userId: user.id }, data: { accessToken, expiresAt: expiresAtToDate(expiresAt) } })
+      .catch(() => {}); // no existing row (scope never granted) — nothing to update, not an error
+  }
+
   const token = signAppJwt({ userId: user.id, role: user.role });
   res.json({
     token,
     user: { id: user.id, email: user.email, name: user.name, role: user.role },
   });
 });
+
+function expiresAtToDate(expiresAt: number | undefined): Date {
+  return expiresAt ? new Date(expiresAt * 1000) : new Date(Date.now() + 3600 * 1000);
+}
 
 authRouter.get("/me", requireAuth, async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });

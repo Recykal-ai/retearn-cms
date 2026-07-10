@@ -123,6 +123,10 @@ export function useDocumentViewer() {
     url: string;
     kind: ViewerKind;
     getFreshUrl: FreshUrlFetcher;
+    // Only set for a Google Sheets LINK doc routed through the in-app
+    // spreadsheet viewer — the original Sheets URL, offered as a fallback if
+    // the export fails after this URL was already handed to the modal.
+    fallbackUrl?: string;
   } | null>(null);
   const [pendingExternalOpen, setPendingExternalOpen] = useState<{
     title: string;
@@ -133,10 +137,18 @@ export function useDocumentViewer() {
 
   function openResult(
     title: string,
-    result: { url: string; sourceType: "FILE" | "LINK" },
+    result: { url: string; sourceType: "FILE" | "LINK"; kind?: "spreadsheet"; externalUrl?: string },
     getFreshUrl: FreshUrlFetcher,
     viaLink: boolean,
   ) {
+    // Checked before the plain-LINK case below — a Google Sheets link the
+    // user has Drive access to still comes back with sourceType "FILE" (see
+    // backend's buildLinkViewResponse), but kind:"spreadsheet" is what
+    // actually routes it into our own viewer instead of window.open.
+    if (result.kind === "spreadsheet") {
+      setViewing({ title, url: result.url, kind: "spreadsheet", getFreshUrl, fallbackUrl: result.externalUrl });
+      return;
+    }
     if (result.sourceType === "LINK") {
       window.open(result.url, "_blank", "noopener,noreferrer");
       return;
@@ -193,6 +205,7 @@ export function useDocumentViewer() {
       url={viewing.url}
       kind={viewing.kind}
       getFreshUrl={viewing.getFreshUrl}
+      fallbackUrl={viewing.fallbackUrl}
       onClose={() => setViewing(null)}
     />
   ) : pendingExternalOpen ? (
