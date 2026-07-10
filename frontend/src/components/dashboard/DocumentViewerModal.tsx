@@ -97,11 +97,28 @@ export function DocumentViewerModal({
         </div>
       </div>
       <div className="min-h-0 flex-1 px-4 pb-4">
-        {kind === "pdf" && <PdfViewer url={url} />}
+        {kind === "pdf" && <PdfViewer url={url} fallbackUrl={fallbackUrl} />}
         {kind === "image" && <ImageViewer url={url} title={title} />}
         {kind === "text" && <TextViewer url={url} />}
         {kind === "spreadsheet" && <SpreadsheetViewer url={url} fallbackUrl={fallbackUrl} />}
       </div>
+    </div>
+  );
+}
+
+// Shown while any viewer is fetching/parsing — an indeterminate sliding bar
+// rather than a real percentage, since none of these loads have a
+// meaningful "percent done" to report (a Drive export in particular can
+// spend most of its time in Google's own conversion, not the download).
+// The animation itself is what reassures the user something is actually
+// happening rather than the preview being stuck.
+function LoadingIndicator({ label = "Loading preview…" }: { label?: string }) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3">
+      <div className="h-1 w-48 overflow-hidden rounded-full bg-white/15">
+        <div className="h-full w-1/3 rounded-full bg-white/80 animate-loading-bar" />
+      </div>
+      <p className="text-sm text-white/70">{label}</p>
     </div>
   );
 }
@@ -139,7 +156,7 @@ function TextViewer({ url }: { url: string }) {
     return <p className="flex h-full items-center justify-center text-sm text-white/80">{error}</p>;
   }
   if (content === null) {
-    return <p className="flex h-full items-center justify-center text-sm text-white/70">Loading preview…</p>;
+    return <LoadingIndicator />;
   }
 
   return (
@@ -387,7 +404,7 @@ function SpreadsheetViewer({ url, fallbackUrl }: { url: string; fallbackUrl?: st
     return <p className="flex h-full items-center justify-center text-sm text-white/80">{error}</p>;
   }
   if (sheets === null) {
-    return <p className="flex h-full items-center justify-center text-sm text-white/70">Loading preview…</p>;
+    return <LoadingIndicator />;
   }
   if (sheets.length === 0) {
     return <p className="flex h-full items-center justify-center text-sm text-white/80">This file has no sheets.</p>;
@@ -488,7 +505,7 @@ function ImageViewer({ url, title }: { url: string; title: string }) {
 // scrollable container — continuous scroll, like Docs/Drive, rather than one
 // page swapped at a time. Arrow keys jump a page at a time (scrollIntoView);
 // the page counter tracks whichever page is most visible via IntersectionObserver.
-function PdfViewer({ url }: { url: string }) {
+function PdfViewer({ url, fallbackUrl }: { url: string; fallbackUrl?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const pageElRef = useRef<(HTMLDivElement | null)[]>([]);
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
@@ -496,11 +513,25 @@ function PdfViewer({ url }: { url: string }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [noAccess, setNoAccess] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
+        // fallbackUrl is only ever set for a Google Docs export (see
+        // google-drive.ts) — a plain uploaded PDF never has one, so this
+        // HEAD pre-check (and its extra round trip) only runs for the case
+        // that can actually 403 for access reasons. Skipping it otherwise
+        // preserves pdf.js's own range-request loading for regular PDFs.
+        if (fallbackUrl) {
+          const check = await fetch(url, { method: "HEAD" }).catch(() => null);
+          if (check?.status === 403) {
+            setNoAccess(true);
+            setLoading(false);
+            return;
+          }
+        }
         const pdfjsLib = await import("pdfjs-dist");
         pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
         const pdf = await pdfjsLib.getDocument({ url }).promise;
@@ -519,7 +550,7 @@ function PdfViewer({ url }: { url: string }) {
     return () => {
       cancelled = true;
     };
-  }, [url]);
+  }, [url, fallbackUrl]);
 
   // Render every page's canvas once the page list exists in the DOM.
   useEffect(() => {
@@ -595,6 +626,22 @@ function PdfViewer({ url }: { url: string }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [currentPage, numPages]);
 
+  if (noAccess && fallbackUrl) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+        <p className="text-sm text-white/80">You don&apos;t have access to this document in Google.</p>
+        <a
+          href={fallbackUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm font-medium underline underline-offset-2"
+          style={{ color: "white" }}
+        >
+          Try opening it directly in Google Docs ↗
+        </a>
+      </div>
+    );
+  }
   if (error) {
     return <p className="flex h-full items-center justify-center text-sm text-white/80">{error}</p>;
   }
@@ -602,7 +649,9 @@ function PdfViewer({ url }: { url: string }) {
   return (
     <div className="relative h-full">
       {loading && (
-        <p className="absolute inset-0 flex items-center justify-center text-sm text-white/70">Loading preview…</p>
+        <div className="absolute inset-0">
+          <LoadingIndicator />
+        </div>
       )}
       <div
         ref={containerRef}

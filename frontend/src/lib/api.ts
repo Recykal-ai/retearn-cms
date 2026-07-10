@@ -112,12 +112,15 @@ export interface ViewUrlResponse {
   url: string;
   sourceType: DocSourceType;
   expiresIn: number | null;
-  // Set (to "spreadsheet") when a Google Sheets LINK doc was exported
-  // server-side for in-app rendering instead of being opened as a plain
-  // external link — see backend's buildLinkViewResponse. `externalUrl` is
-  // the original Sheets link, kept as a fallback if the export ever fails
+  // Set when a Google Sheets or Docs LINK doc was exported server-side for
+  // in-app rendering instead of being opened as a plain external link — see
+  // backend's buildLinkViewResponse/getDriveExportTarget. "spreadsheet" for
+  // Sheets, "pdf" for Docs (exported to PDF and rendered via the existing
+  // pdf.js viewer — docx isn't reused here, LINK docx-equivalent still
+  // isn't a thing since Docs links always export as PDF). `externalUrl` is
+  // the original share link, kept as a fallback if the export ever fails
   // (access revoked, grant expired, etc.) after the URL was already handed out.
-  kind?: "spreadsheet";
+  kind?: "spreadsheet" | "pdf";
   externalUrl?: string;
 }
 

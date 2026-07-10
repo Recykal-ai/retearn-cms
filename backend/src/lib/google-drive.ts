@@ -9,16 +9,40 @@ const SHEET_EXPORT_SECRET = process.env.SHEET_EXPORT_SECRET;
 // tunnel or real deployment host otherwise).
 const PUBLIC_URL = process.env.PUBLIC_URL ?? `http://localhost:${process.env.PORT ?? 4000}`;
 
-const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const SIGNED_URL_TTL_SECONDS = 300; // matches the FILE storage adapters' TTL
 
-// A typical Sheets share URL looks like
-// https://docs.google.com/spreadsheets/d/<ID>/edit#gid=0 — the file id is
-// always the path segment right after "/d/".
-export function isGoogleSheetsUrl(url: string): boolean {
-  return /^https:\/\/docs\.google\.com\/spreadsheets\//.test(url);
+// Every Google Workspace doc type this app knows how to render in-app,
+// mapped to what to ask Drive's export endpoint for and which of our own
+// existing in-app viewers (DocumentViewerModal.tsx) can render the result.
+// Sheets -> .xlsx -> the spreadsheet viewer (SheetJS/ExcelJS, already built
+// for uploaded xlsx files). Docs -> PDF -> the existing pdf.js viewer,
+// deliberately NOT .docx — docx links already route to Google's own
+// external viewer by design (see useDocumentViewer.tsx), and reusing the
+// PDF viewer here means no new in-app renderer is needed at all.
+const EXPORT_TARGETS = [
+  {
+    urlPattern: /^https:\/\/docs\.google\.com\/spreadsheets\//,
+    exportMimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    kind: "spreadsheet" as const,
+  },
+  {
+    urlPattern: /^https:\/\/docs\.google\.com\/document\//,
+    exportMimeType: "application/pdf",
+    kind: "pdf" as const,
+  },
+];
+
+export type DriveExportKind = (typeof EXPORT_TARGETS)[number]["kind"];
+
+export function getDriveExportTarget(url: string): { exportMimeType: string; kind: DriveExportKind } | null {
+  const target = EXPORT_TARGETS.find((t) => t.urlPattern.test(url));
+  return target ? { exportMimeType: target.exportMimeType, kind: target.kind } : null;
 }
 
+// A typical Sheets/Docs share URL looks like
+// https://docs.google.com/spreadsheets/d/<ID>/edit#gid=0 or
+// https://docs.google.com/document/d/<ID>/edit — the file id is always the
+// path segment right after "/d/", regardless of doc type.
 export function extractDriveFileId(url: string): string | null {
   const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
   return match ? match[1] : null;
@@ -66,19 +90,19 @@ export async function getValidGoogleAccessToken(userId: string): Promise<string 
   return data.access_token;
 }
 
-// Exports a Google Sheet as .xlsx bytes, authenticated as the given user —
-// succeeds only if that user actually has at least viewer access to the
-// file in Drive, which is exactly the access check we want (no separate
-// permission logic needed on our side; Google's own ACL is the source of
-// truth). Returns null on any failure (no grant, no access, not a Sheet,
-// deleted file, etc.) — the caller treats every case the same way: fall
-// back to the original externalUrl.
-export async function exportSheetAsXlsx(userId: string, fileId: string): Promise<Buffer | null> {
+// Exports a Google Sheet/Doc as bytes in the given mime type, authenticated
+// as the given user — succeeds only if that user actually has at least
+// viewer access to the file in Drive, which is exactly the access check we
+// want (no separate permission logic needed on our side; Google's own ACL
+// is the source of truth). Returns null on any failure (no grant, no
+// access, deleted file, etc.) — the caller treats every case the same way:
+// fall back to the original externalUrl.
+export async function exportDriveFile(userId: string, fileId: string, exportMimeType: string): Promise<Buffer | null> {
   const accessToken = await getValidGoogleAccessToken(userId);
   if (!accessToken) return null;
 
   const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(XLSX_MIME)}`,
+    `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportMimeType)}`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );
   if (!res.ok) return null;
@@ -96,20 +120,23 @@ function sign(documentId: string, userId: string, expires: number): string {
   return createHmac("sha256", requireSignSecret()).update(`${documentId}:${userId}:${expires}`).digest("hex");
 }
 
-// The sheet-export route is fetched directly by the browser's own <script>
-// (SpreadsheetViewer's plain fetch(url), same as it already does for an S3
-// presigned URL — no Authorization header attached), so it can't rely on
-// our normal Bearer-JWT auth middleware. Signed instead, same HMAC pattern
-// storage-local.ts uses for local-disk file serving, just scoped to a
-// specific (documentId, userId) pair rather than a storage key.
-export function signSheetExportUrl(documentId: string, userId: string): { url: string; expiresIn: number } {
+// The drive-export route is fetched directly by the browser's own script
+// (SpreadsheetViewer/PdfViewer's plain fetch(url), same as it already does
+// for an S3 presigned URL — no Authorization header attached), so it can't
+// rely on our normal Bearer-JWT auth middleware. Signed instead, same HMAC
+// pattern storage-local.ts uses for local-disk file serving, just scoped to
+// a specific (documentId, userId) pair rather than a storage key. Doesn't
+// encode the export format itself — the route re-derives that from the
+// document's own externalUrl, so there's nothing here for a client to
+// tamper with beyond which (already-authorized) document/user it's for.
+export function signDriveExportUrl(documentId: string, userId: string): { url: string; expiresIn: number } {
   const expires = Date.now() + SIGNED_URL_TTL_SECONDS * 1000;
   const sig = sign(documentId, userId, expires);
-  const url = `${PUBLIC_URL}/api/documents/${documentId}/sheet-export?userId=${encodeURIComponent(userId)}&expires=${expires}&sig=${sig}`;
+  const url = `${PUBLIC_URL}/api/documents/${documentId}/drive-export?userId=${encodeURIComponent(userId)}&expires=${expires}&sig=${sig}`;
   return { url, expiresIn: SIGNED_URL_TTL_SECONDS };
 }
 
-export function verifySheetExportRequest(documentId: string, userId: string, expires: number, sig: string): boolean {
+export function verifyDriveExportRequest(documentId: string, userId: string, expires: number, sig: string): boolean {
   if (!Number.isFinite(expires) || Date.now() > expires) return false;
   const expected = Buffer.from(sign(documentId, userId, expires));
   const actual = Buffer.from(sig);

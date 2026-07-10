@@ -137,16 +137,16 @@ export function useDocumentViewer() {
 
   function openResult(
     title: string,
-    result: { url: string; sourceType: "FILE" | "LINK"; kind?: "spreadsheet"; externalUrl?: string },
+    result: { url: string; sourceType: "FILE" | "LINK"; kind?: "spreadsheet" | "pdf"; externalUrl?: string },
     getFreshUrl: FreshUrlFetcher,
     viaLink: boolean,
   ) {
-    // Checked before the plain-LINK case below — a Google Sheets link the
-    // user has Drive access to still comes back with sourceType "FILE" (see
-    // backend's buildLinkViewResponse), but kind:"spreadsheet" is what
+    // Checked before the plain-LINK case below — a Google Sheets/Docs link
+    // the user has Drive access to still comes back with sourceType "FILE"
+    // (see backend's buildLinkViewResponse), but a set `kind` is what
     // actually routes it into our own viewer instead of window.open.
-    if (result.kind === "spreadsheet") {
-      setViewing({ title, url: result.url, kind: "spreadsheet", getFreshUrl, fallbackUrl: result.externalUrl });
+    if (result.kind) {
+      setViewing({ title, url: result.url, kind: result.kind, getFreshUrl, fallbackUrl: result.externalUrl });
       return;
     }
     if (result.sourceType === "LINK") {

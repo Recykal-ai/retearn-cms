@@ -9,11 +9,11 @@ import { documentInclude, serializeDocument, loadPinnedIds } from "../lib/docume
 import { loadAdminScope, canManageTeamOrProducts } from "../lib/admin-scope.js";
 import { getOrCreateOthersCategory } from "../lib/fallback-entities.js";
 import {
-  isGoogleSheetsUrl,
+  getDriveExportTarget,
   extractDriveFileId,
-  exportSheetAsXlsx,
-  signSheetExportUrl,
-  verifySheetExportRequest,
+  exportDriveFile,
+  signDriveExportUrl,
+  verifyDriveExportRequest,
 } from "../lib/google-drive.js";
 
 export const documentsRouter = Router();
@@ -875,25 +875,26 @@ documentsRouter.delete<{ id: string }>("/:id", requireAuth, requireRole("ADMIN",
 
 // A LINK document normally just hands back its stored external URL as-is —
 // view-only enforcement for it is Drive's own share permissions, not
-// something this app enforces (see CLAUDE.md §5). The one exception: a
-// Google Sheets link, for a user who's granted the drive.readonly scope,
+// something this app enforces (see CLAUDE.md §5). The exception: a Google
+// Sheets or Docs link, for a user who's granted the drive.readonly scope,
 // gets exported server-side (authenticated as that user, so it only works
-// if they actually have Drive access) and routed through our own in-app
-// spreadsheet viewer instead — same view-only guarantee a FILE upload gets,
-// rather than opening Sheets' own UI where any viewer can still download.
-// Doesn't verify access itself (that would mean calling Drive twice, once
-// to check and once to actually fetch) — just checks "has this user ever
-// granted the scope at all," and lets the export route's own 403 be the
-// real access check; the frontend falls back to the plain link on failure.
+// if they actually have Drive access) and routed through one of our own
+// in-app viewers instead — same view-only guarantee a FILE upload gets,
+// rather than opening Sheets/Docs' own UI where any viewer can still
+// download. Doesn't verify access itself (that would mean calling Drive
+// twice, once to check and once to actually fetch) — just checks "has this
+// user ever granted the scope at all," and lets the export route's own 403
+// be the real access check; the frontend falls back to the plain link on failure.
 async function buildLinkViewResponse(externalUrl: string | null, documentId: string, userId: string) {
-  if (externalUrl && isGoogleSheetsUrl(externalUrl)) {
+  const target = externalUrl ? getDriveExportTarget(externalUrl) : null;
+  if (externalUrl && target) {
     const fileId = extractDriveFileId(externalUrl);
     const hasGoogleGrant = fileId
       ? await prisma.googleOAuthToken.findUnique({ where: { userId }, select: { userId: true } })
       : null;
     if (fileId && hasGoogleGrant) {
-      const { url, expiresIn } = signSheetExportUrl(documentId, userId);
-      return { url, sourceType: "FILE" as const, kind: "spreadsheet" as const, expiresIn, externalUrl };
+      const { url, expiresIn } = signDriveExportUrl(documentId, userId);
+      return { url, sourceType: "FILE" as const, kind: target.kind, expiresIn, externalUrl };
     }
   }
   return { url: externalUrl, sourceType: "LINK" as const, expiresIn: null };
@@ -929,37 +930,40 @@ documentsRouter.get<{ id: string }>("/:id/view-url", requireAuth, async (req, re
   res.json({ url, sourceType: "FILE", expiresIn });
 });
 
-// GET /api/documents/:id/sheet-export?userId=&expires=&sig= — the actual
-// bytes behind buildLinkViewResponse's spreadsheet-kind url above.
-// Deliberately NOT behind requireAuth: it's fetched by SpreadsheetViewer's
-// plain client-side fetch(url) (same as an S3 presigned URL — no
-// Authorization header attached), so a short-lived HMAC-signed query string
-// is the auth here instead, same pattern as the local-disk storage
-// adapter's /files route. The signature itself is bound to this exact
-// (documentId, userId) pair, but exportSheetAsXlsx is the real access
-// check — it only succeeds if that Google account genuinely has Drive
-// access to the file.
-documentsRouter.get<{ id: string }>("/:id/sheet-export", async (req, res) => {
+// GET /api/documents/:id/drive-export?userId=&expires=&sig= — the actual
+// bytes behind buildLinkViewResponse's exported-kind url above (Sheets or
+// Docs — see getDriveExportTarget). Deliberately NOT behind requireAuth:
+// it's fetched by SpreadsheetViewer/PdfViewer's plain client-side fetch(url)
+// (same as an S3 presigned URL — no Authorization header attached), so a
+// short-lived HMAC-signed query string is the auth here instead, same
+// pattern as the local-disk storage adapter's /files route. The signature
+// itself is bound to this exact (documentId, userId) pair, but
+// exportDriveFile is the real access check — it only succeeds if that
+// Google account genuinely has Drive access to the file. Doesn't trust a
+// client-supplied format — re-derives which mime type to request (and
+// which Content-Type to respond with) from the document's own externalUrl.
+documentsRouter.get<{ id: string }>("/:id/drive-export", async (req, res) => {
   const { userId, expires, sig } = req.query as { userId?: string; expires?: string; sig?: string };
   const documentId = req.params.id;
-  if (!userId || !expires || !sig || !verifySheetExportRequest(documentId, userId, Number(expires), sig)) {
+  if (!userId || !expires || !sig || !verifyDriveExportRequest(documentId, userId, Number(expires), sig)) {
     return res.status(403).json({ error: "Invalid or expired link" });
   }
 
   const doc = await prisma.document.findFirst({ where: { id: documentId, deletedAt: null } });
-  if (!doc || doc.sourceType !== "LINK" || !doc.externalUrl || !isGoogleSheetsUrl(doc.externalUrl)) {
-    return res.status(404).json({ error: "Not a Google Sheets document" });
+  const target = doc?.externalUrl ? getDriveExportTarget(doc.externalUrl) : null;
+  if (!doc || doc.sourceType !== "LINK" || !doc.externalUrl || !target) {
+    return res.status(404).json({ error: "Not a Google Sheets or Docs document" });
   }
 
   const fileId = extractDriveFileId(doc.externalUrl);
-  if (!fileId) return res.status(404).json({ error: "Could not resolve the sheet" });
+  if (!fileId) return res.status(404).json({ error: "Could not resolve the file" });
 
-  const bytes = await exportSheetAsXlsx(userId, fileId);
+  const bytes = await exportDriveFile(userId, fileId, target.exportMimeType);
   if (!bytes) {
-    return res.status(403).json({ error: "You don't have access to this sheet, or your Google grant has expired" });
+    return res.status(403).json({ error: "You don't have access to this file, or your Google grant has expired" });
   }
 
-  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Type", target.exportMimeType);
   res.setHeader("Content-Disposition", "inline");
   res.send(bytes);
 });
