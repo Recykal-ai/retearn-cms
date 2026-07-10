@@ -46,8 +46,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ show }}>
       {children}
+      {/* top-20 rather than a bare top-5 — every dashboard header (TopBar,
+          SubPageTopBar) is h-15 (60px), so this clears it with room to
+          spare instead of sitting underneath/overlapping the search bar. */}
       <div
-        className="pointer-events-none fixed right-5 bottom-5 z-[200] flex flex-col gap-2"
+        className="pointer-events-none fixed top-20 right-5 z-[200] flex flex-col gap-2"
         style={{ fontFamily: "var(--font-ui)" }}
       >
         {toasts.map((t) => (

@@ -28,23 +28,30 @@ enum DocSourceType {
 }
 
 model User {
-  id          String           @id @default(uuid())
-  email       String           @unique // verified @recykal.com address from Google
-  name        String
-  role        Role             @default(USER)
-  active      Boolean          @default(true) // Super Admin can deactivate an account instead of deleting it
-  createdAt   DateTime         @default(now())
-  documents   Document[]       @relation("UploadedBy")
-  auditLogs   AuditLog[]
-  adminScopes AdminScope[]
-  pinnedDocs  PinnedDocument[]
+  id                     String               @id @default(uuid())
+  email                  String               @unique // verified @recykal.com address from Google
+  name                   String
+  role                   Role                 @default(USER)
+  active                 Boolean              @default(true) // Super Admin can deactivate an account instead of deleting it
+  createdAt              DateTime             @default(now())
+  documents              Document[]           @relation("UploadedBy")
+  auditLogs              AuditLog[]
+  adminScopes            AdminScope[]
+  pinnedDocs             PinnedDocument[]
+  personalNotes          PersonalNote[]
+  createdTeamNotes       TeamNote[]           @relation("TeamNoteCreator")
+  teamNoteMemberships    TeamNoteMembership[]
+  notifications          Notification[]
+  triggeredNotifications Notification[]       @relation("NotificationTrigger")
 }
 
 model Team {
-  id          String       @id @default(uuid())
-  name        String       @unique
-  documents   Document[]   @relation("OwningTeam")
-  adminScopes AdminScope[]
+  id            String         @id @default(uuid())
+  name          String         @unique
+  documents     Document[]     @relation("OwningTeam")
+  adminScopes   AdminScope[]
+  personalNotes PersonalNote[]
+  teamNotes     TeamNote[]
 }
 
 model Product {
@@ -76,6 +83,13 @@ model Category {
   id        String             @id @default(uuid())
   name      String
   scope     String // team id or product id this category is scoped to
+  // True for every row created by the "create under every team/product at
+  // once" admin action (POST /api/categories with scope "all") — the schema
+  // still stores one row per scope (@@unique([name, scope]) is unchanged),
+  // this just marks that the whole same-named set was created together as
+  // one conceptual global tag, so the frontend can dedupe/color/list them
+  // without guessing from the name alone.
+  isGlobal  Boolean            @default(false)
   documents DocumentCategory[]
 
   @@unique([name, scope])
@@ -168,4 +182,76 @@ model AuditLog {
   targetId  String // document id (or other entity) affected
   metadata  Json?
   createdAt DateTime @default(now())
+}
+
+// A private, per-user note (title/date/optional-team-label/rich-text content).
+// Visible only to its own userId — no admin bypass at all, not even Super
+// Admin. teamId is purely a filing label for the user's own organization; it
+// grants no one else access to the note.
+model PersonalNote {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  title     String
+  teamId    String?
+  team      Team?     @relation(fields: [teamId], references: [id])
+  meetingAt DateTime?
+  content   String    @default("") // sanitized rich-text HTML
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+// A titled, shared rich-text note scoped to one Team — a team can have many
+// of these (unlike a single shared page). Creating one is a curator action
+// (see canCurateTeamNoteMembers) gated to that team's Admin (global or
+// scoped to it); the creator picks the initial members in the same step, so
+// there's no "created but nobody can see it yet" bootstrap gap. Edited
+// one-at-a-time, last-write-wins — no version history, by deliberate choice.
+model TeamNote {
+  id            String               @id @default(uuid())
+  teamId        String
+  team          Team                 @relation(fields: [teamId], references: [id])
+  title         String
+  meetingAt     DateTime?
+  content       String               @default("")
+  createdById   String
+  createdBy     User                 @relation("TeamNoteCreator", fields: [createdById], references: [id])
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  members       TeamNoteMembership[]
+  notifications Notification[]
+}
+
+// Who can view/edit a given team note — a row here is the *only* thing that
+// grants content access, with no role-based bypass for anyone (including
+// Super Admin — confirmed deliberately: an unrelated team's admin has no
+// reason to see this note just by virtue of their role). Curating this list
+// (add/remove) is a separate permission gated by canManageTeamOrProducts
+// against the note's teamId, not by membership itself.
+model TeamNoteMembership {
+  userId     String
+  teamNoteId String
+  user       User     @relation(fields: [userId], references: [id])
+  teamNote   TeamNote @relation(fields: [teamNoteId], references: [id])
+  addedById  String // bare id, no relation — audit-trail-only, same convention as DocumentVersion.uploadedBy
+  addedAt    DateTime @default(now())
+
+  @@id([userId, teamNoteId])
+}
+
+// An in-app notification — currently only produced by @mentioning someone
+// in a team note. Kept generic (teamNoteId + triggeredById) in case other
+// notification sources are added later.
+model Notification {
+  id            String   @id @default(uuid())
+  userId        String // recipient
+  user          User     @relation(fields: [userId], references: [id])
+  teamNoteId    String // which team note the mention happened in
+  teamNote      TeamNote @relation(fields: [teamNoteId], references: [id])
+  triggeredById String
+  triggeredBy   User     @relation("NotificationTrigger", fields: [triggeredById], references: [id])
+  read          Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([userId, read])
 }

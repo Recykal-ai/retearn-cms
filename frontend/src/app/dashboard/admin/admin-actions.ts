@@ -9,6 +9,7 @@ import {
   deleteTeam,
   deleteProduct,
   deleteCategory,
+  deleteGlobalCategory,
   setUserRole,
   setUserActive,
   setAdminScope,
@@ -82,6 +83,18 @@ export async function deleteCategoryAction(id: string): Promise<{ error?: string
     await deleteCategory(session.appToken!, id);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to delete tag" };
+  }
+  revalidatePath("/dashboard/admin");
+  revalidatePath("/dashboard");
+  return {};
+}
+
+export async function deleteGlobalCategoryAction(name: string): Promise<{ error?: string }> {
+  const session = await requireSession();
+  try {
+    await deleteGlobalCategory(session.appToken!, name);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to delete global tag" };
   }
   revalidatePath("/dashboard/admin");
   revalidatePath("/dashboard");

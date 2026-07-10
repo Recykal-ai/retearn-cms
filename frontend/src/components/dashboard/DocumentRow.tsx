@@ -4,7 +4,7 @@ import type { DocumentSummary } from "@/lib/api";
 import { relativeTime } from "@/lib/relative-time";
 import { Tag } from "@/components/dashboard/Tag";
 import { FileTypeIcon } from "@/components/dashboard/FileTypeIcon";
-import { colorForScope, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
+import { colorForCategory, dedupeGlobalCategories, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
 import { fileTypeOf } from "@/lib/file-type";
 import { DocumentRowMenu } from "@/components/dashboard/DocumentRowMenu";
 import { StatusDot } from "@/components/dashboard/StatusDot";
@@ -37,7 +37,7 @@ export function DocumentRow({
   opening,
 }: {
   doc: DocumentSummary;
-  mode: "team" | "product";
+  mode: "team" | "product" | "all";
   entityId?: string;
   showStatus?: boolean;
   isAdmin?: boolean;
@@ -55,7 +55,11 @@ export function DocumentRow({
     .filter((p) => !(mode === "product" && entityId === p.id))
     .map((p) => ({ id: p.id, name: p.name, href: `/dashboard?mode=product&entity=${p.id}` }));
 
-  const categoryBaseHref = entityId ? `/dashboard?mode=${mode}&entity=${entityId}` : undefined;
+  // In "all" mode there's no single entity to build a category link off of
+  // — the home view's category filter works by NAME across every scope
+  // (see page.tsx's categoryNameToIds), so a category chip there filters by
+  // its display name instead of one scope-specific id.
+  const categoryBaseHref = entityId ? `/dashboard?mode=${mode}&entity=${entityId}` : "/dashboard?mode=all";
 
   const canEdit = Boolean(isAdmin || (currentUserId && currentUserId === doc.uploadedBy.id));
 
@@ -64,14 +68,14 @@ export function DocumentRow({
       ? [{ key: `team-${doc.ownerTeam.id}`, label: doc.ownerTeam.name, bg: TEAM_TAG_COLOR.bg, fg: TEAM_TAG_COLOR.fg, href: teamHref }]
       : []),
     ...productTags.map((p) => ({ key: `product-${p.id}`, label: p.name, bg: PRODUCT_TAG_COLOR.bg, fg: PRODUCT_TAG_COLOR.fg, href: p.href })),
-    ...doc.categories.map((c) => {
-      const color = colorForScope(c.scope);
+    ...dedupeGlobalCategories(doc.categories).map((c) => {
+      const color = colorForCategory(c);
       return {
         key: `cat-${c.id}`,
         label: c.name,
         bg: color.bg,
         fg: color.fg,
-        href: categoryBaseHref ? `${categoryBaseHref}&category=${c.id}` : undefined,
+        href: `${categoryBaseHref}&category=${entityId ? c.id : encodeURIComponent(c.name)}`,
       };
     }),
   ];

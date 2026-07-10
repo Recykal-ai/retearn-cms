@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Category } from "@/lib/api";
 import { FILE_TYPE_LABEL, type FileTypeKey } from "@/lib/file-type";
-import { colorForScope } from "@/lib/tag-colors";
+import { colorForCategory } from "@/lib/tag-colors";
 
 function withoutParam(baseHref: string, key: string, value?: string): string {
   const url = new URL(baseHref, "http://placeholder");
@@ -83,7 +83,7 @@ export function AppliedFilters({
   for (const id of categoryIds) {
     const cat = categories.find((c) => c.id === id);
     if (!cat) continue;
-    const color = colorForScope(cat.scope);
+    const color = colorForCategory(cat);
     chips.push({ key: `category-${id}`, label: cat.name, href: withoutParam(baseHref, "category", id), bg: color.bg, fg: color.fg });
   }
 

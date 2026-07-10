@@ -22,7 +22,7 @@ export function DocumentsTable({
   currentUserId,
 }: {
   documents: DocumentSummary[];
-  mode: "team" | "product";
+  mode: "team" | "product" | "all";
   entityId?: string;
   entityName?: string;
   sort?: SortField;
@@ -35,13 +35,27 @@ export function DocumentsTable({
   isAdmin?: boolean;
   currentUserId?: string;
 }) {
+  const PAGE_SIZE = 10;
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
   const { view, isOpening, viewerNode } = useDocumentViewer();
 
   const filtered = query.trim()
     ? documents.filter((d) => d.title.toLowerCase().includes(query.trim().toLowerCase()))
     : documents;
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // Clamped rather than reset via effect — if a search/filter shrinks the
+  // list while sitting on a now out-of-range page, this snaps back to the
+  // last valid page on the very next render instead of showing a blank one.
+  const currentPage = Math.min(page, pageCount);
+  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  function onQueryChange(next: string) {
+    setQuery(next);
+    setPage(1);
+  }
 
   return (
     <div>
@@ -90,7 +104,7 @@ export function DocumentsTable({
               <input
                 autoFocus
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => onQueryChange(e.target.value)}
                 placeholder={`Find in ${entityName ?? "this list"}…`}
                 className="w-full max-w-xs rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
               />
@@ -118,7 +132,7 @@ export function DocumentsTable({
             </td>
           </tr>
         ) : (
-          filtered.map((doc) => (
+          paged.map((doc) => (
             <DocumentRow
               key={doc.id}
               doc={doc}
@@ -134,7 +148,49 @@ export function DocumentsTable({
         )}
       </tbody>
     </table>
+    {pageCount > 1 && (
+      <Pagination page={currentPage} pageCount={pageCount} onChange={setPage} />
+    )}
     {viewerNode}
+    </div>
+  );
+}
+
+function Pagination({ page, pageCount, onChange }: { page: number; pageCount: number; onChange: (page: number) => void }) {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-1 border-t border-neutral-100 py-3">
+      <button
+        type="button"
+        onClick={() => onChange(page - 1)}
+        disabled={page === 1}
+        className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:hover:bg-transparent"
+      >
+        Prev
+      </button>
+      {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          aria-current={n === page ? "page" : undefined}
+          className="min-w-7 rounded-md px-2 py-1 text-xs font-medium transition-colors"
+          style={
+            n === page
+              ? { background: "var(--brand-purple)", color: "white" }
+              : { color: "#525252" }
+          }
+        >
+          {n}
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange(page + 1)}
+        disabled={page === pageCount}
+        className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:hover:bg-transparent"
+      >
+        Next
+      </button>
     </div>
   );
 }

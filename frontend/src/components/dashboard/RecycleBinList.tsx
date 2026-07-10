@@ -6,7 +6,7 @@ import { relativeTime } from "@/lib/relative-time";
 import { FileTypeIcon } from "@/components/dashboard/FileTypeIcon";
 import { Tag } from "@/components/dashboard/Tag";
 import { fileTypeOf } from "@/lib/file-type";
-import { colorForScope, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
+import { colorForCategory, dedupeGlobalCategories, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
 import { recoverDocumentAction } from "@/app/dashboard/recycle-bin/recycle-bin-actions";
 
 export function RecycleBinList({ documents }: { documents: DeletedDocumentSummary[] }) {
@@ -67,8 +67,8 @@ function RecycleBinRow({ doc }: { doc: DeletedDocumentSummary }) {
           {doc.products.map((p) => (
             <Tag key={p.id} label={p.name} bg={PRODUCT_TAG_COLOR.bg} fg={PRODUCT_TAG_COLOR.fg} />
           ))}
-          {doc.categories.map((c) => {
-            const color = colorForScope(c.scope);
+          {dedupeGlobalCategories(doc.categories).map((c) => {
+            const color = colorForCategory(c);
             return <Tag key={c.id} label={c.name} bg={color.bg} fg={color.fg} />;
           })}
         </div>

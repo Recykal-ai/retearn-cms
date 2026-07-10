@@ -3,7 +3,32 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DocumentSummary, Team, Product, Category } from "@/lib/api";
 import { pushVersionAction, updateDocumentTagsAction, getTagCatalogAction } from "@/app/dashboard/documents-actions";
-import { colorForScope, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
+import { colorForCategory, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
+
+// See UploadModal.tsx for why global categories (one row per team/product,
+// Category.isGlobal) need grouping rather than a flat per-id list here too.
+interface CategoryOption {
+  id: string;
+  name: string;
+  scope: string;
+  isGlobal: boolean;
+  memberIds: string[];
+}
+
+function groupCategories(categoriesByScope: Record<string, Category[]>, scopes: string[]): CategoryOption[] {
+  const byId = new Map<string, Category>();
+  for (const scope of scopes) {
+    for (const c of categoriesByScope[scope] ?? []) byId.set(c.id, c);
+  }
+  const groups = new Map<string, CategoryOption>();
+  for (const c of byId.values()) {
+    const key = c.isGlobal ? `global:${c.name}` : c.id;
+    const existing = groups.get(key);
+    if (existing) existing.memberIds.push(c.id);
+    else groups.set(key, { id: c.id, name: c.name, scope: c.scope, isGlobal: c.isGlobal, memberIds: [c.id] });
+  }
+  return Array.from(groups.values());
+}
 
 export function EditVersionModal({
   doc,
@@ -37,20 +62,26 @@ export function EditVersionModal({
   const availableCategories = useMemo(() => {
     if (!catalog) return [];
     const scopes = [ownerTeamId, ...productIds].filter((v): v is string => Boolean(v));
-    const byId = new Map<string, Category>();
-    for (const scope of scopes) {
-      for (const c of catalog.categoriesByScope[scope] ?? []) byId.set(c.id, c);
-    }
-    return Array.from(byId.values());
+    return groupCategories(catalog.categoriesByScope, scopes);
   }, [catalog, ownerTeamId, productIds]);
 
-  const selectedCategoryIds = categoryIds.filter((id) => availableCategories.some((c) => c.id === id));
+  const availableCategoryIds = new Set(availableCategories.flatMap((c) => c.memberIds));
+  const selectedCategoryIds = categoryIds.filter((id) => availableCategoryIds.has(id));
   const filteredCategories = tagQuery.trim()
     ? availableCategories.filter((c) => c.name.toLowerCase().includes(tagQuery.trim().toLowerCase()))
     : availableCategories;
 
   function toggle(list: string[], setList: (v: string[]) => void, id: string) {
     setList(list.includes(id) ? list.filter((v) => v !== id) : [...list, id]);
+  }
+
+  function toggleCategoryGroup(c: CategoryOption) {
+    const anySelected = c.memberIds.some((id) => categoryIds.includes(id));
+    setCategoryIds(
+      anySelected
+        ? categoryIds.filter((id) => !c.memberIds.includes(id))
+        : [...categoryIds, ...c.memberIds.filter((id) => !categoryIds.includes(id))],
+    );
   }
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -223,13 +254,13 @@ export function EditVersionModal({
                       <p className="text-xs text-neutral-400 italic">No matching tags</p>
                     )}
                     {filteredCategories.map((c) => {
-                      const selected = selectedCategoryIds.includes(c.id);
-                      const color = colorForScope(c.scope);
+                      const selected = c.memberIds.some((id) => selectedCategoryIds.includes(id));
+                      const color = colorForCategory(c);
                       return (
                         <button
                           key={c.id}
                           type="button"
-                          onClick={() => toggle(categoryIds, setCategoryIds, c.id)}
+                          onClick={() => toggleCategoryGroup(c)}
                           className="rounded-full px-3 py-1 text-xs font-medium transition-colors"
                           style={
                             selected

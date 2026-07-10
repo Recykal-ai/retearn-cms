@@ -17,6 +17,13 @@ export interface Category {
   name: string;
   scope: string;
   documentCount: number;
+  isGlobal: boolean;
+}
+
+export interface GlobalCategorySummary {
+  name: string;
+  scopeCount: number;
+  documentCount: number;
 }
 
 export type DocStatus = "PENDING" | "PUBLISHED" | "REJECTED";
@@ -34,12 +41,15 @@ export interface DocumentSummary {
   // Set while someone has asked an Admin to delete this doc — cleared on
   // either approve-deletion (soft-deleted) or reject-deletion (untouched).
   deletionRequestedAt: string | null;
+  // Who asked — may differ from uploadedBy.id (requesting deletion of a doc
+  // you don't own is exactly the case this field exists for).
+  deletionRequestedById: string | null;
   sourceType: DocSourceType;
   currentVersion: number;
   createdAt: string;
   updatedAt: string;
   ownerTeam: { id: string; name: string } | null;
-  categories: { id: string; name: string; scope: string }[];
+  categories: { id: string; name: string; scope: string; isGlobal: boolean }[];
   uploadedBy: { id: string; name: string; email: string };
   products: { id: string; name: string }[];
   pinned: boolean;
@@ -295,8 +305,17 @@ export function createProduct(appToken: string, name: string) {
   return backendFetch<Product>("/api/products", appToken, { method: "POST", json: { name } });
 }
 
+// scope: "all" creates the same-named category under every team/product at
+// once (unrestricted admins only) rather than a single scoped row — see the
+// backend route for why. The response shape differs for that case, but no
+// caller currently reads the return value (revalidatePath alone is enough
+// to pick up the new tags), so the union is just for accuracy.
 export function createCategory(appToken: string, name: string, scope: string) {
-  return backendFetch<Category>("/api/categories", appToken, { method: "POST", json: { name, scope } });
+  return backendFetch<Category | { global: true; name: string; created: Category[]; skipped: number }>(
+    "/api/categories",
+    appToken,
+    { method: "POST", json: { name, scope } },
+  );
 }
 
 export function deleteTeam(appToken: string, id: string) {
@@ -309,6 +328,16 @@ export function deleteProduct(appToken: string, id: string) {
 
 export function deleteCategory(appToken: string, id: string) {
   return backendFetch<void>(`/api/categories/${id}`, appToken, { method: "DELETE" });
+}
+
+// One entry per distinct global category name (not one per underlying scope
+// row) — for the admin dashboard's Global categories section.
+export function getGlobalCategories(appToken: string) {
+  return backendFetch<GlobalCategorySummary[]>("/api/categories/global", appToken);
+}
+
+export function deleteGlobalCategory(appToken: string, name: string) {
+  return backendFetch<void>(`/api/categories/global/${encodeURIComponent(name)}`, appToken, { method: "DELETE" });
 }
 
 export function getUsers(appToken: string) {
@@ -349,4 +378,163 @@ export function getMe(appToken: string) {
 
 export function getAuditLog(appToken: string, limit = 100) {
   return backendFetch<AuditLogEntry[]>(`/api/audit-log?limit=${limit}`, appToken);
+}
+
+export interface PersonalNote {
+  id: string;
+  title: string;
+  teamId: string | null;
+  team: { id: string; name: string } | null;
+  meetingAt: string | null;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersonalNoteInput {
+  title?: string;
+  teamId?: string | null;
+  meetingAt?: string | null;
+  content?: string;
+}
+
+export function getPersonalNotes(appToken: string) {
+  return backendFetch<PersonalNote[]>("/api/personal-notes", appToken);
+}
+
+export function getPersonalNote(appToken: string, id: string) {
+  return backendFetch<PersonalNote>(`/api/personal-notes/${id}`, appToken);
+}
+
+export function createPersonalNote(appToken: string, input: PersonalNoteInput) {
+  return backendFetch<PersonalNote>("/api/personal-notes", appToken, { method: "POST", json: input });
+}
+
+export function updatePersonalNote(appToken: string, id: string, input: PersonalNoteInput) {
+  return backendFetch<PersonalNote>(`/api/personal-notes/${id}`, appToken, { method: "PATCH", json: input });
+}
+
+export function deletePersonalNote(appToken: string, id: string) {
+  return backendFetch<void>(`/api/personal-notes/${id}`, appToken, { method: "DELETE" });
+}
+
+// A team can have many titled notes now (not one shared page) — each with
+// its own membership, picked at creation time.
+export interface TeamNoteSummary {
+  id: string;
+  teamId: string;
+  teamName: string;
+  title: string;
+  meetingAt: string | null;
+  updatedAt: string;
+}
+
+export interface TeamNoteMember {
+  id: string;
+  name: string;
+  email: string;
+  addedAt: string;
+}
+
+export interface TeamNoteDetail {
+  id: string;
+  teamId: string;
+  teamName: string;
+  title: string;
+  meetingAt: string | null;
+  content: string;
+  updatedAt: string;
+  canCurate: boolean;
+  members: TeamNoteMember[];
+}
+
+export interface CandidateUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface CreatableTeam {
+  id: string;
+  name: string;
+}
+
+export function getTeamNotesList(appToken: string) {
+  return backendFetch<TeamNoteSummary[]>("/api/team-notes", appToken);
+}
+
+export function getCreatableTeams(appToken: string) {
+  return backendFetch<CreatableTeam[]>("/api/team-notes/creatable-teams", appToken);
+}
+
+export function createTeamNote(
+  appToken: string,
+  input: { teamId: string; title: string; meetingAt?: string | null; memberIds: string[] },
+) {
+  return backendFetch<{ id: string; teamId: string; title: string; meetingAt: string | null }>(
+    "/api/team-notes",
+    appToken,
+    { method: "POST", json: input },
+  );
+}
+
+export function getTeamNote(appToken: string, id: string) {
+  return backendFetch<TeamNoteDetail>(`/api/team-notes/${id}`, appToken);
+}
+
+export function updateTeamNote(
+  appToken: string,
+  id: string,
+  input: { title?: string; meetingAt?: string | null; content?: string },
+) {
+  return backendFetch<{ id: string; title: string; meetingAt: string | null; content: string; updatedAt: string }>(
+    `/api/team-notes/${id}`,
+    appToken,
+    { method: "PUT", json: input },
+  );
+}
+
+export function addTeamNoteMember(appToken: string, id: string, userId: string) {
+  return backendFetch<TeamNoteMember>(`/api/team-notes/${id}/members`, appToken, {
+    method: "POST",
+    json: { userId },
+  });
+}
+
+export function removeTeamNoteMember(appToken: string, id: string, userId: string) {
+  return backendFetch<void>(`/api/team-notes/${id}/members/${userId}`, appToken, { method: "DELETE" });
+}
+
+export function searchCandidateUsers(appToken: string, id: string, q: string) {
+  return backendFetch<CandidateUser[]>(`/api/team-notes/${id}/candidate-users?q=${encodeURIComponent(q)}`, appToken);
+}
+
+// Creation-time candidate search — no note id exists yet, gated by teamId instead.
+export function searchCandidateUsersForTeam(appToken: string, teamId: string, q: string) {
+  return backendFetch<CandidateUser[]>(
+    `/api/team-notes/candidate-users?teamId=${teamId}&q=${encodeURIComponent(q)}`,
+    appToken,
+  );
+}
+
+export interface NotificationEntry {
+  id: string;
+  teamNoteId: string;
+  noteTitle: string;
+  teamName: string;
+  triggeredBy: { id: string; name: string };
+  read: boolean;
+  createdAt: string;
+}
+
+export function getNotifications(appToken: string, limit = 20) {
+  return backendFetch<NotificationEntry[]>(`/api/notifications?limit=${limit}`, appToken);
+}
+
+export function getUnreadNotificationsCount(appToken: string) {
+  return backendFetch<{ count: number }>("/api/notifications/unread-count", appToken);
+}
+
+export function markNotificationRead(appToken: string, id: string) {
+  return backendFetch<{ ok: true }>(`/api/notifications/${id}/read`, appToken, { method: "POST" });
 }

@@ -1,6 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import type { Category, DocumentSummary } from "@/lib/api";
-import { colorForScope } from "@/lib/tag-colors";
+import { colorForCategory } from "@/lib/tag-colors";
 
 export function FolderGrid({
   categories,
@@ -11,12 +14,22 @@ export function FolderGrid({
   documents: DocumentSummary[];
   baseHref: string;
 }) {
+  const [query, setQuery] = useState("");
+
   // A folder with nothing matching the active filters (e.g. a type=pdf
   // filter with no PDFs in that category) isn't worth showing as a tile —
-  // it'd just be an empty, useless click.
+  // it'd just be an empty, useless click. Matched by name rather than id:
+  // within one scope a name is already unique (schema's @@unique([name,
+  // scope])) so this is equivalent there, and it's what makes this work at
+  // all for the "all" mode's synthetic categories, whose id IS the name
+  // (see page.tsx) rather than a real category row id.
   const nonEmpty = categories
-    .map((c) => ({ category: c, count: documents.filter((d) => d.categories.some((dc) => dc.id === c.id)).length }))
+    .map((c) => ({ category: c, count: documents.filter((d) => d.categories.some((dc) => dc.name === c.name)).length }))
     .filter((entry) => entry.count > 0);
+
+  const filtered = query.trim()
+    ? nonEmpty.filter(({ category: c }) => c.name.toLowerCase().includes(query.trim().toLowerCase()))
+    : nonEmpty;
 
   if (nonEmpty.length === 0) {
     return (
@@ -28,24 +41,52 @@ export function FolderGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-      {nonEmpty.map(({ category: c, count }) => {
-        const color = colorForScope(c.scope);
-        return (
-          <Link
-            key={c.id}
-            href={`${baseHref}&category=${c.id}`}
-            className="flex flex-col items-start gap-2 rounded-lg border border-neutral-200 p-4 transition-colors hover:border-neutral-300 hover:shadow-sm"
-          >
-            <FolderIcon size={28} color={color.fg} />
-            <div>
-              <p className="text-sm font-medium text-neutral-800">{c.name}</p>
-              <p className="text-xs text-neutral-400">{count} document{count === 1 ? "" : "s"}</p>
-            </div>
-          </Link>
-        );
-      })}
+    <div>
+      <div className="relative mb-4 max-w-xs">
+        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Find a folder…"
+          className="w-full rounded-md border border-neutral-200 bg-white py-1.5 pr-3 pl-8 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-16 text-center">
+          <FolderIcon size={36} color="#c9c2ce" />
+          <p className="text-sm font-medium text-neutral-600">No matches for &ldquo;{query}&rdquo;</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {filtered.map(({ category: c, count }) => {
+            const color = colorForCategory(c);
+            return (
+              <Link
+                key={c.id}
+                href={`${baseHref}&category=${c.id}`}
+                className="flex flex-col items-start gap-2 rounded-lg border border-neutral-200 p-4 transition-colors hover:border-neutral-300 hover:shadow-sm"
+              >
+                <FolderIcon size={28} color={color.fg} />
+                <div>
+                  <p className="text-sm font-medium text-neutral-800">{c.name}</p>
+                  <p className="text-xs text-neutral-400">{count} document{count === 1 ? "" : "s"}</p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
+  );
+}
+
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+      <path d="M21 21l-4.3-4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
   );
 }
 

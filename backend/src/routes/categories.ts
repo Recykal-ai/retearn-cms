@@ -21,11 +21,130 @@ categoriesRouter.get("/", requireAuth, async (req, res) => {
   res.json(categories.map(({ _count, ...c }) => ({ ...c, documentCount: _count.documents })));
 });
 
+// GET /api/categories/global — distinct global category names (one entry per
+// name, not one per underlying scope row) for the admin dashboard's Global
+// categories section. Must come before the "/" GET route match is irrelevant
+// here since Express matches by path, but it's declared here (above POST "/")
+// to keep every "global"-related route grouped together.
+categoriesRouter.get("/global", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (_req, res) => {
+  const rows = await prisma.category.findMany({
+    where: { isGlobal: true },
+    select: { id: true, name: true, scope: true },
+    orderBy: { name: "asc" },
+  });
+
+  const byName = new Map<string, string[]>();
+  for (const r of rows) {
+    const ids = byName.get(r.name) ?? [];
+    ids.push(r.id);
+    byName.set(r.name, ids);
+  }
+
+  const results = await Promise.all(
+    [...byName.entries()].map(async ([name, ids]) => {
+      const links = await prisma.documentCategory.findMany({
+        where: { categoryId: { in: ids }, document: { deletedAt: null } },
+        select: { documentId: true },
+      });
+      return {
+        name,
+        scopeCount: ids.length,
+        documentCount: new Set(links.map((l) => l.documentId)).size,
+      };
+    }),
+  );
+
+  res.json(results);
+});
+
+// DELETE /api/categories/global/:name — removes a global category from every
+// team/product at once (every row sharing that name and isGlobal: true).
+// Same SUPER_ADMIN-only gate as creating one, since this is a platform-wide
+// action, not something scoped to any single team/product an Admin manages.
+categoriesRouter.delete<{ name: string }>("/global/:name", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req, res) => {
+  if (req.user!.role !== "SUPER_ADMIN") {
+    return res.status(403).json({ error: "Only a Super Admin can delete a global category" });
+  }
+  const name = decodeURIComponent(req.params.name);
+  const rows = await prisma.category.findMany({ where: { name, isGlobal: true } });
+  if (rows.length === 0) return res.status(404).json({ error: "Global category not found" });
+
+  const ids = rows.map((r) => r.id);
+  const affectedDocs = await prisma.documentCategory.findMany({
+    where: { categoryId: { in: ids } },
+    select: { documentId: true },
+  });
+
+  await prisma.documentCategory.deleteMany({ where: { categoryId: { in: ids } } });
+  await prisma.category.deleteMany({ where: { id: { in: ids } } });
+
+  const distinctDocIds = [...new Set(affectedDocs.map((d) => d.documentId))];
+  for (const documentId of distinctDocIds) {
+    await reconcileDocumentFallbacks(documentId);
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      userId: req.user!.userId,
+      action: "delete_global_category",
+      targetId: name,
+      metadata: { name, scopesRemoved: rows.length, affectedDocuments: distinctDocIds.length },
+    },
+  });
+  res.status(204).send();
+});
+
 categoriesRouter.post("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req, res) => {
   const { name: rawName, scope } = req.body as { name?: string; scope?: string };
   const name = rawName?.trim();
   if (!name || !scope) {
     return res.status(400).json({ error: "name and scope are required" });
+  }
+
+  // "all" isn't a real scope id — a category is always stored per-team/
+  // product (@@unique([name, scope]) in the schema), so a "global" category
+  // is really the same name created under every team and product at once.
+  // That's what makes it show up in each one's own filter chips/folder view,
+  // and what lets the dashboard's "All" home merge same-named categories
+  // from different scopes into a single filterable chip (see page.tsx's
+  // categoryNameToIds). Restricted to SUPER_ADMIN only — even an
+  // unrestricted (unscoped) ADMIN only manages the teams/products they were
+  // actually made admin of; reaching into every team/product at once is a
+  // platform-wide action, not something any Admin tier should do by default.
+  if (scope === "all") {
+    if (req.user!.role !== "SUPER_ADMIN") {
+      return res.status(403).json({ error: "Only a Super Admin can create a global category" });
+    }
+
+    const [teams, products] = await Promise.all([
+      prisma.team.findMany({ where: { name: { not: "Others" } } }),
+      prisma.product.findMany({ where: { name: { not: "Others" } } }),
+    ]);
+
+    const created: Awaited<ReturnType<typeof prisma.category.create>>[] = [];
+    let skipped = 0;
+    for (const target of [...teams, ...products]) {
+      try {
+        created.push(await prisma.category.create({ data: { name, scope: target.id, isGlobal: true } }));
+      } catch (err) {
+        if (isUniqueConstraintError(err)) {
+          skipped++; // already exists in this scope — leave it, not an error
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user!.userId,
+        action: "create_global_category",
+        targetId: name,
+        metadata: { name, createdCount: created.length, skippedCount: skipped },
+      },
+    });
+
+    return res.status(201).json({ global: true, name, created, skipped });
   }
 
   const [team, product] = await Promise.all([

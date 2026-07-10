@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Category, DocumentSummary, SortField, SortDir } from "@/lib/api";
 import { FilterPanel } from "@/components/dashboard/FilterPanel";
 import { AppliedFilters } from "@/components/dashboard/AppliedFilters";
@@ -24,7 +25,7 @@ export function DocumentsPanel({
   isAdmin,
   currentUserId,
 }: {
-  mode: "team" | "product";
+  mode: "team" | "product" | "all";
   entityId?: string;
   entityName?: string;
   categories: Category[];
@@ -40,11 +41,19 @@ export function DocumentsPanel({
   isAdmin?: boolean;
   currentUserId?: string;
 }) {
-  const entityHref = entityId ? `/dashboard?mode=${mode}&entity=${entityId}` : "/dashboard";
+  // mode is always "all" whenever entityId is undefined (page.tsx only ever
+  // omits entityId in all-mode), so this always has a "?" already — every
+  // href built below by appending "&..." onto entityHref stays well-formed
+  // instead of producing a bare "/dashboard&..." for the no-entity case.
+  const entityHref = entityId ? `/dashboard?mode=${mode}&entity=${entityId}` : `/dashboard?mode=${mode}`;
   const categoryHref = selectedCategoryId ? `${entityHref}&category=${selectedCategoryId}` : entityHref;
 
+  // Sort headers only render in list view (see the render branch below), but
+  // the href still needs view=list explicit — folders is the default when
+  // the param's omitted (see dashboard/page.tsx), so leaving it off here
+  // would silently bounce a list-view sort click over to folder view.
   function sortHref(field: SortField, sortDir: SortDir) {
-    return `${categoryHref}&sort=${field}&dir=${sortDir}`;
+    return `${categoryHref}&sort=${field}&dir=${sortDir}&view=${view}`;
   }
   const nameAscHref = sortHref("name", "asc");
   const nameDescHref = sortHref("name", "desc");
@@ -61,7 +70,10 @@ export function DocumentsPanel({
   // The current location with no removable filters (status/date/type) — used
   // wherever an action should preserve view mode/folder without carrying over
   // one-off filters (the Filter panel's own base, and the breadcrumb root).
-  const identityHref = isFolderView ? `${categoryHref}&view=folders` : categoryHref;
+  // Always carries the current view explicitly — folders is the default when
+  // the param's absent, so omitting it for list/tabs would silently bounce
+  // back to folders instead of staying put.
+  const identityHref = `${categoryHref}&view=${view}`;
 
   // The full current URL, filters included — AppliedFilters needs this so
   // removing one chip out of a multi-select (e.g. one Type among several)
@@ -74,14 +86,24 @@ export function DocumentsPanel({
     return `${url.pathname}${url.search}`;
   })();
 
-  // Whether clicking "Documents" would actually change anything — if nothing
-  // is filtered/sorted and we're already in plain list view, its target is
-  // identical to the current page, so it should render as inert text rather
-  // than a link that silently does nothing when clicked.
-  const hasResettableState = Boolean(
-    selectedCategoryId || status || modifiedSince || type || sort || dir || view !== "list",
-  );
-  const documentsCrumbHref = hasResettableState ? (isFolderView ? folderUpHref : entityHref) : undefined;
+  // Where "Clear all" actually goes — identityHref isn't filter-free on its
+  // own: categoryHref (which it's built from) bakes the selected category
+  // back in, so router-pushing straight to identityHref left category
+  // filters surviving a "Clear all" click. In folder view category isn't a
+  // removable filter at all (it's the folder you're standing in — see
+  // filterCategoryId below), so identityHref is fine as-is there; only list
+  // view needs category explicitly stripped too.
+  const clearAllHref = isFolderView ? identityHref : `${entityHref}&view=${view}`;
+
+  // "Documents" always returns to the true global home (bare "/dashboard" —
+  // no mode, no entity, no filters), regardless of which team/product or
+  // filters are currently active — that's what makes it act like a "go
+  // home" breadcrumb rather than just resetting filters within whatever's
+  // currently selected. Inert (no href) only when already exactly there, so
+  // it doesn't look clickable for no reason.
+  const isAtGlobalHome =
+    mode === "all" && !selectedCategoryId && !status && !modifiedSince && !type && !sort && !dir && view === "folders";
+  const documentsCrumbHref = isAtGlobalHome ? undefined : "/dashboard";
 
   // While drilled into a folder, the category is where you navigated, not a
   // removable filter — hide it from the Filter panel/chip row so that state
@@ -107,7 +129,15 @@ export function DocumentsPanel({
     >
       <div className="flex items-center justify-between border-b border-neutral-100 px-6 py-4">
         <div className="flex items-center gap-2">
-          <h1 className="text-lg font-semibold text-neutral-900">Documents</h1>
+          <h1 className="text-lg font-semibold text-neutral-900">
+            {documentsCrumbHref ? (
+              <Link href={documentsCrumbHref} className="hover:text-neutral-600 hover:underline">
+                Documents
+              </Link>
+            ) : (
+              "Documents"
+            )}
+          </h1>
           <ViewSwitcher baseHref={viewSwitcherHref} view={view} />
         </div>
         <FilterPanel
@@ -124,17 +154,23 @@ export function DocumentsPanel({
       <Breadcrumbs
         items={[
           { label: "Documents", href: documentsCrumbHref },
-          {
-            label: entityName ?? (mode === "team" ? "Team" : "Product"),
-            href: isFolderView && selectedCategory ? folderUpHref : undefined,
-          },
+          // No second crumb in "all" mode — there's no specific team/product
+          // to name, and "Documents" alone already conveys "everything."
+          ...(mode === "all"
+            ? []
+            : [
+                {
+                  label: entityName ?? (mode === "team" ? "Team" : "Product"),
+                  href: isFolderView && selectedCategory ? folderUpHref : undefined,
+                },
+              ]),
           ...(isFolderView && selectedCategory ? [{ label: selectedCategory.name }] : []),
         ]}
       />
 
       <AppliedFilters
         baseHref={fullCurrentHref}
-        clearHref={identityHref}
+        clearHref={clearAllHref}
         status={status}
         modifiedSince={modifiedSince}
         type={type}

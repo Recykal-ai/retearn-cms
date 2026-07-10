@@ -13,11 +13,13 @@ export function CategoriesSection({
   products,
   categoriesByScope,
   viewerScope,
+  isSuperAdmin,
 }: {
   teams: Team[];
   products: Product[];
   categoriesByScope: Record<string, Category[]>;
   viewerScope: { teamIds: string[]; productIds: string[] } | null;
+  isSuperAdmin: boolean;
 }) {
   const [mode, setMode] = useState<Mode>("team");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -64,7 +66,13 @@ export function CategoriesSection({
   const filtered = query.trim()
     ? entities.filter((e) => e.name.toLowerCase().includes(query.trim().toLowerCase()))
     : entities;
-  const selected = entities.find((e) => e.id === selectedId);
+  // Only a Super Admin can create a category across every team and product
+  // at once — even an unrestricted (unscoped) Admin only manages the teams/
+  // products they were actually made admin of, so this option doesn't show
+  // for any Admin tier, scoped or not.
+  const showAllOption = isSuperAdmin && !query.trim();
+  const isAllSelected = selectedId === "all";
+  const selected = isAllSelected ? undefined : entities.find((e) => e.id === selectedId);
   const cats = selected ? (categoriesByScope[selected.id] ?? []) : [];
 
   function switchMode(next: Mode) {
@@ -108,7 +116,7 @@ export function CategoriesSection({
             onClick={() => setOpen((v) => !v)}
             className="flex min-w-48 items-center justify-between gap-2 rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:border-neutral-400"
           >
-            {selected ? selected.name : `Select a ${mode}…`}
+            {isAllSelected ? "All (every team & product)" : selected ? selected.name : `Select a ${mode}…`}
             <ChevronIcon />
           </button>
 
@@ -122,6 +130,19 @@ export function CategoriesSection({
                 className="mb-2 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
               />
               <div className="max-h-48 space-y-0.5 overflow-y-auto">
+                {showAllOption && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedId("all");
+                      setOpen(false);
+                      setQuery("");
+                    }}
+                    className="mb-0.5 block w-full rounded-md border-b border-neutral-100 px-2.5 py-1.5 text-left text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                  >
+                    All (every team &amp; product)
+                  </button>
+                )}
                 {filtered.map((e) => (
                   <button
                     key={e.id}
@@ -136,14 +157,39 @@ export function CategoriesSection({
                     {e.name}
                   </button>
                 ))}
-                {filtered.length === 0 && <p className="px-2.5 py-1.5 text-xs text-neutral-400">No matches.</p>}
+                {filtered.length === 0 && !showAllOption && <p className="px-2.5 py-1.5 text-xs text-neutral-400">No matches.</p>}
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {selected ? (
+      {isAllSelected ? (
+        <div className="border-t border-neutral-100 pt-4">
+          <p className="mb-3 text-xs text-neutral-500">
+            Creates this tag under every team and product at once (except Others), so it shows up everywhere and
+            merges into one filter chip on the dashboard&apos;s All home view. Anywhere it already exists is left as-is.
+          </p>
+          <form ref={categoryFormRef} onSubmit={handleCreateCategory} className="flex gap-2">
+            <input type="hidden" name="scope" value="all" />
+            <input
+              name="name"
+              placeholder="New global tag name"
+              required
+              disabled={isPending}
+              className="max-w-xs flex-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-400 focus:outline-none disabled:opacity-60"
+            />
+            <button
+              type="submit"
+              disabled={isPending}
+              className="rounded-md px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
+              style={{ background: "var(--brand-purple)" }}
+            >
+              {isPending ? "Adding…" : "Add"}
+            </button>
+          </form>
+        </div>
+      ) : selected ? (
         <div className="border-t border-neutral-100 pt-4">
           <p className="mb-2 text-xs font-semibold text-neutral-500">
             {mode === "team" ? "Team" : "Product"}: <span className="text-neutral-700">{selected.name}</span>

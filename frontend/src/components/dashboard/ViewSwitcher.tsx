@@ -19,11 +19,14 @@ export function ViewSwitcher({ baseHref, view }: { baseHref: string; view: ViewM
   // filter panel — carrying over an existing `category` filter into folder
   // view used to silently drop you into the flat list instead of the folder
   // grid, with no indication the view even changed.
+  //
+  // `view` is always set explicitly (never omitted/deleted) — folders is the
+  // default when the param is absent (see dashboard/page.tsx), so dropping
+  // the param here to mean "list" would silently land back on folders instead.
   function hrefFor(target: ViewMode): string {
     const url = new URL(baseHref, "http://placeholder");
     if (target === "folders") url.searchParams.delete("category");
-    if (target === "list") url.searchParams.delete("view");
-    else url.searchParams.set("view", target);
+    url.searchParams.set("view", target);
     return `${url.pathname}${url.search}`;
   }
 

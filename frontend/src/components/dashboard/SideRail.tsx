@@ -3,11 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { signOutAction } from "@/app/dashboard/actions";
-import { getRecentDocumentsAction, getPinnedDocumentsAction } from "@/app/dashboard/documents-actions";
+import { getRecentDocumentsAction } from "@/app/dashboard/documents-actions";
+import { getUnreadNotificationsCountAction } from "@/app/dashboard/notes-actions";
 import type { DocumentSummary } from "@/lib/api";
 import { FileTypeIcon } from "@/components/dashboard/FileTypeIcon";
 import { fileTypeOf } from "@/lib/file-type";
 import { useDocumentViewer } from "@/components/dashboard/useDocumentViewer";
+
+const NOTES_POLL_MS = 8000;
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/);
@@ -25,11 +28,27 @@ export function SideRail({
   userEmail: string;
   isAdmin: boolean;
 }) {
-  const [openMenu, setOpenMenu] = useState<"avatar" | "recents" | "pinned" | null>(null);
+  const [openMenu, setOpenMenu] = useState<"avatar" | "recents" | null>(null);
   const [recentDocs, setRecentDocs] = useState<DocumentSummary[] | null>(null);
-  const [pinnedDocs, setPinnedDocs] = useState<DocumentSummary[] | null>(null);
+  const [unreadNotes, setUnreadNotes] = useState(0);
   const { view, isOpening, viewerNode } = useDocumentViewer();
   const railRef = useRef<HTMLDivElement>(null);
+
+  // Polls regardless of whether the Notes popup is open — anyone could be
+  // @mentioned in a team note at any time, matching ApprovalsNavLink's cadence.
+  useEffect(() => {
+    let cancelled = false;
+    async function poll() {
+      const result = await getUnreadNotificationsCountAction().catch(() => null);
+      if (!cancelled && result) setUnreadNotes(result.count);
+    }
+    poll();
+    const id = setInterval(poll, NOTES_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -41,19 +60,14 @@ export function SideRail({
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
 
-  // Refetch every time either popup opens, not just the first time — both
-  // lists change from actions taken elsewhere (viewing a doc, pinning one),
-  // and a stale in-memory list from an earlier open would show the wrong order.
+  // Refetch every time the popup opens, not just the first time — the list
+  // changes from actions taken elsewhere (viewing/editing a doc), and a
+  // stale in-memory list from an earlier open would show the wrong order.
   useEffect(() => {
     let cancelled = false;
     if (openMenu === "recents") {
       getRecentDocumentsAction().then((docs) => {
         if (!cancelled) setRecentDocs(docs);
-      });
-    }
-    if (openMenu === "pinned") {
-      getPinnedDocumentsAction().then((docs) => {
-        if (!cancelled) setPinnedDocs(docs);
       });
     }
     return () => {
@@ -151,46 +165,32 @@ export function SideRail({
         )}
       </div>
 
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => setOpenMenu((m) => (m === "pinned" ? null : "pinned"))}
-          title="Pinned"
-          aria-label="Documents you've pinned"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700"
-        >
-          <StarRailIcon />
-        </button>
+      <Link
+        href="/dashboard/pinned"
+        title="Pinned"
+        aria-label="Documents you've pinned"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700"
+      >
+        <StarRailIcon />
+      </Link>
 
-        {openMenu === "pinned" && (
-          <div className="absolute top-11 left-0 z-20 w-64 rounded-md border border-neutral-200 bg-white p-3 shadow-lg">
-            <p className="mb-2 text-xs font-semibold tracking-wide text-neutral-400 uppercase">Pinned</p>
-            {pinnedDocs === null ? (
-              <p className="px-1 text-sm text-neutral-400">Loading…</p>
-            ) : pinnedDocs.length === 0 ? (
-              <p className="px-1 text-sm text-neutral-400 italic">Nothing pinned yet</p>
-            ) : (
-              <ul className="max-h-80 space-y-0.5 overflow-y-auto">
-                {pinnedDocs.map((doc) => (
-                  <li key={doc.id}>
-                    <button
-                      type="button"
-                      onClick={() => handleOpen(doc)}
-                      disabled={isOpening(doc.id)}
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-neutral-50 disabled:opacity-60"
-                    >
-                      <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} />
-                      <span className="truncate text-sm text-neutral-700">
-                        {isOpening(doc.id) ? "Opening…" : doc.title}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+      <Link
+        href="/dashboard/notes"
+        title="Notes"
+        aria-label="Notes — personal and team"
+        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700"
+      >
+        <NoteRailIcon />
+        {unreadNotes > 0 && (
+          <span
+            aria-label={`${unreadNotes} unread mention${unreadNotes === 1 ? "" : "s"}`}
+            className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full text-[9px] font-bold text-white"
+            style={{ background: "#b3342c" }}
+          >
+            {unreadNotes > 9 ? "9+" : unreadNotes}
+          </span>
         )}
-      </div>
+      </Link>
 
       {isAdmin && (
         <Link
@@ -204,6 +204,20 @@ export function SideRail({
       )}
       {viewerNode}
     </div>
+  );
+}
+
+function NoteRailIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M6 4.5h9.5L19 8v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M9 10h6M9 13.5h6M9 17h3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
   );
 }
 

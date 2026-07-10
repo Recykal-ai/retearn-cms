@@ -16,15 +16,17 @@ export function StubPage({
           background: "linear-gradient(180deg, var(--brand-purple) 0%, var(--brand-purple-dark) 100%)",
         }}
       >
-        <Image
-          src="/retearn-logo.png"
-          alt="Retearn"
-          width={623}
-          height={207}
-          priority
-          className="h-8 w-auto"
-          style={{ filter: "brightness(0) invert(1)" }}
-        />
+        <Link href="/dashboard" aria-label="Go to dashboard home">
+          <Image
+            src="/retearn-logo.png"
+            alt="Retearn"
+            width={623}
+            height={207}
+            priority
+            className="h-8 w-auto"
+            style={{ filter: "brightness(0) invert(1)" }}
+          />
+        </Link>
       </div>
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-lg rounded-lg border border-neutral-200 bg-white p-8 shadow-sm">

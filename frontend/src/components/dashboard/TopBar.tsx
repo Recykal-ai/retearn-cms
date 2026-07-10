@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { SearchBar } from "@/components/dashboard/SearchBar";
 
 export function TopBar({ query }: { query?: string }) {
@@ -9,15 +10,19 @@ export function TopBar({ query }: { query?: string }) {
         background: "linear-gradient(180deg, var(--brand-purple) 0%, var(--brand-purple-dark) 100%)",
       }}
     >
-      <Image
-        src="/retearn-logo.png"
-        alt="Retearn"
-        width={623}
-        height={207}
-        priority
-        className="h-8 w-auto justify-self-start"
-        style={{ filter: "brightness(0) invert(1)" }}
-      />
+      {/* Even on /dashboard itself, this resets away from whatever team/
+          product/filter is currently in the URL back to the true home. */}
+      <Link href="/dashboard" className="justify-self-start" aria-label="Go to dashboard home">
+        <Image
+          src="/retearn-logo.png"
+          alt="Retearn"
+          width={623}
+          height={207}
+          priority
+          className="h-8 w-auto"
+          style={{ filter: "brightness(0) invert(1)" }}
+        />
+      </Link>
 
       <SearchBar query={query} />
 

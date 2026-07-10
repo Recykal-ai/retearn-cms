@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getDocuments, getDeletionRequests, type DocStatus } from "@/lib/api";
@@ -6,7 +5,7 @@ import { withSessionGuard } from "@/lib/session-guard";
 import { ApprovalsAdmin } from "@/components/dashboard/ApprovalsAdmin";
 import { DeletionRequestsAdmin } from "@/components/dashboard/DeletionRequestsAdmin";
 import { MyUploadsTable } from "@/components/dashboard/MyUploadsTable";
-import { CloseButton } from "@/components/dashboard/CloseButton";
+import { SubPageTopBar } from "@/components/dashboard/SubPageTopBar";
 
 export default async function ApprovalsPage() {
   const session = await auth();
@@ -21,28 +20,14 @@ export default async function ApprovalsPage() {
 
   return (
     <div className="flex h-screen flex-col" style={{ fontFamily: "var(--font-ui)", background: "var(--canvas)" }}>
-      <div
-        className="flex h-15 flex-shrink-0 items-center justify-between px-6 shadow-sm"
-        style={{ background: "linear-gradient(180deg, var(--brand-purple) 0%, var(--brand-purple-dark) 100%)" }}
-      >
-        <Image
-          src="/retearn-logo.png"
-          alt="Retearn"
-          width={623}
-          height={207}
-          priority
-          className="h-8 w-auto"
-          style={{ filter: "brightness(0) invert(1)" }}
-        />
-        <CloseButton href="/dashboard" />
-      </div>
+      <SubPageTopBar />
 
       <div className="flex-1 overflow-y-auto p-8">
         <div className="mx-auto max-w-4xl rounded-lg border border-neutral-200 bg-white shadow-sm">
           <div className="border-b border-neutral-100 px-6 py-4">
             <h1 className="text-lg font-semibold text-neutral-900">Approvals</h1>
             <p className="text-sm text-neutral-400">
-              {isAdmin ? "Documents waiting on your review" : "Status of documents you've submitted"}
+              {isAdmin ? "Documents waiting on your review" : "Status of documents you've submitted or asked to delete"}
             </p>
           </div>
 
@@ -79,7 +64,12 @@ async function UserSubmissions({ appToken, userId }: { appToken: string; userId:
     const lists = await Promise.all(statuses.map((status) => getDocuments(appToken, { status })));
     return lists
       .flat()
-      .filter((doc) => doc.uploadedBy.id === userId)
+      // Published docs are fetched org-wide (no ownership restriction —
+      // that's how PUBLISHED works), so this filter is what scopes the list
+      // down to "mine": either I uploaded it, or I'm the one who asked an
+      // Admin to delete it — the latter is exactly the case where I don't
+      // own the doc but still need to see my request's status here.
+      .filter((doc) => doc.uploadedBy.id === userId || doc.deletionRequestedById === userId)
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   });
 

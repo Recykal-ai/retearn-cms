@@ -29,3 +29,33 @@ export function colorForScope(scopeId: string): { bg: string; fg: string } {
   }
   return PALETTE[Math.abs(hash) % PALETTE.length];
 }
+
+// A global category (Category.isGlobal — created once across every team and
+// product at once, see backend's POST /api/categories scope:"all") gets one
+// fixed, reserved gold color instead of the per-scope hash — a saturated
+// hue no PALETTE entry produces, so it's instantly recognizable as "spans
+// everything" rather than looking like it belongs to one particular scope.
+export const GLOBAL_TAG_COLOR = { bg: "#fdedb8", fg: "#8a6100" };
+
+export function colorForCategory(c: { scope: string; isGlobal?: boolean }): { bg: string; fg: string } {
+  return c.isGlobal ? GLOBAL_TAG_COLOR : colorForScope(c.scope);
+}
+
+// A global category is one conceptual tag even though it's stored as one row
+// per team/product (see Category.isGlobal in the schema) — a document or
+// picker that ends up holding two of its rows (e.g. tagged under both its
+// team's and a product's copy of "Goa DRS") should only ever show one chip
+// for it. Non-global categories never collapse, even if same-named — those
+// are genuinely separate tags that happen to share a name.
+export function dedupeGlobalCategories<T extends { name: string; isGlobal?: boolean }>(categories: T[]): T[] {
+  const seenGlobalNames = new Set<string>();
+  const result: T[] = [];
+  for (const c of categories) {
+    if (c.isGlobal) {
+      if (seenGlobalNames.has(c.name)) continue;
+      seenGlobalNames.add(c.name);
+    }
+    result.push(c);
+  }
+  return result;
+}

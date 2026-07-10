@@ -1,14 +1,14 @@
-import Image from "next/image";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { getTeams, getProducts, getCategories, getUsers, getAuditLog, getMe, type Category } from "@/lib/api";
+import { getTeams, getProducts, getCategories, getGlobalCategories, getUsers, getAuditLog, getMe, type Category } from "@/lib/api";
 import { withSessionGuard } from "@/lib/session-guard";
 import { AdminNav, type AdminTab } from "@/components/dashboard/admin/AdminNav";
 import { EntityPanel } from "@/components/dashboard/admin/EntityPanel";
 import { CategoriesSection } from "@/components/dashboard/admin/CategoriesSection";
+import { GlobalCategoriesSection } from "@/components/dashboard/admin/GlobalCategoriesSection";
 import { UsersSection } from "@/components/dashboard/admin/UsersSection";
 import { AuditLogSection } from "@/components/dashboard/admin/AuditLogSection";
-import { CloseButton } from "@/components/dashboard/CloseButton";
+import { SubPageTopBar } from "@/components/dashboard/SubPageTopBar";
 import { createTeamAction, createProductAction, deleteTeamAction, deleteProductAction } from "@/app/dashboard/admin/admin-actions";
 
 export default async function AdminPage({
@@ -32,7 +32,7 @@ export default async function AdminPage({
   const { tab } = await searchParams;
   const activeTab: AdminTab = tab === "access" && isSuperAdmin ? "access" : tab === "audit" ? "audit" : "categories";
 
-  const { teams, products, categoriesByScope, users, auditLog, viewerScope } = await withSessionGuard(
+  const { teams, products, categoriesByScope, globalCategories, users, auditLog, viewerScope } = await withSessionGuard(
     async () => {
       const [teams, products, me] = await Promise.all([getTeams(appToken), getProducts(appToken), getMe(appToken)]);
 
@@ -43,32 +43,19 @@ export default async function AdminPage({
         categoriesByScope[e.id] = categoryLists[i];
       });
 
-      const [users, auditLog] = await Promise.all([
+      const [users, auditLog, globalCategories] = await Promise.all([
         isSuperAdmin ? getUsers(appToken) : Promise.resolve([]),
         getAuditLog(appToken, 50),
+        getGlobalCategories(appToken),
       ]);
 
-      return { teams, products, categoriesByScope, users, auditLog, viewerScope: me.adminScope };
+      return { teams, products, categoriesByScope, globalCategories, users, auditLog, viewerScope: me.adminScope };
     },
   );
 
   return (
     <div className="flex h-screen flex-col" style={{ fontFamily: "var(--font-ui)", background: "var(--canvas)" }}>
-      <div
-        className="flex h-15 flex-shrink-0 items-center justify-between px-6 shadow-sm"
-        style={{ background: "linear-gradient(180deg, var(--brand-purple) 0%, var(--brand-purple-dark) 100%)" }}
-      >
-        <Image
-          src="/retearn-logo.png"
-          alt="Retearn"
-          width={623}
-          height={207}
-          priority
-          className="h-8 w-auto"
-          style={{ filter: "brightness(0) invert(1)" }}
-        />
-        <CloseButton href="/dashboard" />
-      </div>
+      <SubPageTopBar />
 
       <div className="flex flex-1 overflow-hidden">
         <AdminNav activeTab={activeTab} isSuperAdmin={isSuperAdmin} />
@@ -95,11 +82,13 @@ export default async function AdminPage({
                     canCreate={viewerScope === null}
                   />
                 </div>
+                <GlobalCategoriesSection categories={globalCategories} isSuperAdmin={isSuperAdmin} />
                 <CategoriesSection
                   teams={teams}
                   products={products}
                   categoriesByScope={categoriesByScope}
                   viewerScope={viewerScope}
+                  isSuperAdmin={isSuperAdmin}
                 />
               </>
             )}

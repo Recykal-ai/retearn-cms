@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useToast } from "@/components/ToastProvider";
+import { openGoogleViewer } from "@/lib/google-viewer";
 
+// pdf/image/text/spreadsheet are the only kinds this modal ever renders now
+// — docx and unsupported route straight to Google Viewer before this modal
+// ever opens (see useDocumentViewer's openResult). The type still needs
+// every ViewerKind value since kindFor() computes the full set to decide
+// that early routing.
 export type ViewerKind = "pdf" | "image" | "text" | "spreadsheet" | "docx" | "unsupported";
 
 // A comfortable single-page reading width, independent of how wide the modal
@@ -11,65 +17,19 @@ export type ViewerKind = "pdf" | "image" | "text" | "spreadsheet" | "docx" | "un
 // monitor renders noticeably larger than a typical document viewer.
 const MAX_PAGE_WIDTH = 760;
 
-// Google's own viewer (docs.google.com/viewer) fetches an arbitrary URL and
-// renders it read-only — no file ever gets imported into anyone's Drive (that
-// would be the real "Open with Google Docs/Sheets/Slides" edit-import flow,
-// which we deliberately don't offer: it would let the doc be downloaded/edited
-// straight out of the opener's own Drive, and scatter copies outside our
-// single system of record). This is just a rendering fallback, same signed
-// URL we already use, opened read-only in a new tab.
-function googleViewerUrl(fileUrl: string) {
-  return `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
-}
-
 type FreshUrlFetcher = () => Promise<{ url: string; sourceType: "FILE" | "LINK" }>;
 
-// Opens the tab synchronously (as a direct result of the click, so browsers
-// don't treat it as a blocked popup) and only navigates it once a fresh
-// signed URL comes back — refetching here rather than reusing the URL the
-// viewer opened with, since that one may already be minutes old by the time
-// someone clicks this, and Google's own fetch+convert needs the rest of that
-// window to land.
-function OpenWithGoogleButton({
-  getFreshUrl,
-  variant,
-}: {
-  getFreshUrl: FreshUrlFetcher;
-  variant: "compact" | "large";
-}) {
+// PDF's own header fallback, for the rare file pdf.js itself can't parse —
+// docx/pptx/unsupported no longer need this here at all, they route to
+// Google Viewer directly on click (see useDocumentViewer).
+function OpenWithGoogleButton({ getFreshUrl }: { getFreshUrl: FreshUrlFetcher }) {
   const [loading, setLoading] = useState(false);
   const { show } = useToast();
 
   function handleClick() {
-    // No noopener/noreferrer flag here — those make window.open() return
-    // null by spec, which would silently strand this tab on about:blank
-    // forever since we'd have no reference to navigate. Manually clearing
-    // .opener below gets the same protection without losing the reference.
-    const tab = window.open("", "_blank");
-    if (tab) tab.opener = null;
     setLoading(true);
-    getFreshUrl()
-      .then((fresh) => {
-        if (tab) tab.location.href = googleViewerUrl(fresh.url);
-      })
-      .catch(() => {
-        tab?.close();
-        show("Couldn't open Google Viewer — try again.", "error");
-      })
-      .finally(() => setLoading(false));
-  }
-
-  if (variant === "large") {
-    return (
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={loading}
-        className="mt-1 rounded-lg px-6 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-        style={{ background: "var(--brand-purple)" }}
-      >
-        {loading ? "Opening…" : "Open with Google Viewer ↗"}
-      </button>
+    openGoogleViewer(getFreshUrl, () => show("Couldn't open Google Viewer — try again.", "error")).finally(() =>
+      setLoading(false),
     );
   }
 
@@ -85,16 +45,12 @@ function OpenWithGoogleButton({
   );
 }
 
-// Renders PDFs onto our own <canvas> via pdf.js instead of embedding the
+// PDF renders onto our own <canvas> via pdf.js instead of embedding the
 // browser's native PDF viewer (iframe + #toolbar=0 is unreliable — modern
 // Chrome largely ignores that fragment and shows its own download button
-// anyway). This way there's no native viewer chrome at all, closer to how
-// Google Drive's preview behaves. Every FILE document opens this modal now —
-// nothing falls back to window.open on the raw signed URL anymore (that's
-// how a .md file used to get silently downloaded instead of previewed).
-// Text/code files render as plain text; anything we genuinely can't render
-// natively (legacy binary .doc, pptx, other binary/unknown types) still gets
-// a real preview via the "Open with Google Viewer" fallback in the header.
+// anyway), with a "Open with Google Viewer" header fallback for the rare
+// file pdf.js itself can't parse. Spreadsheet renders as a real parsed table
+// (SheetJS). Image/text render natively.
 export function DocumentViewerModal({
   title,
   url,
@@ -125,7 +81,7 @@ export function DocumentViewerModal({
       <div className="flex shrink-0 items-center justify-between gap-4 px-5 py-3">
         <p className="truncate pr-4 text-sm font-medium text-white">{title}</p>
         <div className="flex shrink-0 items-center gap-4">
-          <OpenWithGoogleButton getFreshUrl={getFreshUrl} variant="compact" />
+          {kind === "pdf" && <OpenWithGoogleButton getFreshUrl={getFreshUrl} />}
           <button
             type="button"
             onClick={onClose}
@@ -141,8 +97,6 @@ export function DocumentViewerModal({
         {kind === "image" && <ImageViewer url={url} title={title} />}
         {kind === "text" && <TextViewer url={url} />}
         {kind === "spreadsheet" && <SpreadsheetViewer url={url} />}
-        {kind === "docx" && <DocxViewer url={url} />}
-        {kind === "unsupported" && <UnsupportedViewer title={title} getFreshUrl={getFreshUrl} />}
       </div>
     </div>
   );
@@ -198,19 +152,118 @@ function TextViewer({ url }: { url: string }) {
   );
 }
 
+interface SpreadsheetCell {
+  text: string;
+  bg?: string;
+  color?: string;
+  bold?: boolean;
+  italic?: boolean;
+  align?: "left" | "center" | "right" | "justify";
+  wrap?: boolean;
+  fontFamily?: string;
+  fontSize?: number;
+  border?: { top?: string; right?: string; bottom?: string; left?: string };
+  rowSpan?: number;
+  colSpan?: number;
+}
+
 interface SheetData {
   name: string;
-  rows: string[][];
+  rows: (SpreadsheetCell | null)[][]; // null = covered by a merged cell — skip rendering, the anchor's rowSpan/colSpan covers it
+  colWidths: number[];
+  truncated: boolean;
 }
 
 const MAX_SPREADSHEET_ROWS = 500;
 const MAX_SPREADSHEET_COLS = 100;
+const DEFAULT_COL_WIDTH = 90;
+
+// Picks readable text over a fill color when the source file didn't specify
+// its own font color (common — many sheets only set a background fill and
+// rely on the spreadsheet app's default black/white text contrast, which
+// isn't something SheetJS's cell style object tells us directly).
+function contrastTextColor(hexBg: string): string {
+  const r = parseInt(hexBg.slice(1, 3), 16);
+  const g = parseInt(hexBg.slice(3, 5), 16);
+  const b = parseInt(hexBg.slice(5, 7), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.55 ? "#171717" : "#ffffff";
+}
+
+// SheetJS reports ARGB as an 8-char hex sometimes ("FF1F4E79") and plain RGB
+// other times ("1F4E79") — the last 6 chars are always the actual color.
+function hexFromRgb(rgb: string): string {
+  return `#${rgb.slice(-6)}`;
+}
+
+interface StyleExtra {
+  color?: string;
+  align?: SpreadsheetCell["align"];
+  wrap?: boolean;
+  fontFamily?: string;
+  fontSize?: number;
+  border?: SpreadsheetCell["border"];
+}
+
+// SheetJS's free/community build only ever exposes fill color (verified by
+// writing a file with explicit font/border/alignment via a known-good writer
+// and reading it back — those three came back empty; only fill survived).
+// Font color, alignment, wrap, and borders are a paid SheetJS Pro feature.
+// ExcelJS (also free/open-source) reads all of that correctly — verified the
+// same way. But ExcelJS is stricter about spec-compliant OOXML than SheetJS
+// and can fail on files SheetJS tolerates fine, so it's used here as a
+// best-effort *enrichment* pass on top of SheetJS's already-reliable grid,
+// not a replacement for it — if ExcelJS can't parse a given file, this
+// silently contributes nothing and the SheetJS-only styling (fill/merges/
+// widths) still renders exactly as before.
+async function tryEnrichWithExcelJS(buffer: ArrayBuffer): Promise<Map<string, StyleExtra> | null> {
+  try {
+    const ExcelJS = (await import("exceljs")).default;
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const extras = new Map<string, StyleExtra>();
+    for (const ws of workbook.worksheets) {
+      ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+          const extra: StyleExtra = {};
+          if (cell.font?.color?.argb) extra.color = hexFromRgb(cell.font.color.argb);
+          if (cell.font?.name) extra.fontFamily = cell.font.name;
+          if (cell.font?.size) extra.fontSize = cell.font.size;
+          if (cell.alignment?.horizontal) {
+            const h = cell.alignment.horizontal;
+            if (h === "left" || h === "center" || h === "right" || h === "justify") extra.align = h;
+          }
+          if (cell.alignment?.wrapText) extra.wrap = true;
+          const b = cell.border;
+          if (b?.top || b?.right || b?.bottom || b?.left) {
+            extra.border = {
+              top: b.top?.color?.argb ? hexFromRgb(b.top.color.argb) : b.top ? "#000000" : undefined,
+              right: b.right?.color?.argb ? hexFromRgb(b.right.color.argb) : b.right ? "#000000" : undefined,
+              bottom: b.bottom?.color?.argb ? hexFromRgb(b.bottom.color.argb) : b.bottom ? "#000000" : undefined,
+              left: b.left?.color?.argb ? hexFromRgb(b.left.color.argb) : b.left ? "#000000" : undefined,
+            };
+          }
+          if (Object.keys(extra).length > 0) extras.set(`${ws.name}!${rowNumber - 1}:${colNumber - 1}`, extra);
+        });
+      });
+    }
+    return extras;
+  } catch {
+    return null;
+  }
+}
 
 // Parses the workbook client-side via SheetJS (installed from SheetJS's own
 // CDN — the npm-registry release has known high-severity CVEs SheetJS never
-// backported there) and renders each sheet as a plain HTML table. Covers
-// .xlsx/.xls/.xlsm/.ods and, since it reads just as naturally, .csv/.tsv too
-// (a parsed table is far more readable than raw comma-separated text).
+// backported there). cellStyles: true genuinely does expose fill colors even
+// in the free/community build (verified directly against a real file) — read
+// range, merges, and column widths, and reproduce the actual grid instead of
+// re-deriving a plain values-only table, which is what made the previous
+// version not look like the source file (no colors, no merged title cells,
+// no real column widths). Covers .xlsx/.xls/.xlsm/.ods and, since it reads
+// just as naturally, .csv/.tsv too (a parsed table reads far better than raw
+// comma-separated text). Font color/alignment/wrap/borders are then layered
+// on top via ExcelJS, see tryEnrichWithExcelJS above.
 function SpreadsheetViewer({ url }: { url: string }) {
   const [sheets, setSheets] = useState<SheetData[] | null>(null);
   const [activeSheet, setActiveSheet] = useState(0);
@@ -224,19 +277,73 @@ function SpreadsheetViewer({ url }: { url: string }) {
         const res = await fetch(url);
         if (!res.ok) throw new Error();
         const buffer = await res.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: "array" });
+        const [workbook, extras] = await Promise.all([
+          Promise.resolve(XLSX.read(buffer, { type: "array", cellStyles: true })),
+          tryEnrichWithExcelJS(buffer),
+        ]);
         if (cancelled) return;
-        const parsed = workbook.SheetNames.map((name) => {
-          const rows = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[name], {
-            header: 1,
-            blankrows: false,
-          });
-          return {
-            name,
-            rows: rows
-              .slice(0, MAX_SPREADSHEET_ROWS)
-              .map((row) => row.slice(0, MAX_SPREADSHEET_COLS).map((cell) => (cell == null ? "" : String(cell)))),
-          };
+
+        const parsed: SheetData[] = workbook.SheetNames.map((name) => {
+          const ws = workbook.Sheets[name];
+          if (!ws["!ref"]) return { name, rows: [], colWidths: [], truncated: false };
+
+          const range = XLSX.utils.decode_range(ws["!ref"]);
+          const maxRow = Math.min(range.e.r, range.s.r + MAX_SPREADSHEET_ROWS - 1);
+          const maxCol = Math.min(range.e.c, range.s.c + MAX_SPREADSHEET_COLS - 1);
+
+          const mergeAnchors = new Map<string, { rowSpan: number; colSpan: number }>();
+          const mergeCovered = new Set<string>();
+          for (const m of ws["!merges"] ?? []) {
+            mergeAnchors.set(`${m.s.r}:${m.s.c}`, { rowSpan: m.e.r - m.s.r + 1, colSpan: m.e.c - m.s.c + 1 });
+            for (let r = m.s.r; r <= m.e.r; r++) {
+              for (let c = m.s.c; c <= m.e.c; c++) {
+                if (r === m.s.r && c === m.s.c) continue;
+                mergeCovered.add(`${r}:${c}`);
+              }
+            }
+          }
+
+          const rows: (SpreadsheetCell | null)[][] = [];
+          for (let r = range.s.r; r <= maxRow; r++) {
+            const rowOut: (SpreadsheetCell | null)[] = [];
+            for (let c = range.s.c; c <= maxCol; c++) {
+              const key = `${r}:${c}`;
+              if (mergeCovered.has(key)) {
+                rowOut.push(null);
+                continue;
+              }
+              const cell = ws[XLSX.utils.encode_cell({ r, c })];
+              const text = cell?.w ?? (cell?.v != null ? String(cell.v) : "");
+              const style = cell?.s as
+                | { patternType?: string; fgColor?: { rgb?: string }; font?: { bold?: boolean; italic?: boolean } }
+                | undefined;
+              const bg = style?.patternType === "solid" && style.fgColor?.rgb ? hexFromRgb(style.fgColor.rgb) : undefined;
+              const span = mergeAnchors.get(key);
+              const extra = extras?.get(`${name}!${r}:${c}`);
+              rowOut.push({
+                text,
+                bg,
+                color: extra?.color ?? (bg ? contrastTextColor(bg) : undefined),
+                bold: style?.font?.bold,
+                italic: style?.font?.italic,
+                align: extra?.align,
+                wrap: extra?.wrap,
+                fontFamily: extra?.fontFamily,
+                fontSize: extra?.fontSize,
+                border: extra?.border,
+                rowSpan: span?.rowSpan,
+                colSpan: span?.colSpan,
+              });
+            }
+            rows.push(rowOut);
+          }
+
+          const colWidths: number[] = [];
+          for (let c = range.s.c; c <= maxCol; c++) {
+            colWidths.push(ws["!cols"]?.[c]?.wpx ?? DEFAULT_COL_WIDTH);
+          }
+
+          return { name, rows, colWidths, truncated: range.e.r - range.s.r + 1 > MAX_SPREADSHEET_ROWS };
         });
         setSheets(parsed);
       } catch {
@@ -259,7 +366,6 @@ function SpreadsheetViewer({ url }: { url: string }) {
   }
 
   const sheet = sheets[activeSheet];
-  const truncatedRows = sheet.rows.length >= MAX_SPREADSHEET_ROWS;
 
   return (
     <div className="flex h-full flex-col" onContextMenu={(e) => e.preventDefault()}>
@@ -286,89 +392,51 @@ function SpreadsheetViewer({ url }: { url: string }) {
         <p className="flex flex-1 items-center justify-center text-sm text-white/80">This sheet is empty.</p>
       ) : (
         <div className="min-h-0 flex-1 overflow-auto rounded bg-white" style={{ userSelect: "text" }}>
-          <table className="border-collapse text-xs">
+          <table className="text-xs" style={{ borderCollapse: "collapse", tableLayout: "fixed" }}>
+            <colgroup>
+              {sheet.colWidths.map((w, i) => (
+                <col key={i} style={{ width: w }} />
+              ))}
+            </colgroup>
             <tbody>
               {sheet.rows.map((row, ri) => (
-                <tr key={ri} className={ri === 0 ? "bg-neutral-100 font-semibold" : ""}>
-                  {row.map((cell, ci) => (
-                    <td key={ci} className="border border-neutral-200 px-2 py-1 whitespace-nowrap text-neutral-800">
-                      {cell}
-                    </td>
-                  ))}
+                <tr key={ri}>
+                  {row.map(
+                    (cell, ci) =>
+                      cell && (
+                        <td
+                          key={ci}
+                          rowSpan={cell.rowSpan}
+                          colSpan={cell.colSpan}
+                          className="overflow-hidden border border-neutral-200 px-2 py-1 text-ellipsis"
+                          style={{
+                            background: cell.bg,
+                            color: cell.color ?? "#262626",
+                            fontWeight: cell.bold ? 700 : undefined,
+                            fontStyle: cell.italic ? "italic" : undefined,
+                            fontFamily: cell.fontFamily,
+                            fontSize: cell.fontSize,
+                            textAlign: cell.align,
+                            whiteSpace: cell.wrap ? "normal" : "nowrap",
+                            borderTop: cell.border?.top ? `1px solid ${cell.border.top}` : undefined,
+                            borderRight: cell.border?.right ? `1px solid ${cell.border.right}` : undefined,
+                            borderBottom: cell.border?.bottom ? `1px solid ${cell.border.bottom}` : undefined,
+                            borderLeft: cell.border?.left ? `1px solid ${cell.border.left}` : undefined,
+                          }}
+                        >
+                          {cell.text}
+                        </td>
+                      ),
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-      {truncatedRows && (
-        <p className="mt-2 shrink-0 text-xs text-white/50 italic">
-          Showing the first {MAX_SPREADSHEET_ROWS} rows.
-        </p>
+      {sheet.truncated && (
+        <p className="mt-2 shrink-0 text-xs text-white/50 italic">Showing the first {MAX_SPREADSHEET_ROWS} rows.</p>
       )}
-    </div>
-  );
-}
-
-// Converts the .docx's own XML into HTML client-side via mammoth, then
-// sanitizes that HTML with DOMPurify before it ever touches
-// dangerouslySetInnerHTML — mammoth only emits a constrained, semantic tag
-// vocabulary (p/h1-6/strong/em/table/img data-uris, etc.), but the input is
-// an arbitrary user-uploaded file, so it still gets treated as untrusted.
-function DocxViewer({ url }: { url: string }) {
-  const [html, setHtml] = useState<string | null>(null);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [mammoth, DOMPurify] = await Promise.all([import("mammoth"), import("dompurify")]);
-        const res = await fetch(url);
-        if (!res.ok) throw new Error();
-        const arrayBuffer = await res.arrayBuffer();
-        const result = await mammoth.convertToHtml({ arrayBuffer });
-        if (cancelled) return;
-        setHtml(DOMPurify.default.sanitize(result.value));
-      } catch {
-        if (!cancelled) setError("Couldn't load this document.");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [url]);
-
-  if (error) {
-    return <p className="flex h-full items-center justify-center text-sm text-white/80">{error}</p>;
-  }
-  if (html === null) {
-    return <p className="flex h-full items-center justify-center text-sm text-white/70">Loading preview…</p>;
-  }
-
-  return (
-    <div
-      className="h-full overflow-auto rounded bg-white p-6"
-      onContextMenu={(e) => e.preventDefault()}
-      style={{ userSelect: "text" }}
-    >
-      <div
-        className="docx-preview mx-auto max-w-3xl text-sm leading-relaxed text-neutral-800 [&_h1]:mb-3 [&_h1]:text-xl [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:text-lg [&_h2]:font-bold [&_h3]:mb-2 [&_h3]:text-base [&_h3]:font-semibold [&_p]:mb-3 [&_table]:mb-3 [&_table]:border-collapse [&_td]:border [&_td]:border-neutral-200 [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-neutral-200 [&_th]:px-2 [&_th]:py-1 [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mb-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_img]:max-w-full"
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-    </div>
-  );
-}
-
-function UnsupportedViewer({ title, getFreshUrl }: { title: string; getFreshUrl: FreshUrlFetcher }) {
-  const ext = title.includes(".") ? title.split(".").pop()?.toLowerCase() : null;
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-      <p className="text-sm font-medium text-white/80">No built-in preview for this file yet</p>
-      <p className="max-w-xs text-xs text-white/50">
-        {ext ? `".${ext}" files` : "This file type"} can&apos;t be rendered in our own viewer, but Google&apos;s viewer can still show it read-only.
-      </p>
-      <OpenWithGoogleButton getFreshUrl={getFreshUrl} variant="large" />
     </div>
   );
 }

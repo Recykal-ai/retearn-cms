@@ -43,7 +43,11 @@ export function AutoOpenDocument() {
     // before the in-flight fetch ever gets to open the viewer.
     getDocumentAction(docId)
       .then((doc) => {
-        if (!cancelled) viewRef.current({ id: doc.id, title: doc.title });
+        // viaLink: true — this fires from a page-load effect, not a click,
+        // so for docx/unsupported kinds view() shows a landing card with its
+        // own real "Open" button instead of trying to auto-pop a new tab
+        // (which browsers block without a genuine user gesture behind it).
+        if (!cancelled) viewRef.current({ id: doc.id, title: doc.title }, { viaLink: true });
       })
       .catch(() => {
         if (!cancelled) {

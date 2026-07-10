@@ -2,7 +2,7 @@ import { prisma } from "./prisma.js";
 
 export const documentInclude = {
   ownerTeam: { select: { id: true, name: true } },
-  categories: { include: { category: { select: { id: true, name: true, scope: true } } } },
+  categories: { include: { category: { select: { id: true, name: true, scope: true, isGlobal: true } } } },
   uploadedBy: { select: { id: true, name: true, email: true } },
   products: { include: { product: { select: { id: true, name: true } } } },
 } as const;
@@ -15,7 +15,7 @@ export function serializeDocument(
     status: string;
     publishedAt: Date | null;
     products: { product: { id: string; name: string } }[];
-    categories: { category: { id: string; name: string; scope: string } }[];
+    categories: { category: { id: string; name: string; scope: string; isGlobal: boolean } }[];
     [key: string]: unknown;
   },
   pinnedIds?: ReadonlySet<string>,

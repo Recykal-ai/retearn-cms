@@ -6,7 +6,7 @@ import { relativeTime } from "@/lib/relative-time";
 import { Tag } from "@/components/dashboard/Tag";
 import { FileTypeIcon } from "@/components/dashboard/FileTypeIcon";
 import { fileTypeOf } from "@/lib/file-type";
-import { colorForScope, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
+import { colorForCategory, dedupeGlobalCategories, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
 import { StatusDot } from "@/components/dashboard/StatusDot";
 import { PinButton } from "@/components/dashboard/PinButton";
 import { useDocumentViewer } from "@/components/dashboard/useDocumentViewer";
@@ -30,9 +30,13 @@ export function DocumentsCardGrid({
 }) {
   const [query, setQuery] = useState("");
   const { view, isOpening, viewerNode } = useDocumentViewer();
-  const filtered = query.trim()
-    ? documents.filter((d) => d.title.toLowerCase().includes(query.trim().toLowerCase()))
-    : documents;
+  const filtered = (() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return documents;
+    return documents.filter(
+      (d) => d.title.toLowerCase().includes(q) || d.categories.some((c) => c.name.toLowerCase().includes(q)),
+    );
+  })();
 
   return (
     <div>
@@ -132,8 +136,8 @@ function DocumentCard({
           const allTags = [
             ...(doc.ownerTeam ? [{ key: `team-${doc.ownerTeam.id}`, label: doc.ownerTeam.name, bg: TEAM_TAG_COLOR.bg, fg: TEAM_TAG_COLOR.fg }] : []),
             ...doc.products.map((p) => ({ key: `product-${p.id}`, label: p.name, bg: PRODUCT_TAG_COLOR.bg, fg: PRODUCT_TAG_COLOR.fg })),
-            ...doc.categories.map((c) => {
-              const color = colorForScope(c.scope);
+            ...dedupeGlobalCategories(doc.categories).map((c) => {
+              const color = colorForCategory(c);
               return { key: `cat-${c.id}`, label: c.name, bg: color.bg, fg: color.fg };
             }),
           ];

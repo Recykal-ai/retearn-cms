@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Category, DocStatus } from "@/lib/api";
 import { FILE_TYPE_LABEL, type FileTypeKey } from "@/lib/file-type";
 import { FileTypeIcon } from "@/components/dashboard/FileTypeIcon";
-import { colorForScope } from "@/lib/tag-colors";
+import { colorForCategory } from "@/lib/tag-colors";
 
 const STATUS_OPTIONS: { value: DocStatus | ""; label: string }[] = [
   { value: "", label: "All (published)" },
@@ -90,7 +90,16 @@ export function FilterPanel({
     setPendingDays("");
     setPendingTypes([]);
     setPendingCategories([]);
-    router.push(baseHref);
+    // Can't just router.push(baseHref) — baseHref bakes in the current
+    // category when one's selected (see DocumentsPanel's categoryHref), so
+    // that filter would survive a "Clear all". Deleting each param
+    // explicitly, same as apply() does, strips it regardless.
+    const url = new URL(baseHref, "http://placeholder");
+    url.searchParams.delete("status");
+    url.searchParams.delete("modifiedSince");
+    url.searchParams.delete("type");
+    url.searchParams.delete("category");
+    router.push(`${url.pathname}${url.search}`);
     setOpen(false);
   }
 
@@ -184,7 +193,7 @@ export function FilterPanel({
                 >
                   <div className="flex flex-col gap-1.5">
                     {categories.map((c) => {
-                      const color = colorForScope(c.scope);
+                      const color = colorForCategory(c);
                       const count = categoryCounts?.[c.id] ?? 0;
                       return (
                         <label

@@ -76,6 +76,20 @@ teamsRouter.delete<{ id: string }>("/:id", requireAuth, requireRole("ADMIN", "SU
     await prisma.category.deleteMany({ where: { id: { in: categoryIds } } });
   }
   await prisma.adminScope.deleteMany({ where: { teamId: team.id } });
+  // Same "no dangling FK" treatment as everything above: a PersonalNote's
+  // teamId is just a filing label, so null it out rather than block the
+  // delete; a team's own notes (there can be several now) don't survive the
+  // team itself, so those — and their membership/notification rows — are
+  // removed outright.
+  await prisma.personalNote.updateMany({ where: { teamId: team.id }, data: { teamId: null } });
+  const teamNoteIds = (await prisma.teamNote.findMany({ where: { teamId: team.id }, select: { id: true } })).map(
+    (n) => n.id,
+  );
+  if (teamNoteIds.length > 0) {
+    await prisma.notification.deleteMany({ where: { teamNoteId: { in: teamNoteIds } } });
+    await prisma.teamNoteMembership.deleteMany({ where: { teamNoteId: { in: teamNoteIds } } });
+    await prisma.teamNote.deleteMany({ where: { id: { in: teamNoteIds } } });
+  }
   await prisma.team.delete({ where: { id: team.id } });
 
   await getOrCreateOthersTeam();

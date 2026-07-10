@@ -35,6 +35,15 @@ body {
   font-family: var(--font-roboto), Arial, Helvetica, sans-serif;
 }
 
+/* Browsers give <a href> a pointer cursor by default but NOT <button> (its
+   default is the plain arrow) — every clickable button in this app felt
+   inconsistent next to a Link because of that native mismatch, not anything
+   Tailwind does. Restoring the pointer here makes every clickable control
+   behave the same regardless of which element it's built from. */
+button:not(:disabled) {
+  cursor: pointer;
+}
+
 @keyframes fade-up {
   from {
     opacity: 0;
@@ -88,4 +97,69 @@ body {
     opacity: 0.8;
     animation: none;
   }
+}
+
+/* Tiptap note content — no @tailwindcss/typography plugin installed, so
+   Tailwind's preflight reset (which strips native heading sizes and list
+   bullets) leaves headings/lists visually indistinguishable from a plain
+   paragraph even though the underlying h1/ul/ol nodes are correct. Styled
+   by hand here instead of pulling in the plugin. */
+.ProseMirror h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0.6em 0 0.3em;
+  line-height: 1.25;
+}
+.ProseMirror h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0.6em 0 0.3em;
+  line-height: 1.3;
+}
+.ProseMirror h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0.5em 0 0.25em;
+  line-height: 1.35;
+}
+.ProseMirror p {
+  margin: 0.4em 0;
+}
+.ProseMirror ul {
+  list-style: disc;
+  padding-left: 1.5em;
+  margin: 0.4em 0;
+}
+.ProseMirror ol {
+  list-style: decimal;
+  padding-left: 1.5em;
+  margin: 0.4em 0;
+}
+.ProseMirror li {
+  margin: 0.15em 0;
+}
+.ProseMirror li p {
+  margin: 0;
+}
+.ProseMirror blockquote {
+  border-left: 3px solid var(--canvas-border);
+  padding-left: 0.75em;
+  color: #6b7280;
+}
+.ProseMirror strong {
+  font-weight: 700;
+}
+.ProseMirror em {
+  font-style: italic;
+}
+
+/* @mention pill — rendered as a rounded "blob" instead of plain @text so a
+   mention reads as a distinct token, matching how Slack/Notion mentions look. */
+.ProseMirror span[data-type="mention"] {
+  background: var(--brand-purple-tint);
+  color: var(--brand-purple);
+  border-radius: 999px;
+  padding: 0.05em 0.55em;
+  font-weight: 600;
+  white-space: nowrap;
 }
