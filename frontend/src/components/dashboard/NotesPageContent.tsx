@@ -189,6 +189,7 @@ export function NotesPageContent({ isAdmin }: { isAdmin: boolean }) {
             <PersonalNoteEditor
               key={selectedPersonal.id}
               note={selectedPersonal}
+              onSaved={() => getPersonalNotesAction().then(setPersonalNotes)}
               onDeleted={() => {
                 setSelectedPersonalId(null);
                 getPersonalNotesAction().then(setPersonalNotes);

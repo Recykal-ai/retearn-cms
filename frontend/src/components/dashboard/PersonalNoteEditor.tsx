@@ -16,9 +16,11 @@ const AUTOSAVE_DELAY_MS = 1200;
 // rather than carrying stale values over).
 export function PersonalNoteEditor({
   note,
+  onSaved,
   onDeleted,
 }: {
   note: PersonalNote;
+  onSaved: () => void;
   onDeleted: () => void;
 }) {
   const [title, setTitle] = useState(note.title);
@@ -52,6 +54,10 @@ export function PersonalNoteEditor({
       return;
     }
     setSaveState("saved");
+    // Parent's note list was fetched once on mount and never refreshed —
+    // without this, switching away and back re-hydrates the editor from
+    // that stale list, making a genuinely-saved edit look like it reverted.
+    onSaved();
   }
 
   function scheduleSave() {
