@@ -8,6 +8,7 @@ import { logger } from "../lib/logger.js";
 import { documentInclude, serializeDocument, loadPinnedIds } from "../lib/document-serializer.js";
 import { loadAdminScope, canManageTeamOrProducts } from "../lib/admin-scope.js";
 import { getOrCreateOthersCategory } from "../lib/fallback-entities.js";
+import { isOfficePreviewCandidate, convertOfficeToPdf } from "../lib/office-preview.js";
 import {
   getDriveExportTarget,
   extractDriveFileId,
@@ -47,6 +48,21 @@ function isValidHttpUrl(value: string): boolean {
 
 function isAdminRole(role: string): boolean {
   return role === "ADMIN" || role === "SUPER_ADMIN";
+}
+
+// Converts and stores a docx/pptx upload's PDF stand-in alongside the raw
+// file, returning the preview's storage key (or null if this isn't an
+// Office file, or conversion failed — see office-preview.ts). Called right
+// after the raw file itself is saved, at every site a FILE gets a fresh
+// s3Key: initial upload, a new version, nowhere else (revert reuses an
+// existing version's keys verbatim, no reconversion needed).
+async function maybeSaveOfficePreview(s3Key: string, buffer: Buffer, filename: string): Promise<string | null> {
+  if (!isOfficePreviewCandidate(filename)) return null;
+  const pdf = await convertOfficeToPdf(buffer, filename);
+  if (!pdf) return null;
+  const previewS3Key = `${s3Key}.preview.pdf`;
+  await storage.save(previewS3Key, pdf);
+  return previewS3Key;
 }
 
 const SORTABLE_FIELDS: Record<string, string> = {
@@ -411,10 +427,12 @@ documentsRouter.post("/", requireAuth, upload.single("file"), async (req, res) =
   });
 
   let s3Key: string | null = null;
+  let previewS3Key: string | null = null;
   if (sourceType === "FILE" && req.file) {
     s3Key = `${document.id}/1/${sanitizeFilename(req.file.originalname)}`;
     await storage.save(s3Key, req.file.buffer);
-    await prisma.document.update({ where: { id: document.id }, data: { s3Key } });
+    previewS3Key = await maybeSaveOfficePreview(s3Key, req.file.buffer, req.file.originalname);
+    await prisma.document.update({ where: { id: document.id }, data: { s3Key, previewS3Key } });
   }
 
   await prisma.documentVersion.create({
@@ -423,6 +441,7 @@ documentsRouter.post("/", requireAuth, upload.single("file"), async (req, res) =
       version: 1,
       sourceType,
       s3Key,
+      previewS3Key,
       externalUrl: sourceType === "LINK" ? body.externalUrl!.trim() : null,
       uploadedBy: req.user!.userId,
     },
@@ -472,9 +491,11 @@ documentsRouter.post<{ id: string }>("/:id/versions", requireAuth, upload.single
 
   const nextVersion = existing.currentVersion + 1;
   let s3Key: string | null = null;
+  let previewS3Key: string | null = null;
   if (sourceType === "FILE" && req.file) {
     s3Key = `${existing.id}/${nextVersion}/${sanitizeFilename(req.file.originalname)}`;
     await storage.save(s3Key, req.file.buffer);
+    previewS3Key = await maybeSaveOfficePreview(s3Key, req.file.buffer, req.file.originalname);
   }
   const externalUrl = sourceType === "LINK" ? body.externalUrl!.trim() : null;
   // Same scope-aware auto-publish rule as the initial upload — a scoped
@@ -490,6 +511,7 @@ documentsRouter.post<{ id: string }>("/:id/versions", requireAuth, upload.single
       version: nextVersion,
       sourceType,
       s3Key,
+      previewS3Key,
       externalUrl,
       note: body.note?.trim() || null,
       uploadedBy: req.user!.userId,
@@ -502,6 +524,7 @@ documentsRouter.post<{ id: string }>("/:id/versions", requireAuth, upload.single
       currentVersion: nextVersion,
       sourceType,
       s3Key,
+      previewS3Key,
       externalUrl,
       title: sourceType === "FILE" ? req.file!.originalname : existing.title,
       status: autoPublish ? "PUBLISHED" : "PENDING",
@@ -565,15 +588,17 @@ documentsRouter.post<{ id: string; version: string }>(
     const autoPublish =
       isAdmin && canManageTeamOrProducts(scope, existing.ownerTeamId, existing.products.map((p) => p.productId));
 
-    // Reuses the target's existing s3Key/externalUrl rather than duplicating
-    // the file on disk — nothing in this app ever deletes an individual
-    // version's file, so pointing a new version row at the same key is safe.
+    // Reuses the target's existing s3Key/previewS3Key/externalUrl rather than
+    // duplicating the file (or reconverting it) — nothing in this app ever
+    // deletes an individual version's file, so pointing a new version row at
+    // the same keys is safe.
     await prisma.documentVersion.create({
       data: {
         documentId: existing.id,
         version: nextVersion,
         sourceType: target.sourceType,
         s3Key: target.s3Key,
+        previewS3Key: target.previewS3Key,
         externalUrl: target.externalUrl,
         note: `Reverted to version ${targetVersionNumber}`,
         uploadedBy: req.user!.userId,
@@ -586,6 +611,7 @@ documentsRouter.post<{ id: string; version: string }>(
         currentVersion: nextVersion,
         sourceType: target.sourceType,
         s3Key: target.s3Key,
+        previewS3Key: target.previewS3Key,
         externalUrl: target.externalUrl,
         // FILE titles always mirror the current version's filename; a LINK
         // doc's title is independent of which version is current.
@@ -900,6 +926,22 @@ async function buildLinkViewResponse(externalUrl: string | null, documentId: str
   return { url: externalUrl, sourceType: "LINK" as const, expiresIn: null };
 }
 
+// Mirrors buildLinkViewResponse's "route through our own viewer instead of
+// an external escape hatch" reasoning, but for FILE uploads: a docx/pptx
+// with a converted preview (see office-preview.ts) is served as that PDF —
+// kind: "pdf" routes the frontend into the in-app pdf.js viewer — and the
+// raw docx/pptx's own signed URL is never returned to the browser at all.
+// Falls back to the raw file when there's no preview (every other file
+// type, or an Office file whose conversion failed at upload time).
+async function buildFileViewResponse(s3Key: string, previewS3Key: string | null) {
+  if (previewS3Key) {
+    const { url, expiresIn } = await storage.getSignedUrl(previewS3Key);
+    return { url, sourceType: "FILE" as const, kind: "pdf" as const, expiresIn };
+  }
+  const { url, expiresIn } = await storage.getSignedUrl(s3Key);
+  return { url, sourceType: "FILE" as const, expiresIn };
+}
+
 documentsRouter.get<{ id: string }>("/:id/view-url", requireAuth, async (req, res) => {
   const doc = await prisma.document.findFirst({ where: { id: req.params.id, deletedAt: null } });
   if (!doc) return res.status(404).json({ error: "Document not found" });
@@ -926,8 +968,7 @@ documentsRouter.get<{ id: string }>("/:id/view-url", requireAuth, async (req, re
     logger.error("published FILE document missing s3Key", { documentId: doc.id });
     return res.status(500).json({ error: "File is missing" });
   }
-  const { url, expiresIn } = await storage.getSignedUrl(doc.s3Key);
-  res.json({ url, sourceType: "FILE", expiresIn });
+  res.json(await buildFileViewResponse(doc.s3Key, doc.previewS3Key));
 });
 
 // GET /api/documents/:id/drive-export?userId=&expires=&sig= — the actual
@@ -1000,6 +1041,5 @@ documentsRouter.get<{ id: string; version: string }>("/:id/versions/:version/vie
     logger.error("FILE version missing s3Key", { documentId: doc.id, version: versionNumber });
     return res.status(500).json({ error: "File is missing for this version" });
   }
-  const { url, expiresIn } = await storage.getSignedUrl(version.s3Key);
-  res.json({ url, sourceType: "FILE", expiresIn });
+  res.json(await buildFileViewResponse(version.s3Key, version.previewS3Key));
 });

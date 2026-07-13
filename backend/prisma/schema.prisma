@@ -139,6 +139,16 @@ model Document {
   sourceType            DocSourceType      @default(FILE)
   s3Key                 String? // current version's storage key — set when sourceType = FILE
   externalUrl           String? // current version's external link — set when sourceType = LINK
+  // Storage key of a server-side-converted PDF standing in for a docx/pptx
+  // upload — set only when sourceType = FILE and the original was Word/
+  // PowerPoint. Google's own viewer (previously used for these) shows an
+  // "Open with Google Docs/Slides" button to any signed-in visitor, which
+  // lets them download or edit the file — a real break of view-only
+  // enforcement. Converting to PDF once (LibreOffice headless, see
+  // lib/office-preview.ts) and rendering it through our own pdf.js viewer
+  // closes that off entirely; the raw docx/pptx (s3Key) is kept in storage
+  // for version history but its signed URL is never issued to a browser.
+  previewS3Key          String?
   deletedAt             DateTime?
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
@@ -180,16 +190,20 @@ model DocumentCategory {
 }
 
 model DocumentVersion {
-  id          String        @id @default(uuid())
-  documentId  String
-  document    Document      @relation(fields: [documentId], references: [id])
-  version     Int
-  sourceType  DocSourceType @default(FILE)
-  s3Key       String?
-  externalUrl String?
-  note        String?
-  uploadedBy  String
-  createdAt   DateTime      @default(now())
+  id           String        @id @default(uuid())
+  documentId   String
+  document     Document      @relation(fields: [documentId], references: [id])
+  version      Int
+  sourceType   DocSourceType @default(FILE)
+  s3Key        String?
+  externalUrl  String?
+  // This version's own converted-PDF stand-in, same reasoning as
+  // Document.previewS3Key — kept per-version so Version History can open an
+  // old docx/pptx version through the in-app viewer too, not just the current one.
+  previewS3Key String?
+  note         String?
+  uploadedBy   String
+  createdAt    DateTime      @default(now())
 }
 
 model AuditLog {
