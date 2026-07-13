@@ -47,6 +47,7 @@ export function FilterPanel({
   const [pendingCategories, setPendingCategories] = useState<string[]>(
     category ? category.split(",").filter(Boolean) : [],
   );
+  const [tagSearch, setTagSearch] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -59,6 +60,10 @@ export function FilterPanel({
   const activeCount =
     (status ? 1 : 0) + (modifiedSince ? 1 : 0) + (type ? type.split(",").filter(Boolean).length : 0) +
     (category ? category.split(",").filter(Boolean).length : 0);
+
+  const filteredCategories = categories.filter((c) =>
+    c.name.toLowerCase().includes(tagSearch.trim().toLowerCase()),
+  );
 
   function toggle(list: string[], setList: (v: string[]) => void, value: string) {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
@@ -191,8 +196,18 @@ export function FilterPanel({
                   title={`Tags${pendingCategories.length ? ` (${pendingCategories.length})` : ""}`}
                   last
                 >
+                  <input
+                    type="text"
+                    value={tagSearch}
+                    onChange={(e) => setTagSearch(e.target.value)}
+                    placeholder="Search tags…"
+                    className="mb-2 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-700 outline-none focus:border-neutral-400"
+                  />
+                  {filteredCategories.length === 0 && (
+                    <p className="py-1 text-xs text-neutral-400">No tags match &ldquo;{tagSearch}&rdquo;.</p>
+                  )}
                   <div className="flex flex-col gap-1.5">
-                    {categories.map((c) => {
+                    {filteredCategories.map((c) => {
                       const color = colorForCategory(c);
                       const count = categoryCounts?.[c.id] ?? 0;
                       return (
