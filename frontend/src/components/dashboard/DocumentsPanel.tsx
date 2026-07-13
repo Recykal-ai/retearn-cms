@@ -64,8 +64,20 @@ export function DocumentsPanel({
   const selectedCategory = selectedCategoryId
     ? categories.find((c) => c.id === selectedCategoryId)
     : undefined;
-  // In folder view, going "up" a level means dropping the category but keeping the folder view itself.
-  const folderUpHref = `${entityHref}&view=folders`;
+  // In folder view, going "up" a level (or into a folder tile — FolderGrid
+  // builds its own links from this) means dropping the category but keeping
+  // the folder view itself. Must still carry status/modifiedSince/type
+  // explicitly — otherwise navigating into or out of a folder silently
+  // dropped whatever filters were active (e.g. a Pending-status filter
+  // showing "1 document" in a folder tile, then landing on all documents
+  // once you actually opened it).
+  const folderUpHref = (() => {
+    const url = new URL(`${entityHref}&view=folders`, "http://placeholder");
+    if (status) url.searchParams.set("status", status);
+    if (modifiedSince) url.searchParams.set("modifiedSince", modifiedSince);
+    if (type) url.searchParams.set("type", type);
+    return `${url.pathname}${url.search}`;
+  })();
 
   // The current location with no removable filters (status/date/type) — used
   // wherever an action should preserve view mode/folder without carrying over
