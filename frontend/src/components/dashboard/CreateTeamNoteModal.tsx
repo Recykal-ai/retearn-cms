@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getCreatableTeamsAction, createTeamNoteAction, searchCandidateUsersForTeamAction } from "@/app/dashboard/notes-actions";
 import type { CreatableTeam, CandidateUser } from "@/lib/api";
+import { DateTimePicker } from "@/components/dashboard/DateTimePicker";
 import { useToast } from "@/components/ToastProvider";
 
 // Admin/Super-Admin-only. Title + date/time + team + hand-picked initial
@@ -128,12 +129,7 @@ export function CreateTeamNoteModal({
 
         <div className="mb-4">
           <label className="mb-1 block text-xs font-semibold text-neutral-500">Date/time</label>
-          <input
-            type="datetime-local"
-            value={meetingAt}
-            onChange={(e) => setMeetingAt(e.target.value)}
-            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
-          />
+          <DateTimePicker value={meetingAt} onChange={setMeetingAt} />
         </div>
 
         <div className="mb-5">

@@ -6,12 +6,12 @@ import {
   getTeamNotesListAction,
   getNotificationsAction,
   markNotificationReadAction,
-  createPersonalNoteAction,
 } from "@/app/dashboard/notes-actions";
 import type { PersonalNote, TeamNoteSummary, NotificationEntry } from "@/lib/api";
 import { PersonalNoteEditor } from "@/components/dashboard/PersonalNoteEditor";
 import { TeamNoteEditor } from "@/components/dashboard/TeamNoteEditor";
 import { CreateTeamNoteModal } from "@/components/dashboard/CreateTeamNoteModal";
+import { CreatePersonalNoteModal } from "@/components/dashboard/CreatePersonalNoteModal";
 import { relativeTime } from "@/lib/relative-time";
 
 type Mode = "individual" | "team";
@@ -26,6 +26,7 @@ export function NotesPageContent({ isAdmin }: { isAdmin: boolean }) {
   const [selectedPersonalId, setSelectedPersonalId] = useState<string | null>(null);
   const [selectedTeamNoteId, setSelectedTeamNoteId] = useState<string | null>(null);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
+  const [showCreatePersonalModal, setShowCreatePersonalModal] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,13 +51,11 @@ export function NotesPageContent({ isAdmin }: { isAdmin: boolean }) {
     setSelectedTeamNoteId(n.teamNoteId);
   }
 
-  async function handleCreatePersonalNote() {
-    const result = await createPersonalNoteAction({ title: "Untitled note", content: "" });
-    if (!result.error) {
-      const notes = await getPersonalNotesAction();
-      setPersonalNotes(notes);
-      if (notes[0]) setSelectedPersonalId(notes[0].id);
-    }
+  async function handlePersonalNoteCreated() {
+    setShowCreatePersonalModal(false);
+    const notes = await getPersonalNotesAction();
+    setPersonalNotes(notes);
+    if (notes[0]) setSelectedPersonalId(notes[0].id);
   }
 
   function handleTeamNoteCreated(noteId: string) {
@@ -94,7 +93,7 @@ export function NotesPageContent({ isAdmin }: { isAdmin: boolean }) {
           {mode === "individual" && (
             <button
               type="button"
-              onClick={handleCreatePersonalNote}
+              onClick={() => setShowCreatePersonalModal(true)}
               className="w-full rounded-md px-3 py-1.5 text-sm font-medium text-white"
               style={{ background: "var(--brand-purple)" }}
             >
@@ -209,6 +208,9 @@ export function NotesPageContent({ isAdmin }: { isAdmin: boolean }) {
 
       {showCreateTeamModal && (
         <CreateTeamNoteModal onClose={() => setShowCreateTeamModal(false)} onCreated={handleTeamNoteCreated} />
+      )}
+      {showCreatePersonalModal && (
+        <CreatePersonalNoteModal onClose={() => setShowCreatePersonalModal(false)} onCreated={handlePersonalNoteCreated} />
       )}
     </div>
   );

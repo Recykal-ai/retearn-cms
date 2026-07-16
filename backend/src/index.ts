@@ -14,6 +14,7 @@ import { auditLogRouter } from "./routes/audit-log.js";
 import { personalNotesRouter } from "./routes/personal-notes.js";
 import { teamNotesRouter } from "./routes/team-notes.js";
 import { notificationsRouter } from "./routes/notifications.js";
+import { noteImagesRouter } from "./routes/note-images.js";
 
 const app = express();
 const PORT = process.env.PORT ?? 4000;
@@ -42,6 +43,7 @@ app.use("/api/audit-log", auditLogRouter);
 app.use("/api/personal-notes", personalNotesRouter);
 app.use("/api/team-notes", teamNotesRouter);
 app.use("/api/notifications", notificationsRouter);
+app.use("/api/note-images", noteImagesRouter);
 app.use("/files", filesRouter);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

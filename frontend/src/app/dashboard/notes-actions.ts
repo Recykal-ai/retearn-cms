@@ -20,6 +20,8 @@ import {
   getNotifications,
   getUnreadNotificationsCount,
   markNotificationRead,
+  uploadNoteImage,
+  getNoteImageViewUrl,
   type PersonalNoteInput,
 } from "@/lib/api";
 
@@ -169,4 +171,19 @@ export async function markNotificationReadAction(id: string): Promise<{ error?: 
     return { error: err instanceof Error ? err.message : "Failed to mark as read" };
   }
   return {};
+}
+
+export async function uploadNoteImageAction(formData: FormData): Promise<{ key?: string; error?: string }> {
+  const session = await requireSession();
+  try {
+    const result = await uploadNoteImage(session.appToken!, formData);
+    return { key: result.key };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to upload image" };
+  }
+}
+
+export async function getNoteImageViewUrlAction(key: string) {
+  const session = await requireSession();
+  return getNoteImageViewUrl(session.appToken!, key);
 }

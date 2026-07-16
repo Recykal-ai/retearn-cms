@@ -10,9 +10,23 @@ import {
 } from "@/app/dashboard/notes-actions";
 import type { TeamNoteDetail, CandidateUser } from "@/lib/api";
 import { RichTextEditor } from "@/components/dashboard/RichTextEditor";
+import { DateTimePicker } from "@/components/dashboard/DateTimePicker";
 import { useToast } from "@/components/ToastProvider";
 
 const AUTOSAVE_DELAY_MS = 1200;
+
+function toLocalInputValue(isoString: string): string {
+  const d = new Date(isoString);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function formatMetaDate(localValue: string): string {
+  const [datePart, timePart] = localValue.split("T");
+  if (!datePart || !timePart) return localValue;
+  const [y, m, d] = datePart.split("-");
+  return `${d}-${m}-${y} ${timePart}`;
+}
 
 // A titled, shared note for one team — the note list only ever shows notes
 // the current user is already a member of, so this component never needs to
@@ -22,14 +36,17 @@ export function TeamNoteEditor({ noteId }: { noteId: string }) {
   const [detail, setDetail] = useState<TeamNoteDetail | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [meetingAt, setMeetingAt] = useState("");
+  const [metaOpen, setMetaOpen] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "pending" | "saved">("idle");
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<CandidateUser[]>([]);
   const { show } = useToast();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latestRef = useRef({ title, content });
+  const metaRef = useRef<HTMLDivElement>(null);
+  const latestRef = useRef({ title, content, meetingAt });
   useEffect(() => {
-    latestRef.current = { title, content };
+    latestRef.current = { title, content, meetingAt };
   });
 
   useEffect(() => {
@@ -39,12 +56,22 @@ export function TeamNoteEditor({ noteId }: { noteId: string }) {
       setDetail(d);
       setTitle(d.title);
       setContent(d.content);
+      setMeetingAt(d.meetingAt ? toLocalInputValue(d.meetingAt) : "");
       setSaveState("idle");
     });
     return () => {
       cancelled = true;
     };
   }, [noteId]);
+
+  useEffect(() => {
+    if (!metaOpen) return;
+    function onMouseDown(e: MouseEvent) {
+      if (metaRef.current && !metaRef.current.contains(e.target as Node)) setMetaOpen(false);
+    }
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [metaOpen]);
 
   useEffect(() => {
     if (!detail?.canCurate) return;
@@ -59,7 +86,11 @@ export function TeamNoteEditor({ noteId }: { noteId: string }) {
 
   async function flush() {
     const v = latestRef.current;
-    const result = await updateTeamNoteAction(noteId, { title: v.title, content: v.content });
+    const result = await updateTeamNoteAction(noteId, {
+      title: v.title,
+      content: v.content,
+      meetingAt: v.meetingAt ? new Date(v.meetingAt).toISOString() : null,
+    });
     if (result.error) {
       show(result.error, "error");
       return;
@@ -118,17 +149,38 @@ export function TeamNoteEditor({ noteId }: { noteId: string }) {
               setTitle(e.target.value);
               scheduleSave();
             }}
-            className="w-full text-xl font-semibold text-neutral-900 focus:outline-none"
+            className="w-full text-3xl font-bold text-neutral-900 focus:outline-none"
             placeholder="Note title"
           />
           <span className="shrink-0 text-xs text-neutral-400">
             {saveState === "pending" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
           </span>
         </div>
-        <p className="mb-4 text-xs text-neutral-400">
-          {detail.teamName}
-          {detail.meetingAt && ` · ${new Date(detail.meetingAt).toLocaleString()}`}
-        </p>
+
+        <div ref={metaRef} className="relative mb-4">
+          <button
+            type="button"
+            onClick={() => setMetaOpen((v) => !v)}
+            className="text-sm text-neutral-400 hover:text-neutral-600 hover:underline"
+          >
+            {[detail.teamName, meetingAt ? formatMetaDate(meetingAt) : null, `Created by: ${detail.createdBy.name}`]
+              .filter(Boolean)
+              .join(" · ")}
+          </button>
+
+          {metaOpen && (
+            <div className="absolute top-full left-0 z-20 mt-2 w-64 rounded-lg border border-neutral-200 bg-white p-3 shadow-lg">
+              <label className="mb-1 block text-xs font-semibold text-neutral-500">Meeting date/time</label>
+              <DateTimePicker
+                value={meetingAt}
+                onChange={(v) => {
+                  setMeetingAt(v);
+                  scheduleSave();
+                }}
+              />
+            </div>
+          )}
+        </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           <RichTextEditor

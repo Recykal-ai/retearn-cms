@@ -62,6 +62,11 @@ teamNotesRouter.get("/candidate-users", requireAuth, async (req, res) => {
   const users = await prisma.user.findMany({
     where: {
       active: true,
+      // The creator is always auto-added as a member server-side (see POST
+      // / below) regardless of whether they're toggled here — showing them
+      // in this picker as an unchecked option looked like a required step
+      // that wasn't actually required.
+      id: { not: req.user!.userId },
       ...(q
         ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { email: { contains: q, mode: "insensitive" } }] }
         : {}),
@@ -120,6 +125,7 @@ teamNotesRouter.get<{ id: string }>("/:id", requireAuth, async (req, res) => {
     where: { id },
     include: {
       team: { select: { id: true, name: true } },
+      createdBy: { select: { id: true, name: true } },
       members: { include: { user: { select: { id: true, name: true, email: true } } }, orderBy: { addedAt: "asc" } },
     },
   });
@@ -136,6 +142,7 @@ teamNotesRouter.get<{ id: string }>("/:id", requireAuth, async (req, res) => {
     content: note.content,
     updatedAt: note.updatedAt,
     canCurate,
+    createdBy: { id: note.createdBy.id, name: note.createdBy.name },
     members: note.members.map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email, addedAt: m.addedAt })),
   });
 });

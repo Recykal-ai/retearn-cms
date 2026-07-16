@@ -1,11 +1,18 @@
 "use client";
 
-import { forwardRef, useImperativeHandle, useState } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { useEditor, EditorContent, ReactRenderer } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Mention from "@tiptap/extension-mention";
+import Highlight from "@tiptap/extension-highlight";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import { DocumentEmbed } from "@/components/dashboard/DocumentEmbedExtension";
+import { NoteImage } from "@/components/dashboard/NoteImageExtension";
+import { EditorContextMenu } from "@/components/dashboard/EditorContextMenu";
+import { uploadNoteImageAction } from "@/app/dashboard/notes-actions";
+import { useToast } from "@/components/ToastProvider";
 
 export interface MentionCandidate {
   id: string;
@@ -108,14 +115,25 @@ export function RichTextEditor({
   mentionCandidates?: MentionCandidate[];
   placeholder?: string;
 }) {
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { show } = useToast();
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
-      // link: false — Tiptap v3's StarterKit bundles the Link extension
-      // (with autolink on) by default; explicitly disabled since this app
-      // doesn't offer a hyperlink option.
-      StarterKit.configure({ link: false }),
+      // Tiptap v3's StarterKit bundles the Link extension — autolink turns a
+      // pasted or typed URL into a real <a> automatically. openOnClick:
+      // false so clicking a link while editing doesn't navigate the whole
+      // tab away mid-edit (still openable via the usual ctrl/cmd+click).
+      StarterKit.configure({
+        link: { autolink: true, openOnClick: false, HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" } },
+      }),
+      Highlight,
+      TaskList,
+      TaskItem.configure({ nested: true }),
       DocumentEmbed,
+      NoteImage,
       ...(mentionCandidates
         ? [
             Mention.configure({
@@ -144,45 +162,51 @@ export function RichTextEditor({
 
   if (!editor) return null;
 
-  return (
-    <div className="rounded-md border border-neutral-200">
-      <div className="flex flex-wrap gap-1 border-b border-neutral-100 px-2 py-1.5">
-        <ToolbarButton active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
-          B
-        </ToolbarButton>
-        <ToolbarButton active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}>
-          I
-        </ToolbarButton>
-        <ToolbarButton active={editor.isActive("heading", { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
-          H1
-        </ToolbarButton>
-        <ToolbarButton active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-          H2
-        </ToolbarButton>
-        <ToolbarButton active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
-          H3
-        </ToolbarButton>
-        <ToolbarButton active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}>
-          • List
-        </ToolbarButton>
-        <ToolbarButton active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-          1. List
-        </ToolbarButton>
-      </div>
-      <EditorContent editor={editor} placeholder={placeholder} />
-    </div>
-  );
-}
+  function handleFileChosen(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // lets picking the same file twice in a row still fire onChange
+    if (!file || !editor) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    uploadNoteImageAction(formData).then((result) => {
+      if (result.error || !result.key) {
+        show(result.error ?? "Failed to upload image", "error");
+        return;
+      }
+      editor.chain().focus().insertContent({ type: "noteImage", attrs: { imageKey: result.key } }).run();
+    });
+  }
 
-function ToolbarButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded px-2 py-1 text-xs font-semibold"
-      style={active ? { background: "var(--brand-purple-tint)", color: "var(--brand-purple)" } : { color: "#525252" }}
+    // No persistent toolbar — formatting lives in the right-click menu
+    // instead (Obsidian's pattern), so the editor itself stays clean. A
+    // right-click on top of an existing text selection doesn't collapse it
+    // in any browser, so "select, then right-click" behaves exactly like it
+    // does in a native text field.
+    <div
+      className="rounded-md border border-neutral-200"
+      onContextMenu={(e) => {
+        e.preventDefault();
+        setMenuPos({ x: e.clientX, y: e.clientY });
+      }}
     >
-      {children}
-    </button>
+      <EditorContent editor={editor} placeholder={placeholder} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChosen}
+        className="hidden"
+      />
+      {menuPos && (
+        <EditorContextMenu
+          editor={editor}
+          x={menuPos.x}
+          y={menuPos.y}
+          onClose={() => setMenuPos(null)}
+          onInsertImage={() => fileInputRef.current?.click()}
+        />
+      )}
+    </div>
   );
 }

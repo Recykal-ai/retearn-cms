@@ -455,6 +455,7 @@ export interface TeamNoteDetail {
   content: string;
   updatedAt: string;
   canCurate: boolean;
+  createdBy: { id: string; name: string };
   members: TeamNoteMember[];
 }
 
@@ -547,4 +548,19 @@ export function getUnreadNotificationsCount(appToken: string) {
 
 export function markNotificationRead(appToken: string, id: string) {
   return backendFetch<{ ok: true }>(`/api/notifications/${id}/read`, appToken, { method: "POST" });
+}
+
+// Uploading returns only a storage key, never a URL — a signed URL would
+// expire long before the note itself does. The editor re-resolves a fresh
+// one via getNoteImageViewUrl every time the image renders (see
+// NoteImageExtension.tsx), same pattern as embedding an existing document.
+export function uploadNoteImage(appToken: string, formData: FormData) {
+  return backendFetch<{ key: string }>("/api/note-images", appToken, { method: "POST", body: formData });
+}
+
+export function getNoteImageViewUrl(appToken: string, key: string) {
+  return backendFetch<{ url: string; expiresIn: number }>(
+    `/api/note-images/view-url?key=${encodeURIComponent(key)}`,
+    appToken,
+  );
 }
