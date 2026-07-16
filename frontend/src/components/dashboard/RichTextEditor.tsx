@@ -1,16 +1,20 @@
 "use client";
 
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
-import { useEditor, EditorContent, ReactRenderer } from "@tiptap/react";
+import { useEditor, EditorContent, ReactRenderer, type Editor } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
+import { NodeSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import Mention from "@tiptap/extension-mention";
 import Highlight from "@tiptap/extension-highlight";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
+import Placeholder from "@tiptap/extension-placeholder";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import { DocumentEmbed } from "@/components/dashboard/DocumentEmbedExtension";
 import { NoteImage } from "@/components/dashboard/NoteImageExtension";
-import { EditorContextMenu } from "@/components/dashboard/EditorContextMenu";
+import { SlashCommand } from "@/components/dashboard/SlashCommandExtension";
+import { SelectionToolbar } from "@/components/dashboard/SelectionToolbar";
 import { uploadNoteImageAction } from "@/app/dashboard/notes-actions";
 import { useToast } from "@/components/ToastProvider";
 
@@ -104,6 +108,10 @@ function buildMentionSuggestion(candidates: MentionCandidate[]): Partial<Suggest
   };
 }
 
+function imageFilesFrom(list: FileList | null | undefined): File[] {
+  return Array.from(list ?? []).filter((f) => f.type.startsWith("image/"));
+}
+
 export function RichTextEditor({
   content,
   onChange,
@@ -115,17 +123,40 @@ export function RichTextEditor({
   mentionCandidates?: MentionCandidate[];
   placeholder?: string;
 }) {
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { show } = useToast();
+
+  // Shared by the slash-menu's "Insert image" (file picker), pasting an
+  // image from the clipboard, and dragging one in — all three just need to
+  // get bytes to the server and drop a noteImage node in wherever's
+  // appropriate; only how that position is chosen differs per caller.
+  function uploadAndInsertImage(editor: Editor, file: File, atPos?: number) {
+    const formData = new FormData();
+    formData.append("file", file);
+    uploadNoteImageAction(formData).then((result) => {
+      if (result.error || !result.key) {
+        show(result.error ?? "Failed to upload image", "error");
+        return;
+      }
+      const node = { type: "noteImage", attrs: { imageKey: result.key } };
+      if (atPos !== undefined) {
+        editor.chain().focus().insertContentAt(atPos, node).run();
+      } else {
+        editor.chain().focus().insertContent(node).run();
+      }
+    });
+  }
 
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
       // Tiptap v3's StarterKit bundles the Link extension — autolink turns a
-      // pasted or typed URL into a real <a> automatically. openOnClick:
-      // false so clicking a link while editing doesn't navigate the whole
-      // tab away mid-edit (still openable via the usual ctrl/cmd+click).
+      // pasted or typed URL into a real <a> automatically, and the same
+      // extension's setLink/unsetLink commands back the selection toolbar's
+      // manual "Link" button below. openOnClick: false so clicking a link
+      // while editing doesn't navigate the whole tab away mid-edit (still
+      // openable via the usual ctrl/cmd+click). underline isn't configured
+      // here at all — StarterKit registers it by default.
       StarterKit.configure({
         link: { autolink: true, openOnClick: false, HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" } },
       }),
@@ -134,6 +165,13 @@ export function RichTextEditor({
       TaskItem.configure({ nested: true }),
       DocumentEmbed,
       NoteImage,
+      Placeholder.configure({
+        placeholder: ({ editor: e }) => (e.isEmpty ? `${placeholder ?? "Write something…"} Press '/' for commands` : ""),
+      }),
+      // Notion-style "/" command palette — replaces the old right-click menu
+      // entirely. Same @tiptap/suggestion utility @mention already uses
+      // below, just triggered by "/" and rendering block/format commands.
+      SlashCommand.configure({ onInsertImage: () => fileInputRef.current?.click() }),
       ...(mentionCandidates
         ? [
             Mention.configure({
@@ -157,6 +195,29 @@ export function RichTextEditor({
       attributes: {
         class: "focus:outline-none min-h-40 px-3 py-2",
       },
+      // Pasting/dragging an image straight in, same as Notion — matched by
+      // the raw file's mime type rather than trusting the drag/paste source.
+      // Returning true tells ProseMirror we've handled it (no default
+      // text/HTML insertion); the actual upload+insert happens async in
+      // uploadAndInsertImage once it resolves.
+      handlePaste: (_view, event) => {
+        const files = imageFilesFrom(event.clipboardData?.files);
+        if (files.length === 0 || !editor) return false;
+        event.preventDefault();
+        files.forEach((file) => uploadAndInsertImage(editor, file));
+        return true;
+      },
+      handleDrop: (view, event) => {
+        const files = imageFilesFrom(event.dataTransfer?.files);
+        if (files.length === 0 || !editor) return false;
+        event.preventDefault();
+        // Drops where the cursor was hovering, not wherever the selection
+        // happened to already be — matches how drag-and-drop reads visually.
+        const coords = { left: event.clientX, top: event.clientY };
+        const dropPos = view.posAtCoords(coords)?.pos;
+        files.forEach((file) => uploadAndInsertImage(editor, file, dropPos));
+        return true;
+      },
     },
   });
 
@@ -166,31 +227,12 @@ export function RichTextEditor({
     const file = e.target.files?.[0];
     e.target.value = ""; // lets picking the same file twice in a row still fire onChange
     if (!file || !editor) return;
-    const formData = new FormData();
-    formData.append("file", file);
-    uploadNoteImageAction(formData).then((result) => {
-      if (result.error || !result.key) {
-        show(result.error ?? "Failed to upload image", "error");
-        return;
-      }
-      editor.chain().focus().insertContent({ type: "noteImage", attrs: { imageKey: result.key } }).run();
-    });
+    uploadAndInsertImage(editor, file);
   }
 
   return (
-    // No persistent toolbar — formatting lives in the right-click menu
-    // instead (Obsidian's pattern), so the editor itself stays clean. A
-    // right-click on top of an existing text selection doesn't collapse it
-    // in any browser, so "select, then right-click" behaves exactly like it
-    // does in a native text field.
-    <div
-      className="rounded-md border border-neutral-200"
-      onContextMenu={(e) => {
-        e.preventDefault();
-        setMenuPos({ x: e.clientX, y: e.clientY });
-      }}
-    >
-      <EditorContent editor={editor} placeholder={placeholder} />
+    <div className="rounded-md border border-neutral-200">
+      <EditorContent editor={editor} />
       <input
         ref={fileInputRef}
         type="file"
@@ -198,15 +240,17 @@ export function RichTextEditor({
         onChange={handleFileChosen}
         className="hidden"
       />
-      {menuPos && (
-        <EditorContextMenu
-          editor={editor}
-          x={menuPos.x}
-          y={menuPos.y}
-          onClose={() => setMenuPos(null)}
-          onInsertImage={() => fileInputRef.current?.click()}
-        />
-      )}
+      {/* Auto-shows the instant text is selected (Notion's real behavior —
+          no right-click needed) and auto-hides once it isn't. shouldShow
+          adds one thing on top of the plugin's own default: excludes node
+          selections (e.g. clicking a noteImage to select it as a whole
+          block), since Bold/Link/etc. have nothing to act on there. */}
+      <BubbleMenu
+        editor={editor}
+        shouldShow={({ state }) => !state.selection.empty && !(state.selection instanceof NodeSelection)}
+      >
+        <SelectionToolbar editor={editor} />
+      </BubbleMenu>
     </div>
   );
 }

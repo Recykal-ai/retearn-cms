@@ -145,6 +145,26 @@ button:not(:disabled) {
   margin: 0.5em 0 0.25em;
   line-height: 1.35;
 }
+.ProseMirror h4,
+.ProseMirror h5,
+.ProseMirror h6 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0.5em 0 0.25em;
+  line-height: 1.4;
+}
+
+/* @tiptap/extension-placeholder's own convention — it stamps the empty
+   block with both this class and a data-placeholder attribute holding
+   whatever addOptions().placeholder(...) returned for it. */
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: #a3a3a3;
+  pointer-events: none;
+}
+
 .ProseMirror p {
   margin: 0.4em 0;
 }
