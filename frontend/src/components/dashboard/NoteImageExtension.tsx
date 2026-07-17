@@ -24,9 +24,12 @@ function NoteImageView({ node }: ReactNodeViewProps<HTMLElement>) {
     };
   }, [imageKey]);
 
+  // data-image-key here (not just in renderHTML's serialized form below) is
+  // what the update-history "jump to" feature queries for in the live DOM —
+  // see RichTextEditor.tsx's scrollToAnchor.
   if (failed) {
     return (
-      <NodeViewWrapper as="div" className="my-2" contentEditable={false}>
+      <NodeViewWrapper as="div" className="my-2" data-image-key={imageKey} contentEditable={false}>
         <div className="flex h-32 items-center justify-center rounded-md border border-neutral-200 bg-neutral-50 text-xs text-neutral-400">
           Image unavailable
         </div>
@@ -36,7 +39,7 @@ function NoteImageView({ node }: ReactNodeViewProps<HTMLElement>) {
 
   if (!url) {
     return (
-      <NodeViewWrapper as="div" className="my-2" contentEditable={false}>
+      <NodeViewWrapper as="div" className="my-2" data-image-key={imageKey} contentEditable={false}>
         <div className="flex h-32 items-center justify-center rounded-md border border-neutral-200 bg-neutral-50 text-xs text-neutral-400">
           Loading image…
         </div>
@@ -45,7 +48,7 @@ function NoteImageView({ node }: ReactNodeViewProps<HTMLElement>) {
   }
 
   return (
-    <NodeViewWrapper as="div" className="my-2" contentEditable={false}>
+    <NodeViewWrapper as="div" className="my-2" data-image-key={imageKey} contentEditable={false}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={url} alt="" className="max-h-96 max-w-full rounded-md border border-neutral-200" draggable={false} />
     </NodeViewWrapper>

@@ -7,13 +7,19 @@ import {
   addTeamNoteMemberAction,
   removeTeamNoteMemberAction,
   searchCandidateUsersAction,
+  getTeamNoteActivityAction,
+  getTeamNoteCommentsAction,
+  addTeamNoteCommentAction,
 } from "@/app/dashboard/notes-actions";
-import type { TeamNoteDetail, CandidateUser } from "@/lib/api";
-import { RichTextEditor } from "@/components/dashboard/RichTextEditor";
+import type { TeamNoteDetail, CandidateUser, TeamNoteActivityEntry, TeamNoteCommentEntry } from "@/lib/api";
+import { RichTextEditor, type RichTextEditorHandle, type NoteAnchorKind } from "@/components/dashboard/RichTextEditor";
 import { DateTimePicker } from "@/components/dashboard/DateTimePicker";
+import { NoteHistoryPanel } from "@/components/dashboard/NoteHistoryPanel";
+import { FloatingComments, CONTENT_MARGIN_RESERVE, type DraftComment } from "@/components/dashboard/FloatingComments";
 import { useToast } from "@/components/ToastProvider";
 
 const AUTOSAVE_DELAY_MS = 1200;
+const HOVER_FLASH_MS = 2500;
 
 function toLocalInputValue(isoString: string): string {
   const d = new Date(isoString);
@@ -32,7 +38,19 @@ function formatMetaDate(localValue: string): string {
 // the current user is already a member of, so this component never needs to
 // handle a "not a member yet" state; membership is a precondition for it
 // rendering at all.
-export function TeamNoteEditor({ noteId }: { noteId: string }) {
+export function TeamNoteEditor({
+  noteId,
+  currentUserId,
+  initialCommentId,
+}: {
+  noteId: string;
+  currentUserId: string;
+  // Set once by NotesPageContent when arriving via a "Copy link" URL
+  // (?teamNote=&comment=) — consumed the first time this note's comments
+  // load, then just sits unused; harmless if it doesn't match any thread
+  // here (e.g. stale after switching notes).
+  initialCommentId?: string | null;
+}) {
   const [detail, setDetail] = useState<TeamNoteDetail | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -41,9 +59,21 @@ export function TeamNoteEditor({ noteId }: { noteId: string }) {
   const [saveState, setSaveState] = useState<"idle" | "pending" | "saved">("idle");
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<CandidateUser[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
+  const [activity, setActivity] = useState<TeamNoteActivityEntry[] | null>(null);
+  const [comments, setComments] = useState<TeamNoteCommentEntry[]>([]);
+  const [hoveredThreadId, setHoveredThreadId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<DraftComment | null>(null);
   const { show } = useToast();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const metaRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<RichTextEditorHandle>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const contentColumnRef = useRef<HTMLDivElement>(null);
   const latestRef = useRef({ title, content, meetingAt });
   useEffect(() => {
     latestRef.current = { title, content, meetingAt };
@@ -59,9 +89,22 @@ export function TeamNoteEditor({ noteId }: { noteId: string }) {
       setMeetingAt(d.meetingAt ? toLocalInputValue(d.meetingAt) : "");
       setSaveState("idle");
     });
+    getTeamNoteCommentsAction(noteId).then((c) => {
+      if (cancelled) return;
+      setComments(c);
+      if (initialCommentId && c.some((x) => x.id === initialCommentId)) {
+        flashHover(initialCommentId);
+        setTimeout(() => editorRef.current?.scrollToAnchor("comment", initialCommentId), 300);
+      }
+    });
+    setActivity(null);
+    setHistoryOpen(false);
+    setMembersOpen(false);
+    setDraft(null);
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId]);
 
   useEffect(() => {
@@ -72,6 +115,71 @@ export function TeamNoteEditor({ noteId }: { noteId: string }) {
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [metaOpen]);
+
+  useEffect(() => {
+    if (!menuOpen && !historyOpen && !membersOpen) return;
+    function onMouseDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+        setHistoryOpen(false);
+        setMembersOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [menuOpen, historyOpen, membersOpen]);
+
+  function refreshComments() {
+    getTeamNoteCommentsAction(noteId).then(setComments);
+  }
+
+  function openHistory() {
+    setMenuOpen(false);
+    setMembersOpen(false);
+    setHistoryOpen((v) => !v);
+    if (activity === null) getTeamNoteActivityAction(noteId).then(setActivity);
+  }
+
+  function openMembers() {
+    setMenuOpen(false);
+    setHistoryOpen(false);
+    setMembersOpen((v) => !v);
+  }
+
+  // A one-off "come look at this" flash for history-panel jumps — distinct
+  // from onHoverThread below (which tracks live mouse hover, no timer).
+  function flashHover(threadId: string) {
+    setHoveredThreadId(threadId);
+    if (hoverFlashTimerRef.current) clearTimeout(hoverFlashTimerRef.current);
+    hoverFlashTimerRef.current = setTimeout(() => setHoveredThreadId(null), HOVER_FLASH_MS);
+  }
+
+  function handleJump(kind: NoteAnchorKind, anchorId: string) {
+    setHistoryOpen(false);
+    editorRef.current?.scrollToAnchor(kind, anchorId);
+    if (kind === "comment") flashHover(anchorId);
+  }
+
+  function handleHoverThread(threadId: string | null) {
+    if (hoverFlashTimerRef.current) clearTimeout(hoverFlashTimerRef.current);
+    setHoveredThreadId(threadId);
+  }
+
+  function handleRequestComment(range: { from: number; to: number }, quotedText: string) {
+    setDraft({ range, quotedText });
+  }
+
+  async function submitDraft(body: string, mentionedUserIds: string[]) {
+    if (!draft) return;
+    const result = await addTeamNoteCommentAction(noteId, { quotedText: draft.quotedText, body, mentionedUserIds });
+    if (result.error || !result.comment) {
+      show(result.error ?? "Failed to add comment", "error");
+      return;
+    }
+    editorRef.current?.applyCommentMark(result.comment.id, draft.range);
+    setComments((prev) => [...prev, result.comment!]);
+    setDraft(null);
+  }
 
   useEffect(() => {
     if (!detail?.canCurate) return;
@@ -138,24 +246,142 @@ export function TeamNoteEditor({ noteId }: { noteId: string }) {
   }
 
   const mentionCandidates = detail.members.map((m) => ({ id: m.id, label: m.name }));
+  // One layout, always — not "centered when there's nothing to comment on,
+  // pushed left once something is." Switching between two different shapes
+  // depending on comment count made the page visibly jump/reflow every time
+  // a comment got added or resolved away, which read as more broken than
+  // either shape alone. The content column is truly centered (equal margins
+  // both sides, like Notion) at all times; comment cards float in whatever
+  // space sits to the right of the column's own edge (see FloatingComments'
+  // contentColumnRef-based positioning). The column's own max-width is
+  // capped by a CSS min() against the pane's width, minus the fixed space a
+  // card needs (CONTENT_MARGIN_RESERVE, shared with FloatingComments) — so
+  // on a wide window it's a comfortable 760px reading column with a card
+  // parked in the leftover margin, and on a narrower window (e.g. a 1440px
+  // laptop, where this pane is ~1120px after the note list) both margins
+  // shrink together in lockstep, still equal, always leaving exactly enough
+  // room for a card rather than letting one overlap the text (the original
+  // bug this whole layout was built to avoid).
+  const contentStyle: React.CSSProperties = {
+    maxWidth: `min(760px, calc(100% - ${CONTENT_MARGIN_RESERVE * 2}px))`,
+    marginLeft: "auto",
+    marginRight: "auto",
+    paddingLeft: 40,
+    paddingRight: 40,
+  };
 
   return (
-    <div className="flex h-full">
-      <div className="flex min-w-0 flex-1 flex-col p-6">
-        <div className="mb-1 flex items-center justify-between">
-          <input
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              scheduleSave();
+    <div ref={scrollContainerRef} className="relative h-full overflow-y-auto">
+      {/* Pinned near the top-right of the pane, independent of the title
+          row's own width — Notion's own page controls (Share/comment/"...")
+          live in a fixed top bar rather than sharing a flex row with the
+          title, which is what made this drift so far from the title once
+          the content column got wide. */}
+      <div className="absolute top-6 right-6 z-30 flex items-center gap-2">
+        <span className="shrink-0 text-xs text-neutral-400">
+          {saveState === "pending" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
+        </span>
+        <div ref={menuRef} className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setHistoryOpen(false);
+              setMembersOpen(false);
+              setMenuOpen((v) => !v);
             }}
-            className="w-full text-3xl font-bold text-neutral-900 focus:outline-none"
-            placeholder="Note title"
-          />
-          <span className="shrink-0 text-xs text-neutral-400">
-            {saveState === "pending" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
-          </span>
+            aria-label="Note options"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+          >
+            ⋯
+          </button>
+          {menuOpen && (
+              <div className="absolute top-full right-0 z-20 mt-1 w-44 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setMetaOpen(true);
+                  }}
+                  className="block w-full px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                >
+                  Edit details
+                </button>
+                <button
+                  type="button"
+                  onClick={openMembers}
+                  className="block w-full px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                >
+                  Manage members
+                </button>
+                <button
+                  type="button"
+                  onClick={openHistory}
+                  className="block w-full px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                >
+                  Update history
+                </button>
+              </div>
+            )}
+            {historyOpen && (
+              <NoteHistoryPanel entries={activity ?? []} loading={activity === null} onJump={handleJump} />
+            )}
+            {membersOpen && (
+              <div className="absolute top-full right-0 z-20 mt-1 w-64 rounded-lg border border-neutral-200 bg-white p-3 shadow-lg">
+                <p className="mb-2 text-xs font-semibold tracking-wide text-neutral-400 uppercase">Members</p>
+                <ul className="mb-3 max-h-40 space-y-1 overflow-y-auto">
+                  {detail.members.map((m) => (
+                    <li key={m.id} className="group flex items-center justify-between gap-1">
+                      <span className="truncate text-sm text-neutral-700">{m.name}</span>
+                      {detail.canCurate && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMember(m.id)}
+                          aria-label={`Remove ${m.name}`}
+                          className="shrink-0 text-xs text-neutral-400 opacity-0 hover:text-red-600 group-hover:opacity-100"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                {detail.canCurate && (
+                  <div>
+                    <input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Add someone…"
+                      className="mb-1.5 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs focus:border-neutral-400 focus:outline-none"
+                    />
+                    <ul className="max-h-32 space-y-0.5 overflow-y-auto">
+                      {candidates.map((c) => (
+                        <li key={c.id}>
+                          <button
+                            type="button"
+                            onClick={() => handleAddMember(c.id)}
+                            className="block w-full truncate rounded-md px-2 py-1 text-left text-xs text-neutral-700 hover:bg-neutral-50"
+                          >
+                            {c.name}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
+      <div ref={contentColumnRef} className="py-8" style={contentStyle}>
+        <input
+          value={title}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            scheduleSave();
+          }}
+          className="mb-1 w-full text-3xl font-bold text-neutral-900 focus:outline-none"
+          placeholder="Note title"
+        />
 
         <div ref={metaRef} className="relative mb-4">
           <button
@@ -182,63 +408,44 @@ export function TeamNoteEditor({ noteId }: { noteId: string }) {
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <RichTextEditor
-            content={content}
-            onChange={(html) => {
-              setContent(html);
-              scheduleSave();
-            }}
-            mentionCandidates={mentionCandidates}
-            placeholder="Type @ to mention someone…"
-          />
-        </div>
+        <RichTextEditor
+          ref={editorRef}
+          content={content}
+          onChange={(html) => {
+            setContent(html);
+            scheduleSave();
+          }}
+          mentionCandidates={mentionCandidates}
+          placeholder="Type @ to mention someone…"
+          comments={comments.filter((c) => c.parentId === null).map((c) => ({ threadId: c.id, resolved: c.resolved }))}
+          onRequestComment={handleRequestComment}
+          onCommentMarkClick={(threadId) => flashHover(threadId)}
+          onCommentMarkHover={handleHoverThread}
+          hoveredThreadId={hoveredThreadId}
+        />
       </div>
 
-      <div className="w-56 shrink-0 overflow-y-auto border-l border-neutral-100 p-4">
-        <p className="mb-2 text-xs font-semibold tracking-wide text-neutral-400 uppercase">Members</p>
-        <ul className="mb-3 space-y-1">
-          {detail.members.map((m) => (
-            <li key={m.id} className="group flex items-center justify-between gap-1">
-              <span className="truncate text-sm text-neutral-700">{m.name}</span>
-              {detail.canCurate && (
-                <button
-                  type="button"
-                  onClick={() => handleRemoveMember(m.id)}
-                  aria-label={`Remove ${m.name}`}
-                  className="shrink-0 text-xs text-neutral-400 opacity-0 hover:text-red-600 group-hover:opacity-100"
-                >
-                  ✕
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-
-        {detail.canCurate && (
-          <div>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Add someone…"
-              className="mb-1.5 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs focus:border-neutral-400 focus:outline-none"
-            />
-            <ul className="max-h-40 space-y-0.5 overflow-y-auto">
-              {candidates.map((c) => (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    onClick={() => handleAddMember(c.id)}
-                    className="block w-full truncate rounded-md px-2 py-1 text-left text-xs text-neutral-700 hover:bg-neutral-50"
-                  >
-                    {c.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
+      <FloatingComments
+        teamNoteId={noteId}
+        comments={comments}
+        members={mentionCandidates}
+        currentUserId={currentUserId}
+        editorRef={editorRef}
+        scrollContainerRef={scrollContainerRef}
+        contentColumnRef={contentColumnRef}
+        contentVersion={content}
+        onJumpToText={(threadId) => editorRef.current?.scrollToAnchor("comment", threadId)}
+        hoveredThreadId={hoveredThreadId}
+        onHoverThread={handleHoverThread}
+        onChanged={refreshComments}
+        onThreadDeleted={(threadId) => {
+          editorRef.current?.removeCommentMark(threadId);
+          refreshComments();
+        }}
+        draft={draft}
+        onSubmitDraft={submitDraft}
+        onCancelDraft={() => setDraft(null)}
+      />
     </div>
   );
 }

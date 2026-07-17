@@ -108,7 +108,7 @@ export function PersonalNoteEditor({
   const metaLabel = [meetingAt ? formatMetaDate(meetingAt) : null, teamName].filter(Boolean).join(" · ");
 
   return (
-    <div className="flex h-full flex-col p-6">
+    <div className="flex h-full flex-col px-10 py-8">
       <div className="mb-1 flex items-center justify-between">
         <input
           value={title}

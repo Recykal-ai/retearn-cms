@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { SubPageTopBar } from "@/components/dashboard/SubPageTopBar";
@@ -21,7 +22,9 @@ export default async function NotesPage() {
       {/* Full-bleed master-detail layout — a centered narrow card (like
           Approvals/Admin use) would leave the note editor too cramped. */}
       <div className="min-h-0 flex-1">
-        <NotesPageContent isAdmin={isAdmin} />
+        <Suspense fallback={null}>
+          <NotesPageContent isAdmin={isAdmin} currentUserId={session.appUserId!} />
+        </Suspense>
       </div>
     </div>
   );

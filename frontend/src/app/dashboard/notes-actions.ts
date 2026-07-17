@@ -8,6 +8,10 @@ import {
   createPersonalNote,
   updatePersonalNote,
   deletePersonalNote,
+  getPersonalNoteFolders,
+  createPersonalNoteFolder,
+  updatePersonalNoteFolder,
+  deletePersonalNoteFolder,
   getTeamNotesList,
   getCreatableTeams,
   createTeamNote,
@@ -17,12 +21,23 @@ import {
   removeTeamNoteMember,
   searchCandidateUsers,
   searchCandidateUsersForTeam,
+  getTeamNoteFolders,
+  createTeamNoteFolder,
+  updateTeamNoteFolder,
+  deleteTeamNoteFolder,
   getNotifications,
   getUnreadNotificationsCount,
   markNotificationRead,
   uploadNoteImage,
   getNoteImageViewUrl,
+  getTeamNoteActivity,
+  getTeamNoteComments,
+  addTeamNoteComment,
+  editTeamNoteComment,
+  resolveTeamNoteComment,
+  deleteTeamNoteComment,
   type PersonalNoteInput,
+  type TeamNoteCommentEntry,
 } from "@/lib/api";
 
 async function requireSession() {
@@ -76,6 +91,50 @@ export async function deletePersonalNoteAction(id: string): Promise<{ error?: st
   return {};
 }
 
+export async function getPersonalNoteFoldersAction() {
+  const session = await requireSession();
+  return getPersonalNoteFolders(session.appToken!);
+}
+
+export async function createPersonalNoteFolderAction(input: {
+  name: string;
+  parentId?: string | null;
+}): Promise<{ error?: string }> {
+  const session = await requireSession();
+  try {
+    await createPersonalNoteFolder(session.appToken!, input);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to create folder" };
+  }
+  revalidatePath("/dashboard/notes");
+  return {};
+}
+
+export async function updatePersonalNoteFolderAction(
+  id: string,
+  input: { name?: string; parentId?: string | null },
+): Promise<{ error?: string }> {
+  const session = await requireSession();
+  try {
+    await updatePersonalNoteFolder(session.appToken!, id, input);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to update folder" };
+  }
+  revalidatePath("/dashboard/notes");
+  return {};
+}
+
+export async function deletePersonalNoteFolderAction(id: string): Promise<{ error?: string }> {
+  const session = await requireSession();
+  try {
+    await deletePersonalNoteFolder(session.appToken!, id);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to delete folder" };
+  }
+  revalidatePath("/dashboard/notes");
+  return {};
+}
+
 export async function getTeamNotesListAction() {
   const session = await requireSession();
   return getTeamNotesList(session.appToken!);
@@ -86,9 +145,55 @@ export async function getCreatableTeamsAction() {
   return getCreatableTeams(session.appToken!);
 }
 
+export async function getTeamNoteFoldersAction() {
+  const session = await requireSession();
+  return getTeamNoteFolders(session.appToken!);
+}
+
+export async function createTeamNoteFolderAction(input: {
+  teamId: string;
+  name: string;
+  parentId?: string | null;
+}): Promise<{ error?: string }> {
+  const session = await requireSession();
+  try {
+    await createTeamNoteFolder(session.appToken!, input);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to create folder" };
+  }
+  revalidatePath("/dashboard/notes");
+  return {};
+}
+
+export async function updateTeamNoteFolderAction(
+  id: string,
+  input: { name?: string; parentId?: string | null },
+): Promise<{ error?: string }> {
+  const session = await requireSession();
+  try {
+    await updateTeamNoteFolder(session.appToken!, id, input);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to update folder" };
+  }
+  revalidatePath("/dashboard/notes");
+  return {};
+}
+
+export async function deleteTeamNoteFolderAction(id: string): Promise<{ error?: string }> {
+  const session = await requireSession();
+  try {
+    await deleteTeamNoteFolder(session.appToken!, id);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to delete folder" };
+  }
+  revalidatePath("/dashboard/notes");
+  return {};
+}
+
 export async function createTeamNoteAction(input: {
   teamId: string;
   title: string;
+  folderId?: string | null;
   meetingAt?: string | null;
   memberIds: string[];
 }): Promise<{ id?: string; error?: string }> {
@@ -109,7 +214,7 @@ export async function getTeamNoteAction(id: string) {
 
 export async function updateTeamNoteAction(
   id: string,
-  input: { title?: string; meetingAt?: string | null; content?: string },
+  input: { title?: string; folderId?: string | null; meetingAt?: string | null; content?: string },
 ): Promise<{ error?: string }> {
   const session = await requireSession();
   try {
@@ -186,4 +291,69 @@ export async function uploadNoteImageAction(formData: FormData): Promise<{ key?:
 export async function getNoteImageViewUrlAction(key: string) {
   const session = await requireSession();
   return getNoteImageViewUrl(session.appToken!, key);
+}
+
+export async function getTeamNoteActivityAction(id: string) {
+  const session = await requireSession();
+  return getTeamNoteActivity(session.appToken!, id);
+}
+
+export async function getTeamNoteCommentsAction(id: string) {
+  const session = await requireSession();
+  return getTeamNoteComments(session.appToken!, id);
+}
+
+export async function addTeamNoteCommentAction(
+  id: string,
+  input: { quotedText: string; body: string; parentId?: string; mentionedUserIds?: string[] },
+): Promise<{ comment?: TeamNoteCommentEntry; error?: string }> {
+  const session = await requireSession();
+  try {
+    const comment = await addTeamNoteComment(session.appToken!, id, input);
+    revalidatePath("/dashboard/notes");
+    return { comment };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to add comment" };
+  }
+}
+
+export async function editTeamNoteCommentAction(
+  id: string,
+  commentId: string,
+  body: string,
+): Promise<{ comment?: TeamNoteCommentEntry; error?: string }> {
+  const session = await requireSession();
+  try {
+    const comment = await editTeamNoteComment(session.appToken!, id, commentId, body);
+    revalidatePath("/dashboard/notes");
+    return { comment };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to edit comment" };
+  }
+}
+
+export async function resolveTeamNoteCommentAction(
+  id: string,
+  commentId: string,
+  resolved: boolean,
+): Promise<{ comment?: TeamNoteCommentEntry; error?: string }> {
+  const session = await requireSession();
+  try {
+    const comment = await resolveTeamNoteComment(session.appToken!, id, commentId, resolved);
+    revalidatePath("/dashboard/notes");
+    return { comment };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to update comment" };
+  }
+}
+
+export async function deleteTeamNoteCommentAction(id: string, commentId: string): Promise<{ error?: string }> {
+  const session = await requireSession();
+  try {
+    await deleteTeamNoteComment(session.appToken!, id, commentId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to delete comment" };
+  }
+  revalidatePath("/dashboard/notes");
+  return {};
 }

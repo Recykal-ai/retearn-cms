@@ -38,9 +38,12 @@ function DocumentEmbedView({ node }: ReactNodeViewProps<HTMLElement>) {
     };
   }, [documentId]);
 
+  // data-id here (not just in renderHTML's serialized form below) is what
+  // the update-history "jump to" feature queries for in the live DOM — see
+  // RichTextEditor.tsx's scrollToAnchor.
   if (failed) {
     return (
-      <NodeViewWrapper as="span" className="inline-block align-middle" contentEditable={false}>
+      <NodeViewWrapper as="span" className="inline-block align-middle" data-id={documentId} contentEditable={false}>
         <span className="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-400">
           Document unavailable
         </span>
@@ -50,7 +53,7 @@ function DocumentEmbedView({ node }: ReactNodeViewProps<HTMLElement>) {
 
   if (!doc) {
     return (
-      <NodeViewWrapper as="span" className="inline-block align-middle" contentEditable={false}>
+      <NodeViewWrapper as="span" className="inline-block align-middle" data-id={documentId} contentEditable={false}>
         <span className="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-400">
           Loading document…
         </span>
@@ -59,7 +62,7 @@ function DocumentEmbedView({ node }: ReactNodeViewProps<HTMLElement>) {
   }
 
   return (
-    <NodeViewWrapper as="span" className="inline-block align-middle" contentEditable={false}>
+    <NodeViewWrapper as="span" className="inline-block align-middle" data-id={documentId} contentEditable={false}>
       <button
         type="button"
         onClick={() => router.push(`${pathname}?doc=${doc.id}`)}

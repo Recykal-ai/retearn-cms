@@ -23,9 +23,20 @@ function currentBlockLabel(editor: Editor): string {
 // The "/" slash command (see SlashCommandExtension.tsx) stays the way to
 // insert new blocks/images — this one is specifically for (re)formatting
 // text you've already selected. Notion's own version also has color,
-// comments, reactions, and an equation editor — dropped here since none of
-// those exist in this app.
-export function SelectionToolbar({ editor }: { editor: Editor }) {
+// reactions, and an equation editor — dropped here since none of those
+// exist in this app; Comment is kept, but — unlike Bold/Link/etc — it
+// doesn't act inline. Clicking it just reports the selection up to
+// TeamNoteEditor (onRequestComment), which opens the actual compose UI as a
+// draft card in the floating margin, matching where Notion's own comment
+// composer lives (onRequestComment is only passed for team notes — personal
+// notes have no thread to add to, so the button is simply omitted there).
+export function SelectionToolbar({
+  editor,
+  onRequestComment,
+}: {
+  editor: Editor;
+  onRequestComment?: (range: { from: number; to: number }, quotedText: string) => void;
+}) {
   const [blockMenuOpen, setBlockMenuOpen] = useState(false);
   const [linkInputOpen, setLinkInputOpen] = useState(false);
   const [linkValue, setLinkValue] = useState("");
@@ -52,6 +63,18 @@ export function SelectionToolbar({ editor }: { editor: Editor }) {
     }
     setLinkInputOpen(false);
     setLinkValue("");
+  }
+
+  function requestComment() {
+    if (!onRequestComment) return;
+    const { from, to } = editor.state.selection;
+    const quotedText = editor.state.doc.textBetween(from, to, " ");
+    // Collapsing right away (range/quotedText are already captured) closes
+    // this toolbar immediately — Notion does the same the moment you click
+    // Comment, so it isn't left floating over the draft card that's about
+    // to appear in the comments panel.
+    editor.chain().setTextSelection(to).run();
+    onRequestComment({ from, to }, quotedText);
   }
 
   return (
@@ -160,6 +183,11 @@ export function SelectionToolbar({ editor }: { editor: Editor }) {
                 >
                   <LinkIcon />
                 </IconButton>
+                {onRequestComment && (
+                  <IconButton active={false} label="Comment" onClick={requestComment}>
+                    <CommentIcon />
+                  </IconButton>
+                )}
               </div>
             </>
           )}
@@ -218,6 +246,19 @@ function LinkIcon() {
         stroke="currentColor"
         strokeWidth="1.7"
         strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CommentIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 5.5a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H9l-4 3.5v-3.5H5.5A1.5 1.5 0 0 1 4 14.5v-9Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
         strokeLinejoin="round"
       />
     </svg>

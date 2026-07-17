@@ -228,6 +228,32 @@ button:not(:disabled) {
   font-size: 0.9em;
 }
 
+/* Multi-line code block — auto-inserted when a paste looks like code (see
+   RichTextEditor.tsx's looksLikeCode) or via the "/" menu's Code item.
+   Deliberately a dark block (unlike the light inline `code` style above) so
+   a pasted block reads immediately as "this is code," the same visual
+   language Notion/VS Code use — the .ProseMirror code rule above would
+   otherwise also match the <code> nested inside here, so it's reset back
+   to plain/inherited below it. */
+.ProseMirror pre {
+  background: #1e1e1e;
+  color: #e5e5e5;
+  border-radius: 0.4em;
+  padding: 0.85em 1em;
+  overflow-x: auto;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+  line-height: 1.6;
+  margin: 0.4em 0;
+}
+.ProseMirror pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
 /* Task list — the checkbox itself is the marker, so the inherited bullet/
    numeral from .ProseMirror ul/ol above needs to be turned off here. */
 .ProseMirror ul[data-type="taskList"] {
@@ -253,4 +279,59 @@ button:not(:disabled) {
 .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
   color: #9ca3af;
   text-decoration: line-through;
+}
+
+/* Comment thread anchor — an open thread reads like Notion's yellow
+   highlight; resolved gets a quiet dashed underline instead. Resolved/hover
+   state is rendered via a ProseMirror Decoration nested *inside* the mark's
+   own span (see CommentMarkExtension.tsx's plugin), not a class on the mark
+   element itself — hence the descendant selectors below rather than
+   compound ".note-comment-mark.resolved" ones. */
+.ProseMirror .note-comment-mark {
+  background: #fef3c7;
+  border-radius: 0.15em;
+  cursor: pointer;
+}
+.ProseMirror .note-comment-mark .resolved {
+  background: transparent;
+  border-bottom: 1.5px dashed #d4d4d4;
+}
+/* Hovering the matching card in the floating margin (or vice versa) —
+   Notion's own bidirectional hover highlight. Declared after .resolved so
+   it wins when both apply, same as Notion briefly "waking up" a resolved
+   thread on hover. Deliberately switches to the brand purple rather than a
+   darker yellow — a yellow-on-yellow hover state was there before this but
+   was nearly imperceptible against the base highlight; purple both reads
+   clearly and matches the matching card's own hover treatment in the
+   margin, so the two visibly read as "the same thing." */
+.ProseMirror .note-comment-mark .hovered {
+  background: var(--brand-purple-tint);
+  outline: 2px solid var(--brand-purple);
+  outline-offset: 1px;
+  border-radius: 0.2em;
+}
+
+/* Briefly flashed on an element jumped to from the update-history panel, a
+   comment card, or a notification — Notion's own "jump to this block"
+   effect is a solid tinted box for a beat, not just a silent scroll, so a
+   thin outline reads as too subtle here. */
+.note-jump-flash {
+  animation: note-jump-flash 1.8s ease-out;
+  border-radius: 0.3em;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+@keyframes note-jump-flash {
+  0% {
+    background-color: #cfe0fb;
+    outline-color: #6b93e0;
+  }
+  70% {
+    background-color: #cfe0fb;
+    outline-color: #6b93e0;
+  }
+  100% {
+    background-color: transparent;
+    outline-color: transparent;
+  }
 }

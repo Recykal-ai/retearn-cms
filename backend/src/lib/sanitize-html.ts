@@ -8,6 +8,12 @@ import { JSDOM } from "jsdom";
 // library's defaults happen to change later.
 const ALLOWED_TAGS = [
   "p", "br", "strong", "em", "b", "i", "u", "s", "mark", "code",
+  // Multi-line code blocks (auto-detected on paste — see
+  // RichTextEditor.tsx's looksLikeCode — or inserted via the "/" menu).
+  // Tiptap's CodeBlock renders <pre><code>…</code></pre>; without "pre"
+  // here DOMPurify would strip the wrapper and the block would collapse
+  // back into an unstyled inline <code> run, losing its line breaks.
+  "pre",
   "h1", "h2", "h3", "h4", "h5", "h6",
   "ul", "ol", "li",
   "blockquote",
@@ -28,6 +34,11 @@ const ALLOWED_ATTR = [
   "data-checked", "type", "checked",
   "href", "target", "rel",
   "data-image-key",
+  // <span data-comment-id="…"> — see CommentMarkExtension.tsx. Written once
+  // at comment-creation time and never touched again (resolve/reopen only
+  // update the TeamNoteComment row, never this mark), so it needs no
+  // "resolved" attribute counterpart.
+  "data-comment-id",
 ];
 
 export function sanitizeNoteHtml(html: string): string {

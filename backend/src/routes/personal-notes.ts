@@ -28,9 +28,10 @@ personalNotesRouter.get<{ id: string }>("/:id", requireAuth, async (req, res) =>
 });
 
 personalNotesRouter.post("/", requireAuth, async (req, res) => {
-  const { title, teamId, meetingAt, content } = req.body as {
+  const { title, teamId, folderId, meetingAt, content } = req.body as {
     title?: string;
     teamId?: string | null;
+    folderId?: string | null;
     meetingAt?: string | null;
     content?: string;
   };
@@ -42,12 +43,17 @@ personalNotesRouter.post("/", requireAuth, async (req, res) => {
     const team = await prisma.team.findUnique({ where: { id: teamId } });
     if (!team) return res.status(400).json({ error: "teamId must be an existing team" });
   }
+  if (folderId) {
+    const folder = await prisma.personalNoteFolder.findFirst({ where: { id: folderId, userId: req.user!.userId } });
+    if (!folder) return res.status(400).json({ error: "folderId must be an existing folder you own" });
+  }
 
   const note = await prisma.personalNote.create({
     data: {
       userId: req.user!.userId,
       title: trimmedTitle,
       teamId: teamId || null,
+      folderId: folderId || null,
       meetingAt: meetingAt ? new Date(meetingAt) : null,
       content: sanitizeNoteHtml(content ?? ""),
     },
@@ -62,9 +68,10 @@ personalNotesRouter.patch<{ id: string }>("/:id", requireAuth, async (req, res) 
   });
   if (!existing) return res.status(404).json({ error: "Note not found" });
 
-  const { title, teamId, meetingAt, content } = req.body as {
+  const { title, teamId, folderId, meetingAt, content } = req.body as {
     title?: string;
     teamId?: string | null;
+    folderId?: string | null;
     meetingAt?: string | null;
     content?: string;
   };
@@ -72,6 +79,10 @@ personalNotesRouter.patch<{ id: string }>("/:id", requireAuth, async (req, res) 
   if (teamId) {
     const team = await prisma.team.findUnique({ where: { id: teamId } });
     if (!team) return res.status(400).json({ error: "teamId must be an existing team" });
+  }
+  if (folderId) {
+    const folder = await prisma.personalNoteFolder.findFirst({ where: { id: folderId, userId: req.user!.userId } });
+    if (!folder) return res.status(400).json({ error: "folderId must be an existing folder you own" });
   }
   if (title !== undefined && !title.trim()) {
     return res.status(400).json({ error: "title cannot be empty" });
@@ -82,6 +93,7 @@ personalNotesRouter.patch<{ id: string }>("/:id", requireAuth, async (req, res) 
     data: {
       ...(title !== undefined && { title: title.trim() }),
       ...(teamId !== undefined && { teamId: teamId || null }),
+      ...(folderId !== undefined && { folderId: folderId || null }),
       ...(meetingAt !== undefined && { meetingAt: meetingAt ? new Date(meetingAt) : null }),
       ...(content !== undefined && { content: sanitizeNoteHtml(content) }),
     },

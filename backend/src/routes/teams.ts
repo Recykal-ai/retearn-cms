@@ -90,8 +90,18 @@ teamsRouter.delete<{ id: string }>("/:id", requireAuth, requireRole("ADMIN", "SU
   if (teamNoteIds.length > 0) {
     await prisma.notification.deleteMany({ where: { teamNoteId: { in: teamNoteIds } } });
     await prisma.teamNoteMembership.deleteMany({ where: { teamNoteId: { in: teamNoteIds } } });
+    // Pre-existing gap closed here: activity/comment rows reference a
+    // teamNoteId too and were being left dangling once the note itself was
+    // deleted below — same "no dangling FK" rule as everything else in this
+    // block.
+    await prisma.teamNoteComment.deleteMany({ where: { teamNoteId: { in: teamNoteIds } } });
+    await prisma.teamNoteActivity.deleteMany({ where: { teamNoteId: { in: teamNoteIds } } });
     await prisma.teamNote.deleteMany({ where: { id: { in: teamNoteIds } } });
   }
+  // Folders are purely structural (no notes survive them at this point,
+  // since teamNoteIds above are already gone), so a flat delete-by-teamId
+  // is enough — no need to walk the parent/child tree.
+  await prisma.teamNoteFolder.deleteMany({ where: { teamId: team.id } });
   await prisma.team.delete({ where: { id: team.id } });
 
   await getOrCreateOthersTeam();

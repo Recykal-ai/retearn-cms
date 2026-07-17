@@ -28,22 +28,27 @@ enum DocSourceType {
 }
 
 model User {
-  id                     String               @id @default(uuid())
-  email                  String               @unique // verified @recykal.com address from Google
-  name                   String
-  role                   Role                 @default(USER)
-  active                 Boolean              @default(true) // Super Admin can deactivate an account instead of deleting it
-  createdAt              DateTime             @default(now())
-  documents              Document[]           @relation("UploadedBy")
-  auditLogs              AuditLog[]
-  adminScopes            AdminScope[]
-  pinnedDocs             PinnedDocument[]
-  personalNotes          PersonalNote[]
-  createdTeamNotes       TeamNote[]           @relation("TeamNoteCreator")
-  teamNoteMemberships    TeamNoteMembership[]
-  notifications          Notification[]
-  triggeredNotifications Notification[]       @relation("NotificationTrigger")
-  googleOAuthToken       GoogleOAuthToken?
+  id                       String                @id @default(uuid())
+  email                    String                @unique // verified @recykal.com address from Google
+  name                     String
+  role                     Role                  @default(USER)
+  active                   Boolean               @default(true) // Super Admin can deactivate an account instead of deleting it
+  createdAt                DateTime              @default(now())
+  documents                Document[]            @relation("UploadedBy")
+  auditLogs                AuditLog[]
+  adminScopes              AdminScope[]
+  pinnedDocs               PinnedDocument[]
+  personalNotes            PersonalNote[]
+  personalNoteFolders      PersonalNoteFolder[]
+  createdTeamNotes         TeamNote[]            @relation("TeamNoteCreator")
+  createdTeamNoteFolders   TeamNoteFolder[]      @relation("TeamNoteFolderCreator")
+  teamNoteMemberships      TeamNoteMembership[]
+  notifications            Notification[]
+  triggeredNotifications   Notification[]        @relation("NotificationTrigger")
+  teamNoteActivity         TeamNoteActivity[]
+  authoredTeamNoteComments TeamNoteComment[]      @relation("TeamNoteCommentAuthor")
+  resolvedTeamNoteComments TeamNoteComment[]      @relation("TeamNoteCommentResolver")
+  googleOAuthToken         GoogleOAuthToken?
 }
 
 // This user's Google OAuth grant for the drive.readonly scope (see auth.ts's
@@ -64,12 +69,13 @@ model GoogleOAuthToken {
 }
 
 model Team {
-  id            String         @id @default(uuid())
-  name          String         @unique
-  documents     Document[]     @relation("OwningTeam")
-  adminScopes   AdminScope[]
-  personalNotes PersonalNote[]
-  teamNotes     TeamNote[]
+  id              String           @id @default(uuid())
+  name            String           @unique
+  documents       Document[]       @relation("OwningTeam")
+  adminScopes     AdminScope[]
+  personalNotes   PersonalNote[]
+  teamNotes       TeamNote[]
+  teamNoteFolders TeamNoteFolder[]
 }
 
 model Product {
@@ -221,16 +227,37 @@ model AuditLog {
 // Admin. teamId is purely a filing label for the user's own organization; it
 // grants no one else access to the note.
 model PersonalNote {
-  id        String    @id @default(uuid())
+  id        String              @id @default(uuid())
   userId    String
-  user      User      @relation(fields: [userId], references: [id])
+  user      User                @relation(fields: [userId], references: [id])
   title     String
   teamId    String?
-  team      Team?     @relation(fields: [teamId], references: [id])
+  team      Team?               @relation(fields: [teamId], references: [id])
+  folderId  String?
+  folder    PersonalNoteFolder? @relation(fields: [folderId], references: [id])
   meetingAt DateTime?
-  content   String    @default("") // sanitized rich-text HTML
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  content   String              @default("") // sanitized rich-text HTML
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+}
+
+// Obsidian-style nested folder, purely an organizational container for one
+// user's own PersonalNote rows — same owner-only visibility as the notes
+// themselves, no sharing concept. parentId self-relation allows arbitrary
+// nesting; a null parentId is a root-level folder. Deleting a folder is
+// blocked (see personal-note-folders.ts) while it still has child folders or
+// notes directly in it — no silent cascade-delete of note content.
+model PersonalNoteFolder {
+  id        String               @id @default(uuid())
+  userId    String
+  user      User                 @relation(fields: [userId], references: [id])
+  name      String
+  parentId  String?
+  parent    PersonalNoteFolder?  @relation("PersonalNoteFolderChildren", fields: [parentId], references: [id])
+  children  PersonalNoteFolder[] @relation("PersonalNoteFolderChildren")
+  notes     PersonalNote[]
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
 }
 
 // A titled, shared rich-text note scoped to one Team — a team can have many
@@ -244,6 +271,8 @@ model TeamNote {
   teamId        String
   team          Team                 @relation(fields: [teamId], references: [id])
   title         String
+  folderId      String?
+  folder        TeamNoteFolder?      @relation(fields: [folderId], references: [id])
   meetingAt     DateTime?
   content       String               @default("")
   createdById   String
@@ -252,6 +281,31 @@ model TeamNote {
   updatedAt     DateTime             @updatedAt
   members       TeamNoteMembership[]
   notifications Notification[]
+  activity      TeamNoteActivity[]
+  comments      TeamNoteComment[]
+}
+
+// Obsidian-style nested folder scoped to one Team, organizing that team's
+// TeamNote rows. Purely structural — a folder's own existence is visible to
+// anyone browsing that team's notes, same as a note's title; the notes
+// inside are still individually membership-gated (see isTeamNoteMember), so
+// a folder can list notes a given viewer can't open. Creating/renaming/
+// deleting a folder is a curator action (canCurateTeamNotes), same gate as
+// creating a note — regular members can't create folders, only admins
+// (global or scoped to this team) and Super Admin can.
+model TeamNoteFolder {
+  id          String           @id @default(uuid())
+  teamId      String
+  team        Team             @relation(fields: [teamId], references: [id])
+  name        String
+  parentId    String?
+  parent      TeamNoteFolder?  @relation("TeamNoteFolderChildren", fields: [parentId], references: [id])
+  children    TeamNoteFolder[] @relation("TeamNoteFolderChildren")
+  notes       TeamNote[]
+  createdById String
+  createdBy   User             @relation("TeamNoteFolderCreator", fields: [createdById], references: [id])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 }
 
 // Who can view/edit a given team note — a row here is the *only* thing that
@@ -286,4 +340,64 @@ model Notification {
   createdAt     DateTime @default(now())
 
   @@index([userId, read])
+}
+
+// One entry per distinguishable change to a team note, written by
+// team-notes.ts's PUT /:id (details/content diffing) and the comment routes
+// below. Deliberately structured events, not a generic text diff — see
+// note-content-diff.ts. `anchorId` is only ever set for actions that point
+// at something jump-to-able in the rendered content (an image's storage
+// key, a linked document's id, or a comment thread's root comment id); it's
+// null for EDITED_DETAILS/EDITED_CONTENT, which have nothing to scroll to.
+enum TeamNoteActivityAction {
+  EDITED_DETAILS
+  ADDED_IMAGE
+  LINKED_DOCUMENT
+  ADDED_COMMENT
+  RESOLVED_COMMENT
+  REOPENED_COMMENT
+  EDITED_CONTENT
+}
+
+model TeamNoteActivity {
+  id         String                 @id @default(uuid())
+  teamNoteId String
+  teamNote   TeamNote               @relation(fields: [teamNoteId], references: [id])
+  userId     String
+  user       User                   @relation(fields: [userId], references: [id])
+  action     TeamNoteActivityAction
+  anchorId   String?
+  metadata   Json?
+  createdAt  DateTime               @default(now())
+
+  @@index([teamNoteId, createdAt])
+}
+
+// A Notion-style comment thread anchored to a span of text (see
+// CommentMarkExtension.tsx, which wraps the anchored text in the editor
+// content with a data-comment-id matching the thread's root comment id —
+// that mark is written once at creation time and never touched again;
+// resolve/reopen only ever update this row, never the note's content, so
+// resolving a thread can never appear as a content edit in the activity log).
+// parentId null = the thread root (its own id doubles as the thread id);
+// non-null = a reply. Only a root comment can be resolved/reopened.
+model TeamNoteComment {
+  id           String            @id @default(uuid())
+  teamNoteId   String
+  teamNote     TeamNote          @relation(fields: [teamNoteId], references: [id])
+  parentId     String?
+  parent       TeamNoteComment?  @relation("TeamNoteCommentReplies", fields: [parentId], references: [id])
+  replies      TeamNoteComment[] @relation("TeamNoteCommentReplies")
+  quotedText   String
+  body         String
+  authorId     String
+  author       User              @relation("TeamNoteCommentAuthor", fields: [authorId], references: [id])
+  resolved     Boolean           @default(false)
+  resolvedById String?
+  resolvedBy   User?             @relation("TeamNoteCommentResolver", fields: [resolvedById], references: [id])
+  resolvedAt   DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([teamNoteId])
 }

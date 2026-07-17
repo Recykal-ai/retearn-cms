@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { getCreatableTeamsAction, createTeamNoteAction, searchCandidateUsersForTeamAction } from "@/app/dashboard/notes-actions";
-import type { CreatableTeam, CandidateUser } from "@/lib/api";
+import type { CreatableTeam, CandidateUser, TeamNoteFolder } from "@/lib/api";
 import { DateTimePicker } from "@/components/dashboard/DateTimePicker";
+import { buildFolderOptions } from "@/components/dashboard/NoteFolderTree";
 import { useToast } from "@/components/ToastProvider";
 
 // Admin/Super-Admin-only. Title + date/time + team + hand-picked initial
@@ -11,21 +12,28 @@ import { useToast } from "@/components/ToastProvider";
 // regardless of whether they toggle themselves, so there's never a "created
 // but I can't see it" moment.
 export function CreateTeamNoteModal({
+  folders,
+  initialFolderId,
   onClose,
   onCreated,
 }: {
+  folders: TeamNoteFolder[]; // every team's folders — filtered to the chosen team below
+  initialFolderId?: string | null;
   onClose: () => void;
   onCreated: (noteId: string) => void;
 }) {
   const [teams, setTeams] = useState<CreatableTeam[] | null>(null);
   const [teamId, setTeamId] = useState("");
   const [title, setTitle] = useState("");
+  const [folderId, setFolderId] = useState(initialFolderId ?? "");
   const [meetingAt, setMeetingAt] = useState("");
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<CandidateUser[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
   const { show } = useToast();
+
+  const folderOptions = buildFolderOptions(folders.filter((f) => f.teamId === teamId));
 
   useEffect(() => {
     getCreatableTeamsAction().then((list) => {
@@ -67,6 +75,7 @@ export function CreateTeamNoteModal({
     const result = await createTeamNoteAction({
       teamId,
       title: title.trim(),
+      folderId: folderId || null,
       meetingAt: meetingAt ? new Date(meetingAt).toISOString() : null,
       memberIds: [...selectedIds],
     });
@@ -104,6 +113,7 @@ export function CreateTeamNoteModal({
             onChange={(e) => {
               setTeamId(e.target.value);
               setSelectedIds(new Set());
+              setFolderId("");
             }}
             className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
           >
@@ -112,6 +122,22 @@ export function CreateTeamNoteModal({
             {teams?.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="mb-4">
+          <label className="mb-1 block text-xs font-semibold text-neutral-500">Folder (optional)</label>
+          <select
+            value={folderId}
+            onChange={(e) => setFolderId(e.target.value)}
+            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
+          >
+            <option value="">Root</option>
+            {folderOptions.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
               </option>
             ))}
           </select>

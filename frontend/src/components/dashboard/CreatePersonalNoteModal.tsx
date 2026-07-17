@@ -5,21 +5,27 @@ import { getTagCatalogAction } from "@/app/dashboard/documents-actions";
 import { createPersonalNoteAction } from "@/app/dashboard/notes-actions";
 import type { Team } from "@/lib/api";
 import { DateTimePicker } from "@/components/dashboard/DateTimePicker";
+import { buildFolderOptions, type TreeFolder } from "@/components/dashboard/NoteFolderTree";
 import { useToast } from "@/components/ToastProvider";
 
 // Title/team/date up front, in one step — mirrors CreateTeamNoteModal's
 // shape so both note types share the same creation pattern. Content starts
 // empty; the note opens straight into PersonalNoteEditor afterward for that.
 export function CreatePersonalNoteModal({
+  folders,
+  initialFolderId,
   onClose,
   onCreated,
 }: {
+  folders: TreeFolder[];
+  initialFolderId?: string | null;
   onClose: () => void;
   onCreated: () => void;
 }) {
   const [teams, setTeams] = useState<Team[] | null>(null);
   const [title, setTitle] = useState("");
   const [teamId, setTeamId] = useState("");
+  const [folderId, setFolderId] = useState(initialFolderId ?? "");
   const [meetingAt, setMeetingAt] = useState("");
   const [creating, setCreating] = useState(false);
   const { show } = useToast();
@@ -27,6 +33,8 @@ export function CreatePersonalNoteModal({
   useEffect(() => {
     getTagCatalogAction().then((catalog) => setTeams(catalog.teams));
   }, []);
+
+  const folderOptions = buildFolderOptions(folders);
 
   async function handleCreate() {
     if (!title.trim()) {
@@ -37,6 +45,7 @@ export function CreatePersonalNoteModal({
     const result = await createPersonalNoteAction({
       title: title.trim(),
       teamId: teamId || null,
+      folderId: folderId || null,
       meetingAt: meetingAt ? new Date(meetingAt).toISOString() : null,
       content: "",
     });
@@ -99,6 +108,22 @@ export function CreatePersonalNoteModal({
               ))}
             </select>
           </div>
+        </div>
+
+        <div className="mb-5">
+          <label className="mb-1 block text-xs font-semibold text-neutral-500">Folder (optional)</label>
+          <select
+            value={folderId}
+            onChange={(e) => setFolderId(e.target.value)}
+            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
+          >
+            <option value="">Root</option>
+            {folderOptions.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="flex justify-end gap-2">

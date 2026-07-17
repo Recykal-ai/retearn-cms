@@ -395,6 +395,7 @@ export interface PersonalNote {
   title: string;
   teamId: string | null;
   team: { id: string; name: string } | null;
+  folderId: string | null;
   meetingAt: string | null;
   content: string;
   createdAt: string;
@@ -404,8 +405,44 @@ export interface PersonalNote {
 export interface PersonalNoteInput {
   title?: string;
   teamId?: string | null;
+  folderId?: string | null;
   meetingAt?: string | null;
   content?: string;
+}
+
+// Obsidian-style nested folder, owner-scoped, purely organizational — see
+// backend/src/routes/personal-note-folders.ts. A null parentId is a
+// root-level folder; the frontend builds the tree from this flat list.
+export interface PersonalNoteFolder {
+  id: string;
+  userId: string;
+  name: string;
+  parentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function getPersonalNoteFolders(appToken: string) {
+  return backendFetch<PersonalNoteFolder[]>("/api/personal-note-folders", appToken);
+}
+
+export function createPersonalNoteFolder(appToken: string, input: { name: string; parentId?: string | null }) {
+  return backendFetch<PersonalNoteFolder>("/api/personal-note-folders", appToken, { method: "POST", json: input });
+}
+
+export function updatePersonalNoteFolder(
+  appToken: string,
+  id: string,
+  input: { name?: string; parentId?: string | null },
+) {
+  return backendFetch<PersonalNoteFolder>(`/api/personal-note-folders/${id}`, appToken, {
+    method: "PATCH",
+    json: input,
+  });
+}
+
+export function deletePersonalNoteFolder(appToken: string, id: string) {
+  return backendFetch<void>(`/api/personal-note-folders/${id}`, appToken, { method: "DELETE" });
 }
 
 export function getPersonalNotes(appToken: string) {
@@ -435,6 +472,7 @@ export interface TeamNoteSummary {
   teamId: string;
   teamName: string;
   title: string;
+  folderId: string | null;
   meetingAt: string | null;
   updatedAt: string;
 }
@@ -451,6 +489,7 @@ export interface TeamNoteDetail {
   teamId: string;
   teamName: string;
   title: string;
+  folderId: string | null;
   meetingAt: string | null;
   content: string;
   updatedAt: string;
@@ -480,9 +519,9 @@ export function getCreatableTeams(appToken: string) {
 
 export function createTeamNote(
   appToken: string,
-  input: { teamId: string; title: string; meetingAt?: string | null; memberIds: string[] },
+  input: { teamId: string; title: string; folderId?: string | null; meetingAt?: string | null; memberIds: string[] },
 ) {
-  return backendFetch<{ id: string; teamId: string; title: string; meetingAt: string | null }>(
+  return backendFetch<{ id: string; teamId: string; title: string; folderId: string | null; meetingAt: string | null }>(
     "/api/team-notes",
     appToken,
     { method: "POST", json: input },
@@ -496,13 +535,52 @@ export function getTeamNote(appToken: string, id: string) {
 export function updateTeamNote(
   appToken: string,
   id: string,
-  input: { title?: string; meetingAt?: string | null; content?: string },
+  input: { title?: string; folderId?: string | null; meetingAt?: string | null; content?: string },
 ) {
-  return backendFetch<{ id: string; title: string; meetingAt: string | null; content: string; updatedAt: string }>(
-    `/api/team-notes/${id}`,
-    appToken,
-    { method: "PUT", json: input },
-  );
+  return backendFetch<{
+    id: string;
+    title: string;
+    folderId: string | null;
+    meetingAt: string | null;
+    content: string;
+    updatedAt: string;
+  }>(`/api/team-notes/${id}`, appToken, { method: "PUT", json: input });
+}
+
+// Obsidian-style nested folder scoped to one Team — see
+// backend/src/routes/team-note-folders.ts. Creating/renaming/deleting is
+// admin-curator-only; any member with note access can still see the tree.
+export interface TeamNoteFolder {
+  id: string;
+  teamId: string;
+  name: string;
+  parentId: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function getTeamNoteFolders(appToken: string) {
+  return backendFetch<TeamNoteFolder[]>("/api/team-note-folders", appToken);
+}
+
+export function createTeamNoteFolder(
+  appToken: string,
+  input: { teamId: string; name: string; parentId?: string | null },
+) {
+  return backendFetch<TeamNoteFolder>("/api/team-note-folders", appToken, { method: "POST", json: input });
+}
+
+export function updateTeamNoteFolder(
+  appToken: string,
+  id: string,
+  input: { name?: string; parentId?: string | null },
+) {
+  return backendFetch<TeamNoteFolder>(`/api/team-note-folders/${id}`, appToken, { method: "PATCH", json: input });
+}
+
+export function deleteTeamNoteFolder(appToken: string, id: string) {
+  return backendFetch<void>(`/api/team-note-folders/${id}`, appToken, { method: "DELETE" });
 }
 
 export function addTeamNoteMember(appToken: string, id: string, userId: string) {
@@ -526,6 +604,74 @@ export function searchCandidateUsersForTeam(appToken: string, teamId: string, q:
     `/api/team-notes/candidate-users?teamId=${teamId}&q=${encodeURIComponent(q)}`,
     appToken,
   );
+}
+
+// One entry in a team note's "Update history" — see TeamNoteActivityAction
+// in schema.prisma for the full action list. anchorId, when present, is
+// what RichTextEditor's scrollToAnchor jumps to (an image key, a linked
+// document's id, or a comment thread's root comment id).
+export interface TeamNoteActivityEntry {
+  id: string;
+  action:
+    | "EDITED_DETAILS"
+    | "ADDED_IMAGE"
+    | "LINKED_DOCUMENT"
+    | "ADDED_COMMENT"
+    | "RESOLVED_COMMENT"
+    | "REOPENED_COMMENT"
+    | "EDITED_CONTENT";
+  anchorId: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  user: { id: string; name: string };
+}
+
+export function getTeamNoteActivity(appToken: string, id: string) {
+  return backendFetch<TeamNoteActivityEntry[]>(`/api/team-notes/${id}/activity`, appToken);
+}
+
+export interface TeamNoteCommentEntry {
+  id: string;
+  teamNoteId: string;
+  parentId: string | null;
+  quotedText: string;
+  body: string;
+  author: { id: string; name: string };
+  resolved: boolean;
+  resolvedBy: { id: string; name: string } | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function getTeamNoteComments(appToken: string, id: string) {
+  return backendFetch<TeamNoteCommentEntry[]>(`/api/team-notes/${id}/comments`, appToken);
+}
+
+export function addTeamNoteComment(
+  appToken: string,
+  id: string,
+  input: { quotedText: string; body: string; parentId?: string; mentionedUserIds?: string[] },
+) {
+  return backendFetch<TeamNoteCommentEntry>(`/api/team-notes/${id}/comments`, appToken, { method: "POST", json: input });
+}
+
+export function editTeamNoteComment(appToken: string, id: string, commentId: string, body: string) {
+  return backendFetch<TeamNoteCommentEntry>(`/api/team-notes/${id}/comments/${commentId}`, appToken, {
+    method: "PATCH",
+    json: { body },
+  });
+}
+
+export function resolveTeamNoteComment(appToken: string, id: string, commentId: string, resolved: boolean) {
+  return backendFetch<TeamNoteCommentEntry>(`/api/team-notes/${id}/comments/${commentId}/resolve`, appToken, {
+    method: "PATCH",
+    json: { resolved },
+  });
+}
+
+export function deleteTeamNoteComment(appToken: string, id: string, commentId: string) {
+  return backendFetch<void>(`/api/team-notes/${id}/comments/${commentId}`, appToken, { method: "DELETE" });
 }
 
 export interface NotificationEntry {
