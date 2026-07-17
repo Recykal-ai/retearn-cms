@@ -1,17 +1,18 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useEditor, EditorContent, ReactRenderer, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { NodeSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
-import Mention from "@tiptap/extension-mention";
+import Mention, { type MentionNodeAttrs } from "@tiptap/extension-mention";
 import Highlight from "@tiptap/extension-highlight";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Placeholder from "@tiptap/extension-placeholder";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import { DocumentEmbed } from "@/components/dashboard/DocumentEmbedExtension";
+import { AtMentionMenu, type AtMenuSelection } from "@/components/dashboard/AtMentionMenu";
 import { NoteImage } from "@/components/dashboard/NoteImageExtension";
 import { CommentMark, commentHighlightPluginKey } from "@/components/dashboard/CommentMarkExtension";
 import { SlashCommand } from "@/components/dashboard/SlashCommandExtension";
@@ -57,80 +58,39 @@ export interface MentionCandidate {
   label: string;
 }
 
-// The mention suggestion dropdown — rendered via ReactRenderer and
-// positioned by @tiptap/suggestion's own props.mount() (Floating UI under
-// the hood, auto-repositions on scroll/resize — no manual positioning code
-// needed here).
-const MentionList = forwardRef<
-  { onKeyDown: (props: { event: KeyboardEvent }) => boolean },
-  { items: MentionCandidate[]; command: (item: MentionCandidate) => void }
->(function MentionList({ items, command }, ref) {
-  // Tracked by id rather than index — when a new (re-filtered) items array
-  // arrives, an id that's no longer present just naturally falls back to
-  // index 0 below, with no reset effect/ref needed at all.
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const rawIndex = items.findIndex((i) => i.id === selectedId);
-  const selectedIndex = rawIndex === -1 ? 0 : rawIndex;
-
-  useImperativeHandle(ref, () => ({
-    onKeyDown({ event }) {
-      if (event.key === "ArrowDown") {
-        const next = items[(selectedIndex + 1) % items.length];
-        if (next) setSelectedId(next.id);
-        return true;
-      }
-      if (event.key === "ArrowUp") {
-        const next = items[(selectedIndex - 1 + items.length) % items.length];
-        if (next) setSelectedId(next.id);
-        return true;
-      }
-      if (event.key === "Enter") {
-        if (items[selectedIndex]) command(items[selectedIndex]);
-        return true;
-      }
-      return false;
-    },
-  }));
-
-  if (items.length === 0) {
-    return <div className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-400 shadow-lg">No matches</div>;
-  }
-
-  return (
-    <div className="max-h-48 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
-      {items.map((item, i) => (
-        <button
-          key={item.id}
-          type="button"
-          onClick={() => command(item)}
-          className="block w-full px-3 py-1.5 text-left text-sm"
-          style={i === selectedIndex ? { background: "var(--brand-purple-tint)" } : undefined}
-        >
-          {item.label}
-        </button>
-      ))}
-    </div>
-  );
-});
-
-function buildMentionSuggestion(candidates: MentionCandidate[]): Partial<SuggestionOptions<MentionCandidate>> {
+// The "@" dropdown mentions people *and* references a portal document from
+// one combined menu (Notion's own trigger does People + Link-to-page the
+// same way — see AtMentionMenu.tsx for the full picker). `items()` here only
+// filters the People half by label; AtMentionMenu independently manages the
+// Documents half (search-as-you-type, or drill down by Team/Product/
+// Category) using the raw `query` text, which is why the generic item type
+// (I = MentionCandidate) and the type `command` actually receives
+// (TSelected = AtMenuSelection) differ.
+// Tiptap's own Mention node hardcodes its suggestion's "selected item" type
+// to MentionNodeAttrs (see @tiptap/extension-mention — Mention isn't generic
+// at the call site, so .configure() can't widen it). The two casts below are
+// exactly that mismatch made explicit: at runtime `props.command`/`props`
+// carry whatever AtMentionMenu actually passes (an AtMenuSelection, not a
+// MentionNodeAttrs), since `command` is overridden immediately below to stop
+// relying on Mention's own default (mention-node-only) implementation.
+function buildAtMenuSuggestion(candidates: MentionCandidate[]): Partial<SuggestionOptions<MentionCandidate, MentionNodeAttrs>> {
   return {
     items: ({ query }) =>
-      candidates.filter((c) => c.label.toLowerCase().includes(query.toLowerCase())).slice(0, 8),
+      candidates.filter((c) => c.label.toLowerCase().includes(query.toLowerCase())).slice(0, 5),
     render: () => {
       let component: ReactRenderer<{ onKeyDown: (props: { event: KeyboardEvent }) => boolean }> | undefined;
       let unmount: (() => void) | undefined;
 
       return {
         onStart: (props) => {
-          component = new ReactRenderer(MentionList, {
-            props: { items: props.items, command: props.command },
+          component = new ReactRenderer(AtMentionMenu, {
+            props: { people: props.items, query: props.query, command: props.command as unknown as (item: AtMenuSelection) => void },
             editor: props.editor,
           });
           unmount = props.mount(component.element as HTMLElement);
         },
         onUpdate: (props) => {
-          component?.updateProps({ items: props.items, command: props.command });
+          component?.updateProps({ people: props.items, query: props.query, command: props.command as unknown as (item: AtMenuSelection) => void });
         },
         onKeyDown: (props) => component?.ref?.onKeyDown(props) ?? false,
         onExit: () => {
@@ -138,6 +98,26 @@ function buildMentionSuggestion(candidates: MentionCandidate[]): Partial<Suggest
           component?.destroy();
         },
       };
+    },
+    // Overrides Mention's own default command (which only knows how to
+    // insert a `mention` node) — branches on what was actually picked, since
+    // a document reference is a completely different node type.
+    command: ({ editor, range, props: rawSelection }) => {
+      const selection = rawSelection as unknown as AtMenuSelection;
+      const nodeAfter = editor.view.state.selection.$to.nodeAfter;
+      const overrideSpace = nodeAfter?.text?.startsWith(" ");
+      const insertRange = overrideSpace ? { from: range.from, to: range.to + 1 } : range;
+
+      const node =
+        selection.kind === "person"
+          ? { type: "mention", attrs: { id: selection.id, label: selection.label, mentionSuggestionChar: "@" } }
+          : { type: "documentEmbed", attrs: { documentId: selection.id } };
+
+      editor
+        .chain()
+        .focus()
+        .insertContentAt(insertRange, [node, { type: "text", text: " " }])
+        .run();
     },
   };
 }
@@ -243,22 +223,21 @@ export const RichTextEditor = forwardRef<
       // entirely. Same @tiptap/suggestion utility @mention already uses
       // below, just triggered by "/" and rendering block/format commands.
       SlashCommand.configure({ onInsertImage: () => fileInputRef.current?.click() }),
-      ...(mentionCandidates
-        ? [
-            Mention.configure({
-              HTMLAttributes: { "data-type": "mention" },
-              suggestion: {
-                char: "@",
-                // Default only allows a space right before "@" — meaning
-                // "word@" (no space) silently never triggers, which reads as
-                // "mentions don't work" from a real user just typing
-                // naturally. null lifts that restriction entirely.
-                allowedPrefixes: null,
-                ...buildMentionSuggestion(mentionCandidates),
-              },
-            }),
-          ]
-        : []),
+      // Unconditional (not gated behind having any people to @mention) —
+      // referencing a portal document via "@" is always useful, even in a
+      // personal note with nobody to mention. See buildAtMenuSuggestion.
+      Mention.configure({
+        HTMLAttributes: { "data-type": "mention" },
+        suggestion: {
+          char: "@",
+          // Default only allows a space right before "@" — meaning
+          // "word@" (no space) silently never triggers, which reads as
+          // "mentions don't work" from a real user just typing
+          // naturally. null lifts that restriction entirely.
+          allowedPrefixes: null,
+          ...buildAtMenuSuggestion(mentionCandidates ?? []),
+        },
+      }),
     ],
     content,
     onUpdate: ({ editor: e }) => onChange(e.getHTML()),

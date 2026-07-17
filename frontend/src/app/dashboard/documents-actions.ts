@@ -26,6 +26,7 @@ import {
   getPinnedDocuments,
   pinDocument,
   unpinDocument,
+  getDocuments,
   type Category,
   type DocumentSummary,
 } from "@/lib/api";
@@ -102,6 +103,22 @@ export async function updateDocumentTagsAction(
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/approvals");
   return {};
+}
+
+// Backs the @ menu's document picker (RichTextEditor.tsx / AtMentionMenu.tsx)
+// — same filters the main dashboard's own document list uses (mode/entityId
+// for a Team/Product browse, category to narrow within it, q for a title
+// search), just reused from inside a note editor instead of a page. Defaults
+// to PUBLISHED-only like every other browse view — referencing a doc that
+// hasn't cleared review yet isn't the point of this picker.
+export async function searchDocumentsForEmbedAction(params: {
+  mode?: "team" | "product";
+  entityId?: string;
+  category?: string;
+  q?: string;
+}): Promise<DocumentSummary[]> {
+  const session = await requireSession();
+  return getDocuments(session.appToken!, params);
 }
 
 export async function getTagCatalogAction(): Promise<{

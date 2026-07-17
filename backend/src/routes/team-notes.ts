@@ -189,8 +189,20 @@ teamNotesRouter.put<{ id: string }>("/:id", requireAuth, async (req, res) => {
   const members = await prisma.teamNoteMembership.findMany({ where: { teamNoteId: id }, select: { userId: true } });
   const memberIds = new Set(members.map((m) => m.userId));
 
-  const oldMentions = new Set(extractMentionIds(existing.content).filter((mid) => memberIds.has(mid)));
-  const newMentions = new Set(extractMentionIds(sanitized).filter((mid) => memberIds.has(mid)));
+  // "all" (see the frontend's TeamNoteEditor.tsx mentionCandidates) is a
+  // reserved sentinel id, not a real user — @mentioning it expands to every
+  // current member instead of being matched (and dropped) as an unknown id.
+  // Both old and new content resolve against the *same* current member set,
+  // so re-saving with an unchanged "@All members" mention never re-notifies
+  // — identical to how re-saving an unchanged single-person mention doesn't.
+  function resolveMentionIds(html: string): Set<string> {
+    const raw = extractMentionIds(html);
+    if (raw.includes("all")) return new Set(memberIds);
+    return new Set(raw.filter((mid) => memberIds.has(mid)));
+  }
+
+  const oldMentions = resolveMentionIds(existing.content);
+  const newMentions = resolveMentionIds(sanitized);
   const newlyMentioned = [...newMentions].filter((mid) => !oldMentions.has(mid) && mid !== req.user!.userId);
 
   // Structured "what changed" detection for the update-history feature — see

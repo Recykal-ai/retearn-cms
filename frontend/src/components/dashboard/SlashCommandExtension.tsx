@@ -123,7 +123,7 @@ function buildItems(onInsertImage: () => void): SlashCommandItem[] {
   ];
 }
 
-// Keyboard nav mirrors MentionList's exact pattern (tracked by identity
+// Keyboard nav mirrors AtMentionMenu's exact pattern (tracked by identity
 // rather than index, so a re-filtered list never points at the wrong row).
 const SlashCommandList = forwardRef<
   { onKeyDown: (props: { event: KeyboardEvent }) => boolean },

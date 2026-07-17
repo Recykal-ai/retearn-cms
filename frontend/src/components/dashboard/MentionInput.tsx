@@ -59,10 +59,14 @@ export function MentionInput({
   function submit() {
     const trimmed = value.trim();
     if (!trimmed) return;
+    // "all" (see TeamNoteEditor.tsx's mentionCandidates) is a reserved
+    // sentinel, not a real user — expanded here into every actual member id
+    // rather than sent as-is, since the backend only ever notifies real
+    // TeamNoteMembership rows and would just silently drop it otherwise.
     const ids = Object.entries(mentioned)
       .filter(([name]) => trimmed.includes(`@${name}`))
-      .map(([, id]) => id);
-    onSubmit(trimmed, ids);
+      .flatMap(([, id]) => (id === "all" ? members.filter((m) => m.id !== "all").map((m) => m.id) : [id]));
+    onSubmit(trimmed, [...new Set(ids)]);
     setValue("");
     setMentioned({});
     setDropdown(null);

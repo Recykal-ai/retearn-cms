@@ -245,7 +245,15 @@ export function TeamNoteEditor({
     return <p className="flex h-full items-center justify-center text-sm text-neutral-400">Loading…</p>;
   }
 
-  const mentionCandidates = detail.members.map((m) => ({ id: m.id, label: m.name }));
+  // "id: all" is a reserved sentinel, not a real user — recognized specially
+  // by both the note-body mention-notify diff (team-notes.ts's PUT route)
+  // and MentionInput's comment-reply submit (which expands it into every
+  // real member id before sending). Only offered when there's actually more
+  // than one member to notify.
+  const mentionCandidates = [
+    ...(detail.members.length > 1 ? [{ id: "all", label: "All members" }] : []),
+    ...detail.members.map((m) => ({ id: m.id, label: m.name })),
+  ];
   // One layout, always — not "centered when there's nothing to comment on,
   // pushed left once something is." Switching between two different shapes
   // depending on comment count made the page visibly jump/reflow every time
