@@ -107,77 +107,90 @@ export function PersonalNoteEditor({
   const teamName = teams?.find((t) => t.id === teamId)?.name;
   const metaLabel = [meetingAt ? formatMetaDate(meetingAt) : null, teamName].filter(Boolean).join(" · ");
 
+  // Same centered-column shape as TeamNoteEditor.tsx — a fixed max-width
+  // column with equal left/right margins, not a fixed-but-unequal padding —
+  // so the two note types read as one consistent product instead of two
+  // differently-proportioned editors. No FloatingComments margin to reserve
+  // room for here (personal notes have no comments), so this is the plain
+  // form of that same layout, not the width-constrained one.
+  const contentStyle: React.CSSProperties = {
+    maxWidth: 760,
+    marginLeft: "auto",
+    marginRight: "auto",
+    paddingLeft: 40,
+    paddingRight: 40,
+  };
+
   return (
-    <div className="flex h-full flex-col px-10 py-8">
-      <div className="mb-1 flex items-center justify-between">
+    <div className="relative h-full overflow-y-auto">
+      <div className="absolute top-6 right-6 z-30 flex items-center gap-2">
+        <span className="shrink-0 text-xs text-neutral-400">
+          {saveState === "pending" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
+        </span>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={deleting}
+          className="shrink-0 text-xs font-medium text-red-600 hover:underline disabled:opacity-60"
+        >
+          {deleting ? "Deleting…" : "Delete"}
+        </button>
+      </div>
+
+      <div className="py-8" style={contentStyle}>
         <input
           value={title}
           onChange={(e) => {
             setTitle(e.target.value);
             scheduleSave();
           }}
-          className="w-full text-3xl font-bold text-neutral-900 focus:outline-none"
+          className="mb-1 w-full text-3xl font-bold text-neutral-900 focus:outline-none"
           placeholder="Note title"
         />
-        <div className="flex shrink-0 items-center gap-3">
-          <span className="text-xs text-neutral-400">
-            {saveState === "pending" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
-          </span>
+
+        <div ref={metaRef} className="relative mb-4">
           <button
             type="button"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="text-xs font-medium text-red-600 hover:underline disabled:opacity-60"
+            onClick={() => setMetaOpen((v) => !v)}
+            className="text-sm text-neutral-400 hover:text-neutral-600 hover:underline"
           >
-            {deleting ? "Deleting…" : "Delete"}
+            {metaLabel || "Add date or team…"}
           </button>
+
+          {metaOpen && (
+            <div className="absolute top-full left-0 z-20 mt-2 flex w-80 gap-3 rounded-lg border border-neutral-200 bg-white p-3 shadow-lg">
+              <div className="flex-1">
+                <label className="mb-1 block text-xs font-semibold text-neutral-500">Meeting date/time</label>
+                <DateTimePicker
+                  value={meetingAt}
+                  onChange={(v) => {
+                    setMeetingAt(v);
+                    scheduleSave();
+                  }}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="mb-1 block text-xs font-semibold text-neutral-500">Team</label>
+                <select
+                  value={teamId}
+                  onChange={(e) => {
+                    setTeamId(e.target.value);
+                    scheduleSave();
+                  }}
+                  className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
+                >
+                  <option value="">None</option>
+                  {teams?.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
 
-      <div ref={metaRef} className="relative mb-4">
-        <button
-          type="button"
-          onClick={() => setMetaOpen((v) => !v)}
-          className="text-sm text-neutral-400 hover:text-neutral-600 hover:underline"
-        >
-          {metaLabel || "Add date or team…"}
-        </button>
-
-        {metaOpen && (
-          <div className="absolute top-full left-0 z-20 mt-2 flex w-80 gap-3 rounded-lg border border-neutral-200 bg-white p-3 shadow-lg">
-            <div className="flex-1">
-              <label className="mb-1 block text-xs font-semibold text-neutral-500">Meeting date/time</label>
-              <DateTimePicker
-                value={meetingAt}
-                onChange={(v) => {
-                  setMeetingAt(v);
-                  scheduleSave();
-                }}
-              />
-            </div>
-            <div className="flex-1">
-              <label className="mb-1 block text-xs font-semibold text-neutral-500">Team</label>
-              <select
-                value={teamId}
-                onChange={(e) => {
-                  setTeamId(e.target.value);
-                  scheduleSave();
-                }}
-                className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
-              >
-                <option value="">None</option>
-                {teams?.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto">
         <RichTextEditor
           content={content}
           onChange={(html) => {
