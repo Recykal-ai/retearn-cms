@@ -65,7 +65,12 @@ async function wouldCycle(folderId: string, startParentId: string): Promise<bool
 // POST /api/team-note-folders — curator-only (canCurateTeamNotes), same gate
 // as creating a team note itself: regular members can't create folders.
 teamNoteFoldersRouter.post("/", requireAuth, async (req, res) => {
-  const { teamId, name, parentId } = req.body as { teamId?: string; name?: string; parentId?: string | null };
+  const { teamId, name, icon, parentId } = req.body as {
+    teamId?: string;
+    name?: string;
+    icon?: string | null;
+    parentId?: string | null;
+  };
   if (!teamId || !(await canCurateTeamNotes(req.user!.userId, req.user!.role, teamId))) {
     return res.status(403).json({ error: "You don't have admin access to this team" });
   }
@@ -78,7 +83,7 @@ teamNoteFoldersRouter.post("/", requireAuth, async (req, res) => {
   }
 
   const folder = await prisma.teamNoteFolder.create({
-    data: { teamId, name: trimmed, parentId: parentId || null, createdById: req.user!.userId },
+    data: { teamId, name: trimmed, icon: icon || null, parentId: parentId || null, createdById: req.user!.userId },
   });
   res.status(201).json(folder);
 });
@@ -90,7 +95,7 @@ teamNoteFoldersRouter.patch<{ id: string }>("/:id", requireAuth, async (req, res
     return res.status(403).json({ error: "You don't have admin access to this team" });
   }
 
-  const { name, parentId } = req.body as { name?: string; parentId?: string | null };
+  const { name, icon, parentId } = req.body as { name?: string; icon?: string | null; parentId?: string | null };
   if (name !== undefined && !name.trim()) {
     return res.status(400).json({ error: "name cannot be empty" });
   }
@@ -113,6 +118,7 @@ teamNoteFoldersRouter.patch<{ id: string }>("/:id", requireAuth, async (req, res
     where: { id: existing.id },
     data: {
       ...(name !== undefined && { name: name.trim() }),
+      ...(icon !== undefined && { icon: icon || null }),
       ...(parentId !== undefined && { parentId: parentId || null }),
     },
   });

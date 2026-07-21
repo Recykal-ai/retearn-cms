@@ -31,6 +31,7 @@ teamNotesRouter.get("/", requireAuth, async (req, res) => {
       teamId: n.teamId,
       teamName: n.team.name,
       title: n.title,
+      icon: n.icon,
       folderId: n.folderId,
       meetingAt: n.meetingAt,
       updatedAt: n.updatedAt,
@@ -85,9 +86,10 @@ teamNotesRouter.get("/candidate-users", requireAuth, async (req, res) => {
 // list, in one step (the creator is always included, whether or not they
 // explicitly picked themselves) — no "created but nobody can see it" gap.
 teamNotesRouter.post("/", requireAuth, async (req, res) => {
-  const { teamId, title, folderId, meetingAt, memberIds } = req.body as {
+  const { teamId, title, icon, folderId, meetingAt, memberIds } = req.body as {
     teamId?: string;
     title?: string;
+    icon?: string | null;
     folderId?: string | null;
     meetingAt?: string | null;
     memberIds?: unknown;
@@ -113,6 +115,7 @@ teamNotesRouter.post("/", requireAuth, async (req, res) => {
     data: {
       teamId,
       title: trimmedTitle,
+      icon: icon || null,
       folderId: folderId || null,
       meetingAt: meetingAt ? new Date(meetingAt) : null,
       createdById: req.user!.userId,
@@ -122,7 +125,7 @@ teamNotesRouter.post("/", requireAuth, async (req, res) => {
     },
   });
 
-  res.status(201).json({ id: note.id, teamId: note.teamId, title: note.title, folderId: note.folderId, meetingAt: note.meetingAt });
+  res.status(201).json({ id: note.id, teamId: note.teamId, title: note.title, icon: note.icon, folderId: note.folderId, meetingAt: note.meetingAt });
 });
 
 teamNotesRouter.get<{ id: string }>("/:id", requireAuth, async (req, res) => {
@@ -148,6 +151,7 @@ teamNotesRouter.get<{ id: string }>("/:id", requireAuth, async (req, res) => {
     teamId: note.teamId,
     teamName: note.team.name,
     title: note.title,
+    icon: note.icon,
     folderId: note.folderId,
     meetingAt: note.meetingAt,
     content: note.content,
@@ -164,8 +168,9 @@ teamNotesRouter.put<{ id: string }>("/:id", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "You don't have access to this note" });
   }
 
-  const { title, folderId, meetingAt, content } = req.body as {
+  const { title, icon, folderId, meetingAt, content } = req.body as {
     title?: string;
+    icon?: string | null;
     folderId?: string | null;
     meetingAt?: string | null;
     content?: string;
@@ -254,6 +259,7 @@ teamNotesRouter.put<{ id: string }>("/:id", requireAuth, async (req, res) => {
     where: { id },
     data: {
       ...(newTitle !== undefined && { title: newTitle }),
+      ...(icon !== undefined && { icon: icon || null }),
       ...(folderId !== undefined && { folderId: folderId || null }),
       ...(meetingAt !== undefined && { meetingAt: meetingAt ? new Date(meetingAt) : null }),
       content: sanitized,
@@ -272,11 +278,35 @@ teamNotesRouter.put<{ id: string }>("/:id", requireAuth, async (req, res) => {
   res.json({
     id: updated.id,
     title: updated.title,
+    icon: updated.icon,
     folderId: updated.folderId,
     meetingAt: updated.meetingAt,
     content: updated.content,
     updatedAt: updated.updatedAt,
   });
+});
+
+// DELETE /api/team-notes/:id — curator-only (canCurateTeamNotes), same gate
+// as creating one in the first place — since creating a team note already
+// requires curator status, its creator is always already a curator, so
+// there's no separate "creator can always delete" carve-out to add here.
+// Hard delete (unlike Document's soft-delete-and-recover model) — a team
+// note has no approval/versioning lifecycle to preserve history for.
+teamNotesRouter.delete<{ id: string }>("/:id", requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const note = await prisma.teamNote.findUnique({ where: { id } });
+  if (!note) return res.status(404).json({ error: "Note not found" });
+  if (!(await canCurateTeamNotes(req.user!.userId, req.user!.role, note.teamId))) {
+    return res.status(403).json({ error: "You don't have admin access to this team" });
+  }
+
+  await prisma.notification.deleteMany({ where: { teamNoteId: id } });
+  await prisma.teamNoteMembership.deleteMany({ where: { teamNoteId: id } });
+  await prisma.teamNoteComment.deleteMany({ where: { teamNoteId: id } });
+  await prisma.teamNoteActivity.deleteMany({ where: { teamNoteId: id } });
+  await prisma.teamNote.delete({ where: { id } });
+
+  res.status(204).send();
 });
 
 // GET /api/team-notes/:id/activity — the note's update history, newest

@@ -393,6 +393,7 @@ export function getAuditLog(appToken: string, limit = 100) {
 export interface PersonalNote {
   id: string;
   title: string;
+  icon: string | null;
   teamId: string | null;
   team: { id: string; name: string } | null;
   folderId: string | null;
@@ -404,6 +405,7 @@ export interface PersonalNote {
 
 export interface PersonalNoteInput {
   title?: string;
+  icon?: string | null;
   teamId?: string | null;
   folderId?: string | null;
   meetingAt?: string | null;
@@ -417,6 +419,7 @@ export interface PersonalNoteFolder {
   id: string;
   userId: string;
   name: string;
+  icon: string | null;
   parentId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -426,14 +429,17 @@ export function getPersonalNoteFolders(appToken: string) {
   return backendFetch<PersonalNoteFolder[]>("/api/personal-note-folders", appToken);
 }
 
-export function createPersonalNoteFolder(appToken: string, input: { name: string; parentId?: string | null }) {
+export function createPersonalNoteFolder(
+  appToken: string,
+  input: { name: string; icon?: string | null; parentId?: string | null },
+) {
   return backendFetch<PersonalNoteFolder>("/api/personal-note-folders", appToken, { method: "POST", json: input });
 }
 
 export function updatePersonalNoteFolder(
   appToken: string,
   id: string,
-  input: { name?: string; parentId?: string | null },
+  input: { name?: string; icon?: string | null; parentId?: string | null },
 ) {
   return backendFetch<PersonalNoteFolder>(`/api/personal-note-folders/${id}`, appToken, {
     method: "PATCH",
@@ -472,6 +478,7 @@ export interface TeamNoteSummary {
   teamId: string;
   teamName: string;
   title: string;
+  icon: string | null;
   folderId: string | null;
   meetingAt: string | null;
   updatedAt: string;
@@ -489,6 +496,7 @@ export interface TeamNoteDetail {
   teamId: string;
   teamName: string;
   title: string;
+  icon: string | null;
   folderId: string | null;
   meetingAt: string | null;
   content: string;
@@ -519,13 +527,23 @@ export function getCreatableTeams(appToken: string) {
 
 export function createTeamNote(
   appToken: string,
-  input: { teamId: string; title: string; folderId?: string | null; meetingAt?: string | null; memberIds: string[] },
+  input: {
+    teamId: string;
+    title: string;
+    icon?: string | null;
+    folderId?: string | null;
+    meetingAt?: string | null;
+    memberIds: string[];
+  },
 ) {
-  return backendFetch<{ id: string; teamId: string; title: string; folderId: string | null; meetingAt: string | null }>(
-    "/api/team-notes",
-    appToken,
-    { method: "POST", json: input },
-  );
+  return backendFetch<{
+    id: string;
+    teamId: string;
+    title: string;
+    icon: string | null;
+    folderId: string | null;
+    meetingAt: string | null;
+  }>("/api/team-notes", appToken, { method: "POST", json: input });
 }
 
 export function getTeamNote(appToken: string, id: string) {
@@ -535,16 +553,21 @@ export function getTeamNote(appToken: string, id: string) {
 export function updateTeamNote(
   appToken: string,
   id: string,
-  input: { title?: string; folderId?: string | null; meetingAt?: string | null; content?: string },
+  input: { title?: string; icon?: string | null; folderId?: string | null; meetingAt?: string | null; content?: string },
 ) {
   return backendFetch<{
     id: string;
     title: string;
+    icon: string | null;
     folderId: string | null;
     meetingAt: string | null;
     content: string;
     updatedAt: string;
   }>(`/api/team-notes/${id}`, appToken, { method: "PUT", json: input });
+}
+
+export function deleteTeamNote(appToken: string, id: string) {
+  return backendFetch<void>(`/api/team-notes/${id}`, appToken, { method: "DELETE" });
 }
 
 // Obsidian-style nested folder scoped to one Team — see
@@ -554,6 +577,7 @@ export interface TeamNoteFolder {
   id: string;
   teamId: string;
   name: string;
+  icon: string | null;
   parentId: string | null;
   createdById: string;
   createdAt: string;
@@ -566,7 +590,7 @@ export function getTeamNoteFolders(appToken: string) {
 
 export function createTeamNoteFolder(
   appToken: string,
-  input: { teamId: string; name: string; parentId?: string | null },
+  input: { teamId: string; name: string; icon?: string | null; parentId?: string | null },
 ) {
   return backendFetch<TeamNoteFolder>("/api/team-note-folders", appToken, { method: "POST", json: input });
 }
@@ -574,7 +598,7 @@ export function createTeamNoteFolder(
 export function updateTeamNoteFolder(
   appToken: string,
   id: string,
-  input: { name?: string; parentId?: string | null },
+  input: { name?: string; icon?: string | null; parentId?: string | null },
 ) {
   return backendFetch<TeamNoteFolder>(`/api/team-note-folders/${id}`, appToken, { method: "PATCH", json: input });
 }

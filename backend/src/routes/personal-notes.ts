@@ -28,8 +28,9 @@ personalNotesRouter.get<{ id: string }>("/:id", requireAuth, async (req, res) =>
 });
 
 personalNotesRouter.post("/", requireAuth, async (req, res) => {
-  const { title, teamId, folderId, meetingAt, content } = req.body as {
+  const { title, icon, teamId, folderId, meetingAt, content } = req.body as {
     title?: string;
+    icon?: string | null;
     teamId?: string | null;
     folderId?: string | null;
     meetingAt?: string | null;
@@ -52,6 +53,7 @@ personalNotesRouter.post("/", requireAuth, async (req, res) => {
     data: {
       userId: req.user!.userId,
       title: trimmedTitle,
+      icon: icon || null,
       teamId: teamId || null,
       folderId: folderId || null,
       meetingAt: meetingAt ? new Date(meetingAt) : null,
@@ -68,8 +70,9 @@ personalNotesRouter.patch<{ id: string }>("/:id", requireAuth, async (req, res) 
   });
   if (!existing) return res.status(404).json({ error: "Note not found" });
 
-  const { title, teamId, folderId, meetingAt, content } = req.body as {
+  const { title, icon, teamId, folderId, meetingAt, content } = req.body as {
     title?: string;
+    icon?: string | null;
     teamId?: string | null;
     folderId?: string | null;
     meetingAt?: string | null;
@@ -92,6 +95,7 @@ personalNotesRouter.patch<{ id: string }>("/:id", requireAuth, async (req, res) 
     where: { id: existing.id },
     data: {
       ...(title !== undefined && { title: title.trim() }),
+      ...(icon !== undefined && { icon: icon || null }),
       ...(teamId !== undefined && { teamId: teamId || null }),
       ...(folderId !== undefined && { folderId: folderId || null }),
       ...(meetingAt !== undefined && { meetingAt: meetingAt ? new Date(meetingAt) : null }),

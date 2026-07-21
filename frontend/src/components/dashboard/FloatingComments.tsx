@@ -298,7 +298,7 @@ function initial(name: string): string {
   return name.trim().charAt(0).toUpperCase() || "?";
 }
 
-function Avatar({ name }: { name: string }) {
+export function Avatar({ name }: { name: string }) {
   return (
     <span
       className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
@@ -428,7 +428,7 @@ function ThreadCardExpanded({
   );
 }
 
-function Message({
+export function Message({
   comment,
   teamNoteId,
   currentUserId,

@@ -17,6 +17,7 @@ import {
   createTeamNote,
   getTeamNote,
   updateTeamNote,
+  deleteTeamNote,
   addTeamNoteMember,
   removeTeamNoteMember,
   searchCandidateUsers,
@@ -58,15 +59,16 @@ export async function getPersonalNoteAction(id: string) {
   return getPersonalNote(session.appToken!, id);
 }
 
-export async function createPersonalNoteAction(input: PersonalNoteInput): Promise<{ error?: string }> {
+export async function createPersonalNoteAction(input: PersonalNoteInput): Promise<{ id?: string; error?: string }> {
   const session = await requireSession();
+  let id: string;
   try {
-    await createPersonalNote(session.appToken!, input);
+    id = (await createPersonalNote(session.appToken!, input)).id;
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to create note" };
   }
   revalidatePath("/dashboard");
-  return {};
+  return { id };
 }
 
 export async function updatePersonalNoteAction(id: string, input: PersonalNoteInput): Promise<{ error?: string }> {
@@ -98,21 +100,23 @@ export async function getPersonalNoteFoldersAction() {
 
 export async function createPersonalNoteFolderAction(input: {
   name: string;
+  icon?: string | null;
   parentId?: string | null;
-}): Promise<{ error?: string }> {
+}): Promise<{ id?: string; error?: string }> {
   const session = await requireSession();
+  let id: string;
   try {
-    await createPersonalNoteFolder(session.appToken!, input);
+    id = (await createPersonalNoteFolder(session.appToken!, input)).id;
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to create folder" };
   }
   revalidatePath("/dashboard/notes");
-  return {};
+  return { id };
 }
 
 export async function updatePersonalNoteFolderAction(
   id: string,
-  input: { name?: string; parentId?: string | null },
+  input: { name?: string; icon?: string | null; parentId?: string | null },
 ): Promise<{ error?: string }> {
   const session = await requireSession();
   try {
@@ -153,21 +157,23 @@ export async function getTeamNoteFoldersAction() {
 export async function createTeamNoteFolderAction(input: {
   teamId: string;
   name: string;
+  icon?: string | null;
   parentId?: string | null;
-}): Promise<{ error?: string }> {
+}): Promise<{ id?: string; error?: string }> {
   const session = await requireSession();
+  let id: string;
   try {
-    await createTeamNoteFolder(session.appToken!, input);
+    id = (await createTeamNoteFolder(session.appToken!, input)).id;
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to create folder" };
   }
   revalidatePath("/dashboard/notes");
-  return {};
+  return { id };
 }
 
 export async function updateTeamNoteFolderAction(
   id: string,
-  input: { name?: string; parentId?: string | null },
+  input: { name?: string; icon?: string | null; parentId?: string | null },
 ): Promise<{ error?: string }> {
   const session = await requireSession();
   try {
@@ -193,6 +199,7 @@ export async function deleteTeamNoteFolderAction(id: string): Promise<{ error?: 
 export async function createTeamNoteAction(input: {
   teamId: string;
   title: string;
+  icon?: string | null;
   folderId?: string | null;
   meetingAt?: string | null;
   memberIds: string[];
@@ -214,13 +221,24 @@ export async function getTeamNoteAction(id: string) {
 
 export async function updateTeamNoteAction(
   id: string,
-  input: { title?: string; folderId?: string | null; meetingAt?: string | null; content?: string },
+  input: { title?: string; icon?: string | null; folderId?: string | null; meetingAt?: string | null; content?: string },
 ): Promise<{ error?: string }> {
   const session = await requireSession();
   try {
     await updateTeamNote(session.appToken!, id, input);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to save" };
+  }
+  revalidatePath("/dashboard/notes");
+  return {};
+}
+
+export async function deleteTeamNoteAction(id: string): Promise<{ error?: string }> {
+  const session = await requireSession();
+  try {
+    await deleteTeamNote(session.appToken!, id);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to delete note" };
   }
   revalidatePath("/dashboard/notes");
   return {};

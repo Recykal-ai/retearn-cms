@@ -6,6 +6,7 @@ import { updatePersonalNoteAction, deletePersonalNoteAction } from "@/app/dashbo
 import type { PersonalNote, Team } from "@/lib/api";
 import { RichTextEditor } from "@/components/dashboard/RichTextEditor";
 import { DateTimePicker } from "@/components/dashboard/DateTimePicker";
+import { IconPickerButton } from "@/components/dashboard/IconPickerButton";
 import { useToast } from "@/components/ToastProvider";
 
 const AUTOSAVE_DELAY_MS = 1200;
@@ -22,14 +23,23 @@ const AUTOSAVE_DELAY_MS = 1200;
 // than two always-visible form fields sitting above the editor.
 export function PersonalNoteEditor({
   note,
+  autoFocusTitle,
+  onTitleFocused,
   onSaved,
   onDeleted,
 }: {
   note: PersonalNote;
+  // True exactly once, right after a quick-create — the title input
+  // auto-focuses with "Untitled" pre-selected so typing immediately
+  // replaces it, then the parent clears this via onTitleFocused so it
+  // doesn't refocus on later unrelated re-renders.
+  autoFocusTitle?: boolean;
+  onTitleFocused?: () => void;
   onSaved: () => void;
   onDeleted: () => void;
 }) {
   const [title, setTitle] = useState(note.title);
+  const [icon, setIcon] = useState(note.icon);
   const [teamId, setTeamId] = useState(note.teamId ?? "");
   const [meetingAt, setMeetingAt] = useState(note.meetingAt ? toLocalInputValue(note.meetingAt) : "");
   const [content, setContent] = useState(note.content);
@@ -40,10 +50,19 @@ export function PersonalNoteEditor({
   const { show } = useToast();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const metaRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
   const latestRef = useRef({ title, teamId, meetingAt, content });
   useEffect(() => {
     latestRef.current = { title, teamId, meetingAt, content };
   });
+
+  useEffect(() => {
+    if (!autoFocusTitle) return;
+    titleRef.current?.focus();
+    titleRef.current?.select();
+    onTitleFocused?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     getTagCatalogAction().then((catalog) => setTeams(catalog.teams));
@@ -104,6 +123,19 @@ export function PersonalNoteEditor({
     onDeleted();
   }
 
+  // Icon changes save immediately (not debounced) — a discrete, deliberate
+  // pick from the picker, not incremental typing, so there's no reason to
+  // wait the usual autosave delay before it's persisted.
+  async function handleSetIcon(next: string | null) {
+    setIcon(next);
+    const result = await updatePersonalNoteAction(note.id, { icon: next });
+    if (result.error) {
+      show(result.error, "error");
+      return;
+    }
+    onSaved();
+  }
+
   const teamName = teams?.find((t) => t.id === teamId)?.name;
   const metaLabel = [meetingAt ? formatMetaDate(meetingAt) : null, teamName].filter(Boolean).join(" · ");
 
@@ -138,15 +170,40 @@ export function PersonalNoteEditor({
       </div>
 
       <div className="py-8" style={contentStyle}>
-        <input
-          value={title}
-          onChange={(e) => {
-            setTitle(e.target.value);
-            scheduleSave();
-          }}
-          className="mb-1 w-full text-3xl font-bold text-neutral-900 focus:outline-none"
-          placeholder="Note title"
-        />
+        {/* "Add icon" only appears on hovering the title block specifically
+            — scoped to just this wrapper (icon row + title input), not the
+            whole content column, since that column's own height is
+            stretched by RichTextEditor's min-h-[65vh] descendant and would
+            otherwise make "hovering anywhere in the note body" count as
+            "hovering the title" too. Once an icon is actually set it's
+            always shown (large, permanent), same as Notion's own
+            icon-vs-placeholder split. Plain (unnamed) group/group-hover,
+            matching the only other hover-reveal pattern already used in
+            this codebase (NoteFolderTree.tsx's row menus) — named groups
+            (group/title + group-hover/title:) silently didn't apply here,
+            not worth chasing further when the plain form already works. */}
+        <div className="group">
+          <div className={icon ? "mb-1" : "mb-1 opacity-0 transition-opacity group-hover:opacity-100"}>
+            <IconPickerButton
+              icon={icon}
+              fallback={<TitleIconPlaceholder />}
+              onSelect={handleSetIcon}
+              onClear={() => handleSetIcon(null)}
+              size={icon ? "lg" : "md"}
+              label={icon ? undefined : "Add icon"}
+            />
+          </div>
+          <input
+            ref={titleRef}
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              scheduleSave();
+            }}
+            className="mb-1 w-full text-3xl font-bold text-neutral-900 focus:outline-none"
+            placeholder="Note title"
+          />
+        </div>
 
         <div ref={metaRef} className="relative mb-4">
           <button
@@ -201,6 +258,15 @@ export function PersonalNoteEditor({
         />
       </div>
     </div>
+  );
+}
+
+function TitleIconPlaceholder() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden className="text-neutral-300">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M9 10h.01M15 10h.01M8.5 14.5c.9 1 2.1 1.5 3.5 1.5s2.6-.5 3.5-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
   );
 }
 

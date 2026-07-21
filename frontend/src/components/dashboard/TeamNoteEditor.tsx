@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   getTeamNoteAction,
   updateTeamNoteAction,
+  deleteTeamNoteAction,
   addTeamNoteMemberAction,
   removeTeamNoteMemberAction,
   searchCandidateUsersAction,
@@ -16,6 +17,9 @@ import { RichTextEditor, type RichTextEditorHandle, type NoteAnchorKind } from "
 import { DateTimePicker } from "@/components/dashboard/DateTimePicker";
 import { NoteHistoryPanel } from "@/components/dashboard/NoteHistoryPanel";
 import { FloatingComments, CONTENT_MARGIN_RESERVE, type DraftComment } from "@/components/dashboard/FloatingComments";
+import { IconPickerButton } from "@/components/dashboard/IconPickerButton";
+import { MoreVerticalIcon } from "@/components/dashboard/NoteFolderTree";
+import { NoteBioComments } from "@/components/dashboard/NoteBioComments";
 import { useToast } from "@/components/ToastProvider";
 
 const AUTOSAVE_DELAY_MS = 1200;
@@ -42,6 +46,9 @@ export function TeamNoteEditor({
   noteId,
   currentUserId,
   initialCommentId,
+  autoFocusTitle,
+  onTitleFocused,
+  onDeleted,
 }: {
   noteId: string;
   currentUserId: string;
@@ -50,13 +57,22 @@ export function TeamNoteEditor({
   // load, then just sits unused; harmless if it doesn't match any thread
   // here (e.g. stale after switching notes).
   initialCommentId?: string | null;
+  // True exactly once, right after a quick-create — the title input
+  // auto-focuses with "Untitled" pre-selected once the note's detail has
+  // actually loaded (there's no title input to focus before then).
+  autoFocusTitle?: boolean;
+  onTitleFocused?: () => void;
+  onDeleted: () => void;
 }) {
   const [detail, setDetail] = useState<TeamNoteDetail | null>(null);
   const [title, setTitle] = useState("");
+  const [icon, setIcon] = useState<string | null>(null);
   const [content, setContent] = useState("");
   const [meetingAt, setMeetingAt] = useState("");
   const [metaOpen, setMetaOpen] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "pending" | "saved">("idle");
+  const [deleting, setDeleting] = useState(false);
+  const [bioComposerOpen, setBioComposerOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<CandidateUser[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -71,6 +87,7 @@ export function TeamNoteEditor({
   const hoverFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const metaRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<RichTextEditorHandle>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const contentColumnRef = useRef<HTMLDivElement>(null);
@@ -85,9 +102,15 @@ export function TeamNoteEditor({
       if (cancelled) return;
       setDetail(d);
       setTitle(d.title);
+      setIcon(d.icon);
       setContent(d.content);
       setMeetingAt(d.meetingAt ? toLocalInputValue(d.meetingAt) : "");
       setSaveState("idle");
+      if (autoFocusTitle) {
+        titleRef.current?.focus();
+        titleRef.current?.select();
+        onTitleFocused?.();
+      }
     });
     getTeamNoteCommentsAction(noteId).then((c) => {
       if (cancelled) return;
@@ -101,6 +124,7 @@ export function TeamNoteEditor({
     setHistoryOpen(false);
     setMembersOpen(false);
     setDraft(null);
+    setBioComposerOpen(false);
     return () => {
       cancelled = true;
     };
@@ -222,6 +246,25 @@ export function TeamNoteEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId]);
 
+  // Icon changes save immediately (not debounced) — a discrete, deliberate
+  // pick from the picker, not incremental typing.
+  async function handleSetIcon(next: string | null) {
+    setIcon(next);
+    const result = await updateTeamNoteAction(noteId, { icon: next });
+    if (result.error) show(result.error, "error");
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    const result = await deleteTeamNoteAction(noteId);
+    setDeleting(false);
+    if (result.error) {
+      show(result.error, "error");
+      return;
+    }
+    onDeleted();
+  }
+
   async function handleAddMember(userId: string) {
     const result = await addTeamNoteMemberAction(noteId, userId);
     if (result.error) {
@@ -254,6 +297,8 @@ export function TeamNoteEditor({
     ...(detail.members.length > 1 ? [{ id: "all", label: "All members" }] : []),
     ...detail.members.map((m) => ({ id: m.id, label: m.name })),
   ];
+  // Same "" sentinel NoteBioComments itself filters on — see that file.
+  const hasBioComments = comments.some((c) => c.parentId === null && c.quotedText === "");
   // One layout, always — not "centered when there's nothing to comment on,
   // pushed left once something is." Switching between two different shapes
   // depending on comment count made the page visibly jump/reflow every time
@@ -300,7 +345,7 @@ export function TeamNoteEditor({
             aria-label="Note options"
             className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
           >
-            ⋯
+            <MoreVerticalIcon />
           </button>
           {menuOpen && (
               <div className="absolute top-full right-0 z-20 mt-1 w-44 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg">
@@ -328,6 +373,19 @@ export function TeamNoteEditor({
                 >
                   Update history
                 </button>
+                {detail.canCurate && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      handleDelete();
+                    }}
+                    disabled={deleting}
+                    className="block w-full px-3 py-1.5 text-left text-sm text-red-600 hover:bg-neutral-50 disabled:opacity-60"
+                  >
+                    {deleting ? "Deleting…" : "Delete"}
+                  </button>
+                )}
               </div>
             )}
             {historyOpen && (
@@ -381,15 +439,51 @@ export function TeamNoteEditor({
           </div>
         </div>
       <div ref={contentColumnRef} className="py-8" style={contentStyle}>
-        <input
-          value={title}
-          onChange={(e) => {
-            setTitle(e.target.value);
-            scheduleSave();
-          }}
-          className="mb-1 w-full text-3xl font-bold text-neutral-900 focus:outline-none"
-          placeholder="Note title"
-        />
+        {/* "Add icon"/"Add comment" only appear on hovering the title block
+            specifically — scoped to just this inner wrapper (icon row +
+            title input), not the whole content column (contentColumnRef
+            can't carry the group itself: its height is stretched by
+            RichTextEditor's min-h-[65vh] descendant, which would make
+            "hovering anywhere in the note body" count as "hovering the
+            title" too). Matches Notion's own "Add icon"/"Add cover" row —
+            once an icon is actually set it's always shown (large,
+            permanent); once a bio comment exists, NoteBioComments renders
+            itself permanently too, so this row's job is just offering the
+            *first* one. */}
+        <div className="group">
+          <div className="mb-1 flex items-center gap-1">
+            <div className={icon ? "" : "opacity-0 transition-opacity group-hover:opacity-100"}>
+              <IconPickerButton
+                icon={icon}
+                fallback={<TitleIconPlaceholder />}
+                onSelect={handleSetIcon}
+                onClear={() => handleSetIcon(null)}
+                size={icon ? "lg" : "md"}
+                label={icon ? undefined : "Add icon"}
+              />
+            </div>
+            {!hasBioComments && !bioComposerOpen && (
+              <button
+                type="button"
+                onClick={() => setBioComposerOpen(true)}
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-neutral-500 opacity-0 transition-opacity hover:bg-neutral-100 hover:text-neutral-700 group-hover:opacity-100"
+              >
+                <CommentIcon />
+                Add comment
+              </button>
+            )}
+          </div>
+          <input
+            ref={titleRef}
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              scheduleSave();
+            }}
+            className="mb-1 w-full text-3xl font-bold text-neutral-900 focus:outline-none"
+            placeholder="Note title"
+          />
+        </div>
 
         <div ref={metaRef} className="relative mb-4">
           <button
@@ -415,6 +509,16 @@ export function TeamNoteEditor({
             </div>
           )}
         </div>
+
+        <NoteBioComments
+          teamNoteId={noteId}
+          comments={comments}
+          members={mentionCandidates}
+          currentUserId={currentUserId}
+          currentUserName={detail.members.find((m) => m.id === currentUserId)?.name ?? ""}
+          forceOpen={bioComposerOpen}
+          onChanged={refreshComments}
+        />
 
         <RichTextEditor
           ref={editorRef}
@@ -455,5 +559,27 @@ export function TeamNoteEditor({
         onCancelDraft={() => setDraft(null)}
       />
     </div>
+  );
+}
+
+function TitleIconPlaceholder() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden className="text-neutral-300">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M9 10h.01M15 10h.01M8.5 14.5c.9 1 2.1 1.5 3.5 1.5s2.6-.5 3.5-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CommentIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v10a1.5 1.5 0 0 1-1.5 1.5H9l-4 3.5V17H5.5A1.5 1.5 0 0 1 4 15.5v-10Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

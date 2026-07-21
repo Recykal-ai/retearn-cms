@@ -33,7 +33,7 @@ async function wouldCycle(folderId: string, startParentId: string): Promise<bool
 }
 
 personalNoteFoldersRouter.post("/", requireAuth, async (req, res) => {
-  const { name, parentId } = req.body as { name?: string; parentId?: string | null };
+  const { name, icon, parentId } = req.body as { name?: string; icon?: string | null; parentId?: string | null };
   const trimmed = name?.trim();
   if (!trimmed) return res.status(400).json({ error: "name is required" });
 
@@ -43,7 +43,7 @@ personalNoteFoldersRouter.post("/", requireAuth, async (req, res) => {
   }
 
   const folder = await prisma.personalNoteFolder.create({
-    data: { userId: req.user!.userId, name: trimmed, parentId: parentId || null },
+    data: { userId: req.user!.userId, name: trimmed, icon: icon || null, parentId: parentId || null },
   });
   res.status(201).json(folder);
 });
@@ -54,7 +54,7 @@ personalNoteFoldersRouter.patch<{ id: string }>("/:id", requireAuth, async (req,
   });
   if (!existing) return res.status(404).json({ error: "Folder not found" });
 
-  const { name, parentId } = req.body as { name?: string; parentId?: string | null };
+  const { name, icon, parentId } = req.body as { name?: string; icon?: string | null; parentId?: string | null };
   if (name !== undefined && !name.trim()) {
     return res.status(400).json({ error: "name cannot be empty" });
   }
@@ -74,6 +74,7 @@ personalNoteFoldersRouter.patch<{ id: string }>("/:id", requireAuth, async (req,
     where: { id: existing.id },
     data: {
       ...(name !== undefined && { name: name.trim() }),
+      ...(icon !== undefined && { icon: icon || null }),
       ...(parentId !== undefined && { parentId: parentId || null }),
     },
   });

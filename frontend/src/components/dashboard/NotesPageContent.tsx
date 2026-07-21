@@ -1,19 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   getPersonalNotesAction,
+  createPersonalNoteAction,
   getPersonalNoteFoldersAction,
+  createPersonalNoteFolderAction,
   updatePersonalNoteFolderAction,
   deletePersonalNoteFolderAction,
   updatePersonalNoteAction,
+  deletePersonalNoteAction,
   getTeamNotesListAction,
   getTeamNoteFoldersAction,
+  createTeamNoteFolderAction,
   getCreatableTeamsAction,
   updateTeamNoteFolderAction,
   deleteTeamNoteFolderAction,
   updateTeamNoteAction,
+  deleteTeamNoteAction,
   getNotificationsAction,
   markNotificationReadAction,
 } from "@/app/dashboard/notes-actions";
@@ -21,12 +26,12 @@ import type { PersonalNote, TeamNoteSummary, NotificationEntry, CreatableTeam, T
 import { PersonalNoteEditor } from "@/components/dashboard/PersonalNoteEditor";
 import { TeamNoteEditor } from "@/components/dashboard/TeamNoteEditor";
 import { CreateTeamNoteModal } from "@/components/dashboard/CreateTeamNoteModal";
-import { CreatePersonalNoteModal } from "@/components/dashboard/CreatePersonalNoteModal";
-import { CreateFolderModal } from "@/components/dashboard/CreateFolderModal";
 import { MoveToFolderModal } from "@/components/dashboard/MoveToFolderModal";
-import { NoteFolderTree, type TreeFolder, type TreeNote } from "@/components/dashboard/NoteFolderTree";
+import { NoteFolderTree, NoteIcon, FolderIcon, type TreeFolder, type TreeNote } from "@/components/dashboard/NoteFolderTree";
+import { Icon } from "@/components/dashboard/Icon";
+import { Tag } from "@/components/dashboard/Tag";
+import { colorForScope } from "@/lib/tag-colors";
 import { useToast } from "@/components/ToastProvider";
-import { relativeTime } from "@/lib/relative-time";
 
 type Mode = "individual" | "team";
 
@@ -36,13 +41,16 @@ type MoveTarget =
   | { kind: "team-note"; id: string; currentFolderId: string | null }
   | { kind: "team-folder"; id: string; currentFolderId: string | null };
 
-// Apple-Notes-style master-detail layout: a persistent left list + a right
-// pane that shows whatever's selected, inline (no modal covering the list).
-// The left list is an Obsidian-style folder tree (NoteFolderTree) rather
-// than a flat list — folders are purely organizational (see
-// NoteFolderTree.tsx / the backend's personal-note-folders.ts and
-// team-note-folders.ts), nested arbitrarily, admin/curator-gated for Team
-// mode the same way team-note creation already was.
+// Which team-note-creation flow to open: root (team picker, no folder) or
+// contextual (team + folder already known from whichever folder's "+" was
+// clicked, so the modal only asks title/date/members).
+type TeamNoteModalContext = { teamId?: string; teamName?: string; folderId?: string | null };
+
+// Confluence/Notion-style master-detail layout: a persistent left tree + a
+// right pane that shows whatever's selected. Creation is contextual — a
+// folder's own "+" creates directly inside it, root-level creation comes
+// from the bottom-pinned bar — never a modal asking "which folder." See
+// NoteFolderTree.tsx for the tree itself.
 export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean; currentUserId: string }) {
   const [mode, setMode] = useState<Mode>("individual");
   const [personalNotes, setPersonalNotes] = useState<PersonalNote[] | null>(null);
@@ -54,12 +62,19 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
   const [selectedPersonalId, setSelectedPersonalId] = useState<string | null>(null);
   const [selectedTeamNoteId, setSelectedTeamNoteId] = useState<string | null>(null);
   const [deepLinkCommentId, setDeepLinkCommentId] = useState<string | null>(null);
-  const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
-  const [showCreatePersonalModal, setShowCreatePersonalModal] = useState(false);
-  const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
+  const [teamNoteModalContext, setTeamNoteModalContext] = useState<TeamNoteModalContext | null>(null);
   const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null);
-  const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // Exact match against a note's subtitle (team name/label) — "" means no
+  // filter. Combines with the text query rather than replacing it, so
+  // "notes titled X, within team Y" is one search, not two separate steps.
+  const [teamFilter, setTeamFilter] = useState("");
+  // The note a quick-create just opened — its title input auto-focuses (and
+  // selects "Untitled") exactly once, the same way a freshly created folder
+  // auto-enters rename mode. Cleared as soon as it's been consumed so it
+  // doesn't refocus on every unrelated re-render.
+  const [focusTitleNoteId, setFocusTitleNoteId] = useState<string | null>(null);
+  const [autoRenameFolderId, setAutoRenameFolderId] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -116,23 +131,46 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
     setSelectedTeamNoteId(n.teamNoteId);
   }
 
-  async function handlePersonalNoteCreated() {
-    setShowCreatePersonalModal(false);
+  // --- Personal: instant creation, no modal ---
+  async function handleQuickCreatePersonalNote(folderId: string | null) {
+    const result = await createPersonalNoteAction({ title: "Untitled", folderId });
+    if (result.error || !result.id) {
+      show(result.error ?? "Failed to create note", "error");
+      return;
+    }
     const notes = await getPersonalNotesAction();
     setPersonalNotes(notes);
-    if (notes[0]) setSelectedPersonalId(notes[0].id);
+    setSelectedPersonalId(result.id);
+    setFocusTitleNoteId(result.id);
+  }
+
+  async function handleQuickCreatePersonalFolder(parentId: string | null) {
+    const result = await createPersonalNoteFolderAction({ name: "Untitled", parentId });
+    if (result.error || !result.id) {
+      show(result.error ?? "Failed to create folder", "error");
+      return;
+    }
+    getPersonalNoteFoldersAction().then(setPersonalFolders);
+    setAutoRenameFolderId(result.id);
+  }
+
+  // --- Team: folders are instant too (once team/parent is known); notes
+  // still go through CreateTeamNoteModal for the members step ---
+  async function handleQuickCreateTeamFolder(teamId: string, parentId: string | null) {
+    const result = await createTeamNoteFolderAction({ teamId, name: "Untitled", parentId });
+    if (result.error || !result.id) {
+      show(result.error ?? "Failed to create folder", "error");
+      return;
+    }
+    getTeamNoteFoldersAction().then(setTeamFolders);
+    setAutoRenameFolderId(result.id);
   }
 
   function handleTeamNoteCreated(noteId: string) {
-    setShowCreateTeamModal(false);
+    setTeamNoteModalContext(null);
     getTeamNotesListAction().then(setTeamNotes);
+    setMode("team");
     setSelectedTeamNoteId(noteId);
-  }
-
-  function handleFolderCreated() {
-    setShowCreateFolderModal(false);
-    if (mode === "individual") getPersonalNoteFoldersAction().then(setPersonalFolders);
-    else getTeamNoteFoldersAction().then(setTeamFolders);
   }
 
   async function handleRenamePersonalFolder(folder: TreeFolder, name: string) {
@@ -153,6 +191,34 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
     getPersonalNoteFoldersAction().then(setPersonalFolders);
   }
 
+  async function handleSetPersonalFolderIcon(folder: TreeFolder, icon: string | null) {
+    const result = await updatePersonalNoteFolderAction(folder.id, { icon });
+    if (result.error) {
+      show(result.error, "error");
+      return;
+    }
+    getPersonalNoteFoldersAction().then(setPersonalFolders);
+  }
+
+  async function handleSetPersonalNoteIcon(note: TreeNote, icon: string | null) {
+    const result = await updatePersonalNoteAction(note.id, { icon });
+    if (result.error) {
+      show(result.error, "error");
+      return;
+    }
+    getPersonalNotesAction().then(setPersonalNotes);
+  }
+
+  async function handleDeletePersonalNote(note: TreeNote) {
+    const result = await deletePersonalNoteAction(note.id);
+    if (result.error) {
+      show(result.error, "error");
+      return;
+    }
+    if (selectedPersonalId === note.id) setSelectedPersonalId(null);
+    getPersonalNotesAction().then(setPersonalNotes);
+  }
+
   async function handleRenameTeamFolder(folder: TreeFolder, name: string) {
     const result = await updateTeamNoteFolderAction(folder.id, { name });
     if (result.error) {
@@ -171,12 +237,41 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
     getTeamNoteFoldersAction().then(setTeamFolders);
   }
 
+  async function handleSetTeamFolderIcon(folder: TreeFolder, icon: string | null) {
+    const result = await updateTeamNoteFolderAction(folder.id, { icon });
+    if (result.error) {
+      show(result.error, "error");
+      return;
+    }
+    getTeamNoteFoldersAction().then(setTeamFolders);
+  }
+
+  async function handleSetTeamNoteIcon(note: TreeNote, icon: string | null) {
+    const result = await updateTeamNoteAction(note.id, { icon });
+    if (result.error) {
+      show(result.error, "error");
+      return;
+    }
+    getTeamNotesListAction().then(setTeamNotes);
+  }
+
+  async function handleDeleteTeamNote(note: TreeNote) {
+    const result = await deleteTeamNoteAction(note.id);
+    if (result.error) {
+      show(result.error, "error");
+      return;
+    }
+    if (selectedTeamNoteId === note.id) setSelectedTeamNoteId(null);
+    getTeamNotesListAction().then(setTeamNotes);
+  }
+
   const unreadNotifications = notifications?.filter((n) => !n.read) ?? [];
   const selectedPersonal = personalNotes?.find((n) => n.id === selectedPersonalId) ?? null;
 
   const personalTreeNotes: TreeNote[] = (personalNotes ?? []).map((n) => ({
     id: n.id,
     title: n.title,
+    icon: n.icon,
     folderId: n.folderId,
     updatedAt: n.updatedAt,
     subtitle: n.team?.name ?? "",
@@ -184,6 +279,7 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
   const teamTreeNotes: TreeNote[] = (teamNotes ?? []).map((n) => ({
     id: n.id,
     title: n.title,
+    icon: n.icon,
     folderId: n.folderId,
     updatedAt: n.updatedAt,
     subtitle: n.teamName,
@@ -193,92 +289,54 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
   // (not paginated), so filtering here is instant and needs no backend
   // round trip, unlike the ILIKE-driven document search. Folder structure
   // is irrelevant to "find this note by name," so search results are a
-  // flat, newest-first list rather than a filtered tree.
-  const searchActive = searchQuery.trim().length > 0;
+  // flat, newest-first list rather than a filtered tree. The team filter
+  // (subtitle exact-match) rides along on the same active/inactive state —
+  // picking a team with no text typed is still "search," just unfiltered
+  // by title, matching the ask to search notes "via the team" too.
+  const searchActive = searchQuery.trim().length > 0 || teamFilter !== "";
   const searchNeedle = searchQuery.trim().toLowerCase();
   function matchesSearch(notes: TreeNote[]): TreeNote[] {
     return notes
       .filter((n) => n.title.toLowerCase().includes(searchNeedle))
+      .filter((n) => !teamFilter || n.subtitle === teamFilter)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
   const personalSearchResults = searchActive ? matchesSearch(personalTreeNotes) : [];
   const teamSearchResults = searchActive ? matchesSearch(teamTreeNotes) : [];
+  const availableTeamFilters = [
+    ...new Set((mode === "individual" ? personalTreeNotes : teamTreeNotes).map((n) => n.subtitle).filter(Boolean)),
+  ].sort();
+
+  const showCreateControls = mode === "individual" || isAdmin;
 
   return (
     <div className="flex h-full" style={{ fontFamily: "var(--font-ui)" }}>
       <div className="flex w-64 shrink-0 flex-col border-r border-neutral-200 bg-white">
-        <div className="border-b border-neutral-100 p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <div className="inline-flex rounded-full bg-neutral-100 p-0.5 text-sm font-medium">
-              <button
-                type="button"
-                onClick={() => setMode("individual")}
-                className="rounded-full px-4 py-1.5 text-center transition-colors"
-                style={mode === "individual" ? { background: "white", color: "#171717", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" } : { color: "#737373" }}
-              >
-                Individual
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("team")}
-                className="rounded-full px-4 py-1.5 text-center transition-colors"
-                style={mode === "team" ? { background: "white", color: "#171717", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" } : { color: "#737373" }}
-              >
-                Team
-              </button>
-            </div>
+        <div className="flex justify-center border-b border-neutral-100 p-3">
+          <div className="inline-flex rounded-full bg-neutral-100 p-0.5 text-sm font-medium">
             <button
               type="button"
               onClick={() => {
-                setSearchOpen((v) => {
-                  const next = !v;
-                  if (!next) setSearchQuery("");
-                  return next;
-                });
+                setMode("individual");
+                setTeamFilter("");
               }}
-              aria-label={searchOpen ? "Close search" : "Search notes"}
-              title="Search notes"
-              className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
-              style={searchOpen ? { background: "var(--brand-purple-tint)", color: "var(--brand-purple)" } : undefined}
+              className="rounded-full px-4 py-1.5 text-center transition-colors"
+              style={mode === "individual" ? { background: "white", color: "#171717", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" } : { color: "#737373" }}
             >
-              <SearchIcon />
+              Individual
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode("team");
+                setTeamFilter("");
+              }}
+              className="rounded-full px-4 py-1.5 text-center transition-colors"
+              style={mode === "team" ? { background: "white", color: "#171717", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" } : { color: "#737373" }}
+            >
+              Team
             </button>
           </div>
-
-          {searchOpen && (
-            <div className="relative mb-3">
-              <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400" />
-              <input
-                autoFocus
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") {
-                    // Stopped here so it doesn't also bubble to
-                    // CloseButton.tsx's window-level Escape listener, which
-                    // would navigate out of Notes entirely instead of just
-                    // closing the search box.
-                    e.stopPropagation();
-                    setSearchOpen(false);
-                    setSearchQuery("");
-                  }
-                }}
-                placeholder={mode === "individual" ? "Search your notes…" : "Search team notes…"}
-                className="w-full rounded-md border border-neutral-200 py-1.5 pr-2.5 pl-8 text-sm focus:border-neutral-400 focus:outline-none"
-              />
-            </div>
-          )}
-
-          {!searchActive && (mode === "individual" || isAdmin) && (
-            <div className="flex gap-1.5">
-              <ToolbarButton
-                label="New note"
-                icon={<NewNoteIcon />}
-                onClick={() => (mode === "individual" ? setShowCreatePersonalModal(true) : setShowCreateTeamModal(true))}
-              />
-              <ToolbarButton label="New folder" icon={<NewFolderIcon />} onClick={() => setShowCreateFolderModal(true)} />
-            </div>
-          )}
         </div>
 
         {unreadNotifications.length > 0 && (
@@ -318,6 +376,12 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
                 onDeleteFolder={handleDeletePersonalFolder}
                 onMoveFolder={(folder) => setMoveTarget({ kind: "personal-folder", id: folder.id, currentFolderId: folder.parentId })}
                 onMoveNote={(note) => setMoveTarget({ kind: "personal-note", id: note.id, currentFolderId: note.folderId })}
+                onDeleteNote={handleDeletePersonalNote}
+                onSetFolderIcon={handleSetPersonalFolderIcon}
+                onSetNoteIcon={handleSetPersonalNoteIcon}
+                onCreateNoteInFolder={handleQuickCreatePersonalNote}
+                onCreateSubfolder={handleQuickCreatePersonalFolder}
+                autoRenameFolderId={autoRenameFolderId}
                 emptyLabel="No notes yet — private to you only."
               />
             ))}
@@ -338,10 +402,44 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
                 onDeleteFolder={handleDeleteTeamFolder}
                 onMoveFolder={(folder) => setMoveTarget({ kind: "team-folder", id: folder.id, currentFolderId: folder.parentId })}
                 onMoveNote={(note) => setMoveTarget({ kind: "team-note", id: note.id, currentFolderId: note.folderId })}
+                onDeleteNote={handleDeleteTeamNote}
+                onSetFolderIcon={handleSetTeamFolderIcon}
+                onSetNoteIcon={handleSetTeamNoteIcon}
+                onCreateNoteInFolder={(folderId) => {
+                  const folder = teamFolders.find((f) => f.id === folderId);
+                  if (!folder) return;
+                  const teamName = creatableTeams?.find((t) => t.id === folder.teamId)?.name ?? "";
+                  setTeamNoteModalContext({ teamId: folder.teamId, teamName, folderId: folder.id });
+                }}
+                onCreateSubfolder={(folderId) => {
+                  const folder = teamFolders.find((f) => f.id === folderId);
+                  if (!folder) return;
+                  handleQuickCreateTeamFolder(folder.teamId, folder.id);
+                }}
+                autoRenameFolderId={autoRenameFolderId}
                 emptyLabel="You haven't been added to any team notes yet."
               />
             ))}
         </div>
+
+        <BottomBar
+          mode={mode}
+          showCreateControls={showCreateControls}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          teamFilter={teamFilter}
+          onTeamFilterChange={setTeamFilter}
+          availableTeamFilters={availableTeamFilters}
+          creatableTeams={creatableTeams ?? []}
+          onCreateNote={() => {
+            if (mode === "individual") handleQuickCreatePersonalNote(null);
+            else setTeamNoteModalContext({});
+          }}
+          onCreateFolder={(teamId) => {
+            if (mode === "individual") handleQuickCreatePersonalFolder(null);
+            else if (teamId) handleQuickCreateTeamFolder(teamId, null);
+          }}
+        />
       </div>
 
       <div className="min-w-0 flex-1 bg-white">
@@ -350,6 +448,8 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
             <PersonalNoteEditor
               key={selectedPersonal.id}
               note={selectedPersonal}
+              autoFocusTitle={selectedPersonal.id === focusTitleNoteId}
+              onTitleFocused={() => setFocusTitleNoteId(null)}
               onSaved={() => getPersonalNotesAction().then(setPersonalNotes)}
               onDeleted={() => {
                 setSelectedPersonalId(null);
@@ -367,34 +467,25 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
               noteId={selectedTeamNoteId}
               currentUserId={currentUserId}
               initialCommentId={deepLinkCommentId}
+              autoFocusTitle={selectedTeamNoteId === focusTitleNoteId}
+              onTitleFocused={() => setFocusTitleNoteId(null)}
+              onDeleted={() => {
+                setSelectedTeamNoteId(null);
+                getTeamNotesListAction().then(setTeamNotes);
+              }}
             />
           ) : (
             <EmptyState label="Select a team note to view it." />
           ))}
       </div>
 
-      {showCreateTeamModal && (
+      {teamNoteModalContext && (
         <CreateTeamNoteModal
-          folders={teamFolders ?? []}
-          onClose={() => setShowCreateTeamModal(false)}
+          lockedTeamId={teamNoteModalContext.teamId}
+          lockedTeamName={teamNoteModalContext.teamName}
+          lockedFolderId={teamNoteModalContext.folderId}
+          onClose={() => setTeamNoteModalContext(null)}
           onCreated={handleTeamNoteCreated}
-        />
-      )}
-      {showCreatePersonalModal && (
-        <CreatePersonalNoteModal
-          folders={personalFolders ?? []}
-          onClose={() => setShowCreatePersonalModal(false)}
-          onCreated={handlePersonalNoteCreated}
-        />
-      )}
-      {showCreateFolderModal && (
-        <CreateFolderModal
-          mode={mode}
-          personalFolders={personalFolders ?? []}
-          teamFolders={teamFolders ?? []}
-          creatableTeams={creatableTeams ?? []}
-          onClose={() => setShowCreateFolderModal(false)}
-          onCreated={handleFolderCreated}
         />
       )}
       {moveTarget && (
@@ -434,46 +525,214 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
   );
 }
 
-function ToolbarButton({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      aria-label={label}
-      className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-md border border-neutral-200 text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700"
-    >
-      {icon}
-      <span className="text-xs font-medium">{label}</span>
-    </button>
-  );
-}
+// Pinned to the bottom of the sidebar: a persistent search pill + a compact
+// "+" that opens a two-item create menu — replaces the old top toolbar
+// (search toggle + two full-width buttons). No open/close state for search
+// itself; it's always there, same as Notion's own sidebar footer.
+function BottomBar({
+  mode,
+  showCreateControls,
+  searchQuery,
+  onSearchChange,
+  teamFilter,
+  onTeamFilterChange,
+  availableTeamFilters,
+  creatableTeams,
+  onCreateNote,
+  onCreateFolder,
+}: {
+  mode: Mode;
+  showCreateControls: boolean;
+  searchQuery: string;
+  onSearchChange: (q: string) => void;
+  teamFilter: string;
+  onTeamFilterChange: (team: string) => void;
+  availableTeamFilters: string[];
+  creatableTeams: CreatableTeam[];
+  onCreateNote: () => void;
+  onCreateFolder: (teamId?: string) => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState<"root" | "pickTeam" | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterQuery, setFilterQuery] = useState("");
+  const menuRef = useRef<HTMLDivElement>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
+  const visibleTeamFilters = availableTeamFilters.filter((t) => t.toLowerCase().includes(filterQuery.trim().toLowerCase()));
 
-function NewNoteIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M6 4.5h9.5L19 8v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      <path d="M9 10h6M9 13.5h6M9 17h3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onMouseDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(null);
+    }
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [menuOpen]);
 
-function NewFolderIcon() {
+  useEffect(() => {
+    if (!filterOpen) return;
+    function onMouseDown(e: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) setFilterOpen(false);
+    }
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [filterOpen]);
+
+  function handleFolderClick() {
+    if (mode === "individual" || creatableTeams.length === 1) {
+      onCreateFolder(mode === "team" ? creatableTeams[0]?.id : undefined);
+      setMenuOpen(null);
+    } else {
+      setMenuOpen("pickTeam");
+    }
+  }
+
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M4 6.5A1.5 1.5 0 0 1 5.5 5h4.4l1.8 2h7.3A1.5 1.5 0 0 1 20.5 8.5v9A1.5 1.5 0 0 1 19 19H5.5A1.5 1.5 0 0 1 4 17.5v-11Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      <path d="M12 11.5v4M10 13.5h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
+    <div className="flex items-center gap-1.5 border-t border-neutral-100 p-2.5">
+      <div className="relative min-w-0 flex-1">
+        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400" />
+        <input
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && searchQuery) {
+              // Stopped so it doesn't also bubble to CloseButton.tsx's
+              // window-level Escape listener and navigate out of Notes.
+              e.stopPropagation();
+              onSearchChange("");
+            }
+          }}
+          placeholder="Search"
+          className="w-full rounded-full border border-neutral-200 bg-neutral-50 py-1.5 pr-3 pl-8 text-sm focus:border-neutral-300 focus:bg-white focus:outline-none"
+        />
+      </div>
+
+      {availableTeamFilters.length > 0 && (
+        <div ref={filterRef} className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setFilterOpen((v) => !v);
+              setFilterQuery("");
+            }}
+            aria-label="Filter by team"
+            title="Filter by team"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-neutral-200 hover:bg-neutral-50"
+            style={teamFilter ? { background: "var(--brand-purple-tint)", borderColor: "var(--brand-purple)", color: "var(--brand-purple)" } : { color: "#737373" }}
+          >
+            <FilterIcon />
+          </button>
+          {filterOpen && (
+            <div className="absolute bottom-full right-0 z-20 mb-1.5 w-48 rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
+              <p className="px-3 pt-1 pb-0.5 text-[10px] font-semibold tracking-wide text-neutral-400 uppercase">Filter by team</p>
+              {/* Only worth the extra chrome once there's enough teams that
+                  scanning the plain list stops being instant — with a
+                  handful, the search box would just be dead space above an
+                  already-short list. */}
+              {availableTeamFilters.length > 6 && (
+                <div className="px-2 pb-1">
+                  <input
+                    autoFocus
+                    value={filterQuery}
+                    onChange={(e) => setFilterQuery(e.target.value)}
+                    placeholder="Search teams…"
+                    className="w-full rounded-md border border-neutral-200 px-2 py-1 text-xs focus:border-neutral-400 focus:outline-none"
+                  />
+                </div>
+              )}
+              <div className="max-h-52 overflow-y-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onTeamFilterChange("");
+                    setFilterOpen(false);
+                  }}
+                  className="block w-full px-3 py-1.5 text-left text-sm hover:bg-neutral-50"
+                  style={{ color: teamFilter === "" ? "var(--brand-purple)" : "#404040", fontWeight: teamFilter === "" ? 600 : 400 }}
+                >
+                  All teams
+                </button>
+                {visibleTeamFilters.map((team) => (
+                  <button
+                    key={team}
+                    type="button"
+                    onClick={() => {
+                      onTeamFilterChange(team);
+                      setFilterOpen(false);
+                    }}
+                    className="block w-full truncate px-3 py-1.5 text-left text-sm hover:bg-neutral-50"
+                    style={{ color: teamFilter === team ? "var(--brand-purple)" : "#404040", fontWeight: teamFilter === team ? 600 : 400 }}
+                  >
+                    {team}
+                  </button>
+                ))}
+                {visibleTeamFilters.length === 0 && (
+                  <p className="px-3 py-2 text-xs text-neutral-400">No teams match &ldquo;{filterQuery}&rdquo;.</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {showCreateControls && (
+        <div ref={menuRef} className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => (v ? null : "root"))}
+            aria-label="New note or folder"
+            title="New note or folder"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-white"
+            style={{ background: "var(--brand-purple)" }}
+          >
+            <PlusIcon />
+          </button>
+          {menuOpen && (
+            <div className="absolute bottom-full right-0 z-20 mb-1.5 w-40 rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
+              {menuOpen === "root" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onCreateNote();
+                      setMenuOpen(null);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                  >
+                    <NoteIcon />
+                    New note
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleFolderClick}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                  >
+                    <FolderIcon />
+                    New folder
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="px-3 pt-1 pb-0.5 text-[10px] font-semibold tracking-wide text-neutral-400 uppercase">Team</p>
+                  {creatableTeams.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        onCreateFolder(t.id);
+                        setMenuOpen(null);
+                      }}
+                      className="block w-full px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -509,14 +768,16 @@ function NoteSearchResults({
           key={note.id}
           type="button"
           onClick={() => onSelect(note.id)}
-          className="block w-full border-b border-neutral-50 px-4 py-3 text-left"
+          className="flex w-full items-center gap-1.5 px-3 py-1.5 text-left hover:bg-neutral-50"
           style={note.id === selectedId ? { background: "var(--brand-purple-tint)" } : undefined}
         >
-          <span className="block truncate text-sm font-medium text-neutral-800">{note.title}</span>
-          <span className="block text-xs text-neutral-400" suppressHydrationWarning>
-            {relativeTime(note.updatedAt)}
-            {note.subtitle ? ` · ${note.subtitle}` : ""}
-          </span>
+          <span className="shrink-0 text-neutral-400">{note.icon ? <Icon name={note.icon} size={14} /> : <NoteIcon />}</span>
+          <span className="min-w-0 truncate text-sm text-neutral-800">{note.title}</span>
+          {note.subtitle && (
+            <span className="shrink-0">
+              <Tag label={note.subtitle} {...colorForScope(note.subtitle)} />
+            </span>
+          )}
         </button>
       ))}
     </div>
@@ -528,6 +789,22 @@ function SearchIcon({ className }: { className?: string }) {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
       <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
       <path d="M21 21l-4.3-4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function FilterIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M4 5h16l-6 7.5V19l-4 2v-8.5L4 5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
     </svg>
   );
 }

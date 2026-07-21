@@ -2,30 +2,37 @@
 
 import { useEffect, useState } from "react";
 import { getCreatableTeamsAction, createTeamNoteAction, searchCandidateUsersForTeamAction } from "@/app/dashboard/notes-actions";
-import type { CreatableTeam, CandidateUser, TeamNoteFolder } from "@/lib/api";
+import type { CreatableTeam, CandidateUser } from "@/lib/api";
 import { DateTimePicker } from "@/components/dashboard/DateTimePicker";
-import { buildFolderOptions } from "@/components/dashboard/NoteFolderTree";
 import { useToast } from "@/components/ToastProvider";
 
-// Admin/Super-Admin-only. Title + date/time + team + hand-picked initial
-// members, all in one step — the creator is always included server-side
-// regardless of whether they toggle themselves, so there's never a "created
-// but I can't see it" moment.
+// Admin/Super-Admin-only. Title + date/time + members, in one step — the
+// creator is always included server-side regardless of whether they toggle
+// themselves, so there's never a "created but I can't see it" moment.
+//
+// No folder field: which team/folder this note lands in is never a picker
+// here — it's implied by *how* the modal was opened. Triggered from the
+// root "New note" action, it's Team-picker + root (lockedTeamId/
+// lockedFolderId both unset). Triggered from a folder row's own "+", the
+// team and folder are already known from that row, so both are locked and
+// the modal only asks what still needs a real decision: title, date,
+// members.
 export function CreateTeamNoteModal({
-  folders,
-  initialFolderId,
+  lockedTeamId,
+  lockedTeamName,
+  lockedFolderId,
   onClose,
   onCreated,
 }: {
-  folders: TeamNoteFolder[]; // every team's folders — filtered to the chosen team below
-  initialFolderId?: string | null;
+  lockedTeamId?: string;
+  lockedTeamName?: string;
+  lockedFolderId?: string | null;
   onClose: () => void;
   onCreated: (noteId: string) => void;
 }) {
   const [teams, setTeams] = useState<CreatableTeam[] | null>(null);
-  const [teamId, setTeamId] = useState("");
+  const [teamId, setTeamId] = useState(lockedTeamId ?? "");
   const [title, setTitle] = useState("");
-  const [folderId, setFolderId] = useState(initialFolderId ?? "");
   const [meetingAt, setMeetingAt] = useState("");
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<CandidateUser[]>([]);
@@ -33,14 +40,13 @@ export function CreateTeamNoteModal({
   const [creating, setCreating] = useState(false);
   const { show } = useToast();
 
-  const folderOptions = buildFolderOptions(folders.filter((f) => f.teamId === teamId));
-
   useEffect(() => {
+    if (lockedTeamId) return;
     getCreatableTeamsAction().then((list) => {
       setTeams(list);
       if (list[0]) setTeamId(list[0].id);
     });
-  }, []);
+  }, [lockedTeamId]);
 
   useEffect(() => {
     if (!teamId) return;
@@ -75,7 +81,7 @@ export function CreateTeamNoteModal({
     const result = await createTeamNoteAction({
       teamId,
       title: title.trim(),
-      folderId: folderId || null,
+      folderId: lockedFolderId ?? null,
       meetingAt: meetingAt ? new Date(meetingAt).toISOString() : null,
       memberIds: [...selectedIds],
     });
@@ -95,7 +101,7 @@ export function CreateTeamNoteModal({
     >
       <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-neutral-900">Create team note</h1>
+          <h1 className="text-lg font-semibold text-neutral-900">New team note</h1>
           <button
             type="button"
             onClick={onClose}
@@ -106,42 +112,31 @@ export function CreateTeamNoteModal({
           </button>
         </div>
 
-        <div className="mb-4">
-          <label className="mb-1 block text-xs font-semibold text-neutral-500">Team</label>
-          <select
-            value={teamId}
-            onChange={(e) => {
-              setTeamId(e.target.value);
-              setSelectedIds(new Set());
-              setFolderId("");
-            }}
-            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
-          >
-            {teams === null && <option>Loading…</option>}
-            {teams?.length === 0 && <option>No teams you manage</option>}
-            {teams?.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="mb-4">
-          <label className="mb-1 block text-xs font-semibold text-neutral-500">Folder (optional)</label>
-          <select
-            value={folderId}
-            onChange={(e) => setFolderId(e.target.value)}
-            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
-          >
-            <option value="">Root</option>
-            {folderOptions.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        {lockedTeamId ? (
+          <p className="mb-4 text-sm text-neutral-500">
+            Creating in <span className="font-medium text-neutral-700">{lockedTeamName}</span>
+          </p>
+        ) : (
+          <div className="mb-4">
+            <label className="mb-1 block text-xs font-semibold text-neutral-500">Team</label>
+            <select
+              value={teamId}
+              onChange={(e) => {
+                setTeamId(e.target.value);
+                setSelectedIds(new Set());
+              }}
+              className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
+            >
+              {teams === null && <option>Loading…</option>}
+              {teams?.length === 0 && <option>No teams you manage</option>}
+              {teams?.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="mb-4">
           <label className="mb-1 block text-xs font-semibold text-neutral-500">Title</label>
@@ -149,6 +144,7 @@ export function CreateTeamNoteModal({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Sprint Planning"
+            autoFocus
             className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
           />
         </div>

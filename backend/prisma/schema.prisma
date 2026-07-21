@@ -231,6 +231,7 @@ model PersonalNote {
   userId    String
   user      User                @relation(fields: [userId], references: [id])
   title     String
+  icon      String? // an emoji, shown in place of the generic note icon (tree row + editor header)
   teamId    String?
   team      Team?               @relation(fields: [teamId], references: [id])
   folderId  String?
@@ -252,6 +253,7 @@ model PersonalNoteFolder {
   userId    String
   user      User                 @relation(fields: [userId], references: [id])
   name      String
+  icon      String? // an emoji, shown in place of the generic folder icon
   parentId  String?
   parent    PersonalNoteFolder?  @relation("PersonalNoteFolderChildren", fields: [parentId], references: [id])
   children  PersonalNoteFolder[] @relation("PersonalNoteFolderChildren")
@@ -271,6 +273,7 @@ model TeamNote {
   teamId        String
   team          Team                 @relation(fields: [teamId], references: [id])
   title         String
+  icon          String? // an emoji, shown in place of the generic note icon
   folderId      String?
   folder        TeamNoteFolder?      @relation(fields: [folderId], references: [id])
   meetingAt     DateTime?
@@ -298,6 +301,7 @@ model TeamNoteFolder {
   teamId      String
   team        Team             @relation(fields: [teamId], references: [id])
   name        String
+  icon        String? // an emoji, shown in place of the generic folder icon
   parentId    String?
   parent      TeamNoteFolder?  @relation("TeamNoteFolderChildren", fields: [parentId], references: [id])
   children    TeamNoteFolder[] @relation("TeamNoteFolderChildren")
