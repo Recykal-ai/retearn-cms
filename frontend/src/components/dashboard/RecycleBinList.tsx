@@ -8,6 +8,7 @@ import { Tag } from "@/components/dashboard/Tag";
 import { fileTypeOf, FILE_TYPE_LABEL, type FileTypeKey } from "@/lib/file-type";
 import { colorForCategory, dedupeGlobalCategories, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
 import { recoverDocumentAction } from "@/app/dashboard/recycle-bin/recycle-bin-actions";
+import { Icon } from "@/components/dashboard/Icon";
 
 // Same presets as the main dashboard's FilterPanel "Modified" section, but
 // applied to deletedBy.at (when the doc was deleted) rather than updatedAt —
@@ -110,7 +111,7 @@ export function RecycleBinList({ documents }: { documents: DeletedDocumentSummar
   if (documents.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
-        <TrashIcon />
+        <Icon name="Interface/Trash_Empty" size={36} style={{ color: "#c9c2ce" }} />
         <p className="text-sm font-medium text-neutral-600">Recycle Bin is empty.</p>
         <p className="max-w-xs text-xs text-neutral-400">Documents deleted by an Admin or Super Admin show up here and can be recovered.</p>
       </div>
@@ -121,7 +122,11 @@ export function RecycleBinList({ documents }: { documents: DeletedDocumentSummar
     <div className="px-6 pb-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="relative max-w-xs flex-1">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400" />
+          <Icon
+            name="Interface/Search_Magnifying_Glass"
+            size={13}
+            className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400"
+          />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -145,7 +150,7 @@ export function RecycleBinList({ documents }: { documents: DeletedDocumentSummar
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <TrashIcon />
+          <Icon name="Interface/Trash_Empty" size={36} style={{ color: "#c9c2ce" }} />
           <p className="text-sm font-medium text-neutral-600">
             {query || activeCount > 0 ? "No deleted documents match these filters." : "Recycle Bin is empty."}
           </p>
@@ -351,29 +356,5 @@ function RecycleBinRow({ doc }: { doc: DeletedDocumentSummary }) {
         {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
       </td>
     </tr>
-  );
-}
-
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-      <path d="M21 21l-4.3-4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: "#c9c2ce" }}>
-      <path
-        d="M5 7h14M9.5 7V5.2a1.2 1.2 0 0 1 1.2-1.2h2.6a1.2 1.2 0 0 1 1.2 1.2V7M7.5 7l.9 12.1A1.5 1.5 0 0 0 9.9 20.5h4.2a1.5 1.5 0 0 0 1.5-1.4L16.5 7"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M10.3 10.5v6M13.7 10.5v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
   );
 }

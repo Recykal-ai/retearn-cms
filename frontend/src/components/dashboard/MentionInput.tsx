@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Icon } from "@/components/dashboard/Icon";
 
 export interface MentionCandidate {
   id: string;
@@ -100,7 +101,7 @@ export function MentionInput({
         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white"
         style={{ background: "var(--brand-purple)" }}
       >
-        <SendIcon />
+        <Icon name="Arrow/Arrow_Up_MD" size={12} />
       </button>
 
       {dropdown && filtered.length > 0 && (
@@ -118,13 +119,5 @@ export function MentionInput({
         </div>
       )}
     </div>
-  );
-}
-
-function SendIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M12 19V5M6 11l6-6 6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }

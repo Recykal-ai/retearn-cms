@@ -4,6 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import { searchDocumentsForEmbedAction, getTagCatalogAction } from "@/app/dashboard/documents-actions";
 import type { DocumentSummary, Team, Product, Category } from "@/lib/api";
 import { FileTypeIcon } from "@/components/dashboard/FileTypeIcon";
+import { Icon } from "@/components/dashboard/Icon";
 import { fileTypeOf } from "@/lib/file-type";
 import { Tag } from "@/components/dashboard/Tag";
 import { colorForCategory, dedupeGlobalCategories, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
@@ -286,21 +287,10 @@ function PersonRow({ name, isAll }: { name: string; isAll?: boolean }) {
         className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white"
         style={{ background: "var(--brand-purple)" }}
       >
-        {isAll ? <GroupIcon /> : name.trim().charAt(0).toUpperCase() || "?"}
+        {isAll ? <Icon name="User/Users_Group" size={11} /> : name.trim().charAt(0).toUpperCase() || "?"}
       </span>
       <span className="truncate">{name}</span>
     </span>
-  );
-}
-
-function GroupIcon() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="8.5" cy="8" r="3" stroke="currentColor" strokeWidth="1.8" />
-      <circle cx="16.5" cy="9" r="2.4" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M3 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M14.5 14.5c2.4.2 4.5 1.9 4.5 4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
   );
 }
 
@@ -308,7 +298,7 @@ function ActionRow({ label }: { label: string }) {
   return (
     <span className="flex items-center justify-between text-sm text-neutral-700">
       {label}
-      <ChevronRightIcon />
+      <Icon name="Arrow/Chevron_Right" size={12} className="shrink-0" />
     </span>
   );
 }
@@ -319,7 +309,7 @@ function EntityRow({ name, count }: { name: string; count: number }) {
       <span className="truncate">{name}</span>
       <span className="ml-2 flex shrink-0 items-center gap-1 text-xs text-neutral-400">
         {count}
-        <ChevronRightIcon />
+        <Icon name="Arrow/Chevron_Right" size={12} className="shrink-0" />
       </span>
     </span>
   );
@@ -332,7 +322,7 @@ function MutedRow({ label }: { label: string }) {
 function BackRow() {
   return (
     <span className="flex items-center gap-1.5 text-sm font-medium text-neutral-500">
-      <ChevronLeftIcon />
+      <Icon name="Arrow/Chevron_Left" size={12} className="shrink-0" />
       Back
     </span>
   );
@@ -358,21 +348,5 @@ function DocRow({ doc }: { doc: DocumentSummary }) {
         )}
       </span>
     </span>
-  );
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
-      <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ChevronLeftIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
-      <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }

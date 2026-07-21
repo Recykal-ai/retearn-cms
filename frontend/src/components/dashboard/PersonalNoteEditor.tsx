@@ -7,6 +7,7 @@ import type { PersonalNote, Team } from "@/lib/api";
 import { RichTextEditor } from "@/components/dashboard/RichTextEditor";
 import { DateTimePicker } from "@/components/dashboard/DateTimePicker";
 import { IconPickerButton } from "@/components/dashboard/IconPickerButton";
+import { NoteBreadcrumb } from "@/components/dashboard/NoteFolderTree";
 import { useToast } from "@/components/ToastProvider";
 
 const AUTOSAVE_DELAY_MS = 1200;
@@ -23,12 +24,17 @@ const AUTOSAVE_DELAY_MS = 1200;
 // than two always-visible form fields sitting above the editor.
 export function PersonalNoteEditor({
   note,
+  breadcrumb,
   autoFocusTitle,
   onTitleFocused,
   onSaved,
   onDeleted,
 }: {
   note: PersonalNote;
+  // Root-first folder name path (see NoteFolderTree.tsx's buildBreadcrumb),
+  // computed by the parent since it already holds the folders list — empty
+  // for a note filed at the root, which renders nothing.
+  breadcrumb?: string[];
   // True exactly once, right after a quick-create — the title input
   // auto-focuses with "Untitled" pre-selected so typing immediately
   // replaces it, then the parent clears this via onTitleFocused so it
@@ -170,6 +176,7 @@ export function PersonalNoteEditor({
       </div>
 
       <div className="py-8" style={contentStyle}>
+        <NoteBreadcrumb path={breadcrumb ?? []} />
         {/* "Add icon" only appears on hovering the title block specifically
             — scoped to just this wrapper (icon row + title input), not the
             whole content column, since that column's own height is

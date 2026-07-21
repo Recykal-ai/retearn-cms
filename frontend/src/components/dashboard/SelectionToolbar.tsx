@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Editor } from "@tiptap/react";
+import { Icon } from "@/components/dashboard/Icon";
 
 const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;
 
@@ -181,11 +182,11 @@ export function SelectionToolbar({
                     setLinkInputOpen(true);
                   }}
                 >
-                  <LinkIcon />
+                  <Icon name="Interface/Link" size={14} />
                 </IconButton>
                 {onRequestComment && (
                   <IconButton active={false} label="Comment" onClick={requestComment}>
-                    <CommentIcon />
+                    <Icon name="Communication/Chat" size={14} />
                   </IconButton>
                 )}
               </div>
@@ -235,32 +236,5 @@ function IconButton({
     >
       {children}
     </button>
-  );
-}
-
-function LinkIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M9.5 14.5l5-5M8 7.5l1.2-1.2a3.5 3.5 0 0 1 5 5L13 12.5M16 16.5l-1.2 1.2a3.5 3.5 0 0 1-5-5L11 11.5"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function CommentIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M4 5.5a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H9l-4 3.5v-3.5H5.5A1.5 1.5 0 0 1 4 14.5v-9Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

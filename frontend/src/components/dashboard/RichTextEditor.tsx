@@ -17,6 +17,7 @@ import { NoteImage } from "@/components/dashboard/NoteImageExtension";
 import { CommentMark, commentHighlightPluginKey } from "@/components/dashboard/CommentMarkExtension";
 import { SlashCommand } from "@/components/dashboard/SlashCommandExtension";
 import { SelectionToolbar } from "@/components/dashboard/SelectionToolbar";
+import { createSuggestionDismissTracker } from "@/lib/tiptap-suggestion-dismiss";
 import { uploadNoteImageAction } from "@/app/dashboard/notes-actions";
 import { useToast } from "@/components/ToastProvider";
 
@@ -74,7 +75,12 @@ export interface MentionCandidate {
 // MentionNodeAttrs), since `command` is overridden immediately below to stop
 // relying on Mention's own default (mention-node-only) implementation.
 function buildAtMenuSuggestion(candidates: MentionCandidate[]): Partial<SuggestionOptions<MentionCandidate, MentionNodeAttrs>> {
+  // See lib/tiptap-suggestion-dismiss.ts — a dismissed "@" (typed a space,
+  // hit Escape, clicked away) stays permanently inert instead of reopening
+  // the menu the moment the cursor comes back to sit next to it.
+  const dismissTracker = createSuggestionDismissTracker();
   return {
+    allow: dismissTracker.allow,
     items: ({ query }) =>
       candidates.filter((c) => c.label.toLowerCase().includes(query.toLowerCase())).slice(0, 5),
     render: () => {
@@ -93,7 +99,8 @@ function buildAtMenuSuggestion(candidates: MentionCandidate[]): Partial<Suggesti
           component?.updateProps({ people: props.items, query: props.query, command: props.command as unknown as (item: AtMenuSelection) => void });
         },
         onKeyDown: (props) => component?.ref?.onKeyDown(props) ?? false,
-        onExit: () => {
+        onExit: (props) => {
+          dismissTracker.trackExit(props.range);
           unmount?.();
           component?.destroy();
         },

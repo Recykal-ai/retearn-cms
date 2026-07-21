@@ -6,6 +6,7 @@ import { deleteDocumentAction, requestDeletionAction } from "@/app/dashboard/doc
 import { EditVersionModal } from "@/components/dashboard/EditVersionModal";
 import { VersionHistoryModal } from "@/components/dashboard/VersionHistoryModal";
 import { useToast } from "@/components/ToastProvider";
+import { Icon } from "@/components/dashboard/Icon";
 
 export function DocumentRowMenu({
   doc,
@@ -62,14 +63,14 @@ export function DocumentRowMenu({
         // this was undiscoverable without first tapping the row by accident.
         className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
       >
-        <DotsIcon />
+        <Icon name="Menu/More_Vertical" size={16} />
       </button>
 
       {open && (
         <div className="absolute top-full right-0 z-20 mt-1 w-48 rounded-md border border-neutral-200 bg-white py-1 text-sm shadow-lg">
           {canEdit && (
             <MenuItem
-              icon={<EditIcon />}
+              icon={<Icon name="Edit/Edit_Pencil_01" size={14} />}
               onClick={() => {
                 setModal("edit");
                 setOpen(false);
@@ -79,7 +80,7 @@ export function DocumentRowMenu({
             </MenuItem>
           )}
           <MenuItem
-            icon={<HistoryIcon />}
+            icon={<Icon name="Calendar/Clock" size={14} />}
             onClick={() => {
               setModal("history");
               setOpen(false);
@@ -87,7 +88,7 @@ export function DocumentRowMenu({
           >
             Version history
           </MenuItem>
-          <MenuItem icon={<ShareIcon />} onClick={handleShare}>
+          <MenuItem icon={<Icon name="Communication/Share_Android" size={14} />} onClick={handleShare}>
             {shareState === "copied"
               ? "Link copied"
               : shareState === "copying"
@@ -97,7 +98,7 @@ export function DocumentRowMenu({
                   : "Share (copy link)"}
           </MenuItem>
           <MenuItem
-            icon={<TrashIcon />}
+            icon={<Icon name="Interface/Trash_Empty" size={14} />}
             danger
             onClick={() => {
               setModal("delete");
@@ -272,70 +273,5 @@ function MenuItem({
       </span>
       {children}
     </button>
-  );
-}
-
-function DotsIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <circle cx="12" cy="5" r="1.8" />
-      <circle cx="12" cy="12" r="1.8" />
-      <circle cx="12" cy="19" r="1.8" />
-    </svg>
-  );
-}
-
-function EditIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M4 20h4L18.5 9.5a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4 15.5V20Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path d="M13 6.5 17.5 11" stroke="currentColor" strokeWidth="1.6" />
-    </svg>
-  );
-}
-
-function HistoryIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 7v5.5l3.5 2M20 12a8 8 0 1 1-2.7-6"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M20 4v4.5h-4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ShareIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="18" cy="5.5" r="2.2" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="6" cy="12" r="2.2" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="18" cy="18.5" r="2.2" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M8 10.8 16 6.3M8 13.2l8 4.5" stroke="currentColor" strokeWidth="1.6" />
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M5 7h14M9.5 7V5.2a1.2 1.2 0 0 1 1.2-1.2h2.6a1.2 1.2 0 0 1 1.2 1.2V7M7.5 7l.9 12.1A1.5 1.5 0 0 0 9.9 20.5h4.2a1.5 1.5 0 0 0 1.5-1.4L16.5 7"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M10.3 10.5v6M13.7 10.5v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
   );
 }

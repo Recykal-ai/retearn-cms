@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { Team, Product, Category } from "@/lib/api";
 import { colorForCategory, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
+import { Icon } from "@/components/dashboard/Icon";
 
 // A global category is one row per team/product (Category.isGlobal), so
 // picking Team AI + Product Ace can surface two separate "Goa DRS" rows —
@@ -241,7 +242,11 @@ export function UploadModal({
                 <>
                   {availableCategories.length > 8 && (
                     <div className="relative mb-2">
-                      <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400" />
+                      <Icon
+                        name="Interface/Search_Magnifying_Glass"
+                        size={13}
+                        className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400"
+                      />
                       <input
                         type="text"
                         value={tagQuery}
@@ -284,7 +289,7 @@ export function UploadModal({
 
             <div className="mb-4">
               <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-neutral-600">
-                <FolderIcon />
+                <Icon name="File/Folder" size={14} style={{ color: "#8a8a8a" }} />
                 Upload a file
               </label>
               <input
@@ -304,7 +309,7 @@ export function UploadModal({
 
             <div className="mb-5">
               <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-neutral-600">
-                <LinkIcon />
+                <Icon name="Interface/Link" size={14} style={{ color: "#8a8a8a" }} />
                 Link an existing doc
               </label>
               <input
@@ -341,41 +346,5 @@ export function UploadModal({
         </div>
       )}
     </>
-  );
-}
-
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-      <path d="M21 21l-4.3-4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function FolderIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: "#8a8a8a" }}>
-      <path
-        d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4.5l2 2.5H19a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5v-9Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function LinkIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: "#8a8a8a" }}>
-      <path
-        d="M9.5 14.5 14.5 9.5M11 7l1.5-1.5a3.5 3.5 0 0 1 5 5L16 12M13 17l-1.5 1.5a3.5 3.5 0 0 1-5-5L8 12"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

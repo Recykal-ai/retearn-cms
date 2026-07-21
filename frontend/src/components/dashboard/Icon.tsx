@@ -14,7 +14,21 @@ import { useEffect, useState } from "react";
 const svgCache = new Map<string, string>();
 const inflight = new Map<string, Promise<string>>();
 
-export function Icon({ name, size = 16, className }: { name: string; size?: number; className?: string }) {
+export function Icon({
+  name,
+  size = 16,
+  className,
+  style,
+}: {
+  name: string;
+  size?: number;
+  className?: string;
+  // For the common case (a Tailwind text-color class) prefer `className`;
+  // this exists for the handful of call sites that colored their old inline
+  // SVG via a CSS custom property (e.g. `var(--brand-purple)`), which has no
+  // Tailwind utility.
+  style?: React.CSSProperties;
+}) {
   const [svg, setSvg] = useState<string | null>(svgCache.get(name) ?? null);
 
   useEffect(() => {
@@ -44,7 +58,7 @@ export function Icon({ name, size = 16, className }: { name: string; size?: numb
   return (
     <span
       className={className}
-      style={{ width: size, height: size, display: "inline-flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
+      style={{ width: size, height: size, display: "inline-flex", alignItems: "center", justifyContent: "center", lineHeight: 1, ...style }}
       // eslint-disable-next-line react/no-danger
       dangerouslySetInnerHTML={{ __html: markup }}
     />

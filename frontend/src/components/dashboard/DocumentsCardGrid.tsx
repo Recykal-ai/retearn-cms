@@ -8,6 +8,7 @@ import { FileTypeIcon } from "@/components/dashboard/FileTypeIcon";
 import { fileTypeOf } from "@/lib/file-type";
 import { colorForCategory, dedupeGlobalCategories, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
 import { StatusDot } from "@/components/dashboard/StatusDot";
+import { Icon } from "@/components/dashboard/Icon";
 import { PinButton } from "@/components/dashboard/PinButton";
 import { useDocumentViewer } from "@/components/dashboard/useDocumentViewer";
 
@@ -41,7 +42,11 @@ export function DocumentsCardGrid({
   return (
     <div>
       <div className="relative mb-4 max-w-xs">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400" />
+        <Icon
+          name="Interface/Search_Magnifying_Glass"
+          size={13}
+          className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400"
+        />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -52,7 +57,7 @@ export function DocumentsCardGrid({
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <DocumentStackIcon />
+          <Icon name="File/Files" size={36} style={{ color: "#c9c2ce" }} />
           <div>
             <p className="text-sm font-medium text-neutral-600">
               {query ? `No matches for "${query}"` : `No documents in ${entityName ?? "this view"} yet`}
@@ -164,29 +169,5 @@ function DocumentCard({
         <span suppressHydrationWarning>{relativeTime(doc.updatedAt)}</span> · {doc.uploadedBy.name}
       </p>
     </div>
-  );
-}
-
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-      <path d="M21 21l-4.3-4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function DocumentStackIcon() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: "#c9c2ce" }}>
-      <path
-        d="M7 3.5h7.5L18 7v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      <path d="M14 3.5V7h3.5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-      <path d="M9 12h6M9 15.5h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
   );
 }

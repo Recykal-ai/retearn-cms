@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { setPinnedAction } from "@/app/dashboard/documents-actions";
+import { Icon } from "@/components/dashboard/Icon";
 
 export function PinButton({ documentId, pinned, size = 15 }: { documentId: string; pinned: boolean; size?: number }) {
   const [optimistic, setOptimistic] = useState(pinned);
@@ -29,20 +30,11 @@ export function PinButton({ documentId, pinned, size = 15 }: { documentId: strin
       className="shrink-0 text-neutral-300 hover:text-amber-500 disabled:opacity-60"
       style={optimistic ? { color: "#e0a419" } : undefined}
     >
-      <StarIcon size={size} filled={optimistic} />
+      {/* The icon pack ships outline-only (fill="none") — `[&>svg]:fill-current`
+          overrides that at CSS level (which wins over the SVG's own
+          presentation attribute) to get the filled/unfilled pin states this
+          button needs, without a second "filled star" asset. */}
+      <Icon name="Interface/Star" size={size} className={optimistic ? "[&>svg]:fill-current" : undefined} />
     </button>
-  );
-}
-
-function StarIcon({ size, filled }: { size: number; filled: boolean }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden fill={filled ? "currentColor" : "none"}>
-      <path
-        d="M12 3.5l2.6 5.4 5.9.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.2 5.9-.8L12 3.5Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

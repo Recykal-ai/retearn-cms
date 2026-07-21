@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { DocumentSummary, SortField, SortDir } from "@/lib/api";
 import { DocumentRow } from "@/components/dashboard/DocumentRow";
 import { useDocumentViewer } from "@/components/dashboard/useDocumentViewer";
+import { Icon } from "@/components/dashboard/Icon";
 
 export function DocumentsTable({
   documents,
@@ -75,7 +76,7 @@ export function DocumentsTable({
                 title="Find in this list"
                 className="text-neutral-400 hover:text-neutral-600"
               >
-                <SearchIcon />
+                <Icon name="Interface/Search_Magnifying_Glass" size={13} />
               </button>
               <SortableHeader
                 label="Name"
@@ -122,7 +123,7 @@ export function DocumentsTable({
           <tr>
             <td colSpan={5} className="py-16">
               <div className="flex flex-col items-center gap-3 text-center">
-                <DocumentStackIcon />
+                <Icon name="File/Files" size={36} style={{ color: "#c9c2ce" }} />
                 <div>
                   <p className="text-sm font-medium text-neutral-600">
                     {query ? `No matches for "${query}"` : `No documents in ${entityName ?? "this view"} yet`}
@@ -261,26 +262,3 @@ function SortableHeader({
   );
 }
 
-function SearchIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-      <path d="M21 21l-4.3-4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function DocumentStackIcon() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: "#c9c2ce" }}>
-      <path
-        d="M7 3.5h7.5L18 7v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      <path d="M14 3.5V7h3.5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-      <path d="M9 12h6M9 15.5h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}

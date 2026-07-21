@@ -27,7 +27,7 @@ import { PersonalNoteEditor } from "@/components/dashboard/PersonalNoteEditor";
 import { TeamNoteEditor } from "@/components/dashboard/TeamNoteEditor";
 import { CreateTeamNoteModal } from "@/components/dashboard/CreateTeamNoteModal";
 import { MoveToFolderModal } from "@/components/dashboard/MoveToFolderModal";
-import { NoteFolderTree, NoteIcon, FolderIcon, type TreeFolder, type TreeNote } from "@/components/dashboard/NoteFolderTree";
+import { NoteFolderTree, NoteIcon, FolderIcon, buildBreadcrumb, type TreeFolder, type TreeNote } from "@/components/dashboard/NoteFolderTree";
 import { Icon } from "@/components/dashboard/Icon";
 import { Tag } from "@/components/dashboard/Tag";
 import { colorForScope } from "@/lib/tag-colors";
@@ -267,6 +267,9 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
 
   const unreadNotifications = notifications?.filter((n) => !n.read) ?? [];
   const selectedPersonal = personalNotes?.find((n) => n.id === selectedPersonalId) ?? null;
+  const personalBreadcrumb = selectedPersonal ? buildBreadcrumb(personalFolders ?? [], selectedPersonal.folderId) : [];
+  const selectedTeamFolderId = teamNotes?.find((n) => n.id === selectedTeamNoteId)?.folderId ?? null;
+  const teamBreadcrumb = selectedTeamNoteId ? buildBreadcrumb(teamFolders ?? [], selectedTeamFolderId) : [];
 
   const personalTreeNotes: TreeNote[] = (personalNotes ?? []).map((n) => ({
     id: n.id,
@@ -448,6 +451,7 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
             <PersonalNoteEditor
               key={selectedPersonal.id}
               note={selectedPersonal}
+              breadcrumb={personalBreadcrumb}
               autoFocusTitle={selectedPersonal.id === focusTitleNoteId}
               onTitleFocused={() => setFocusTitleNoteId(null)}
               onSaved={() => getPersonalNotesAction().then(setPersonalNotes)}
@@ -466,9 +470,11 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
               key={selectedTeamNoteId}
               noteId={selectedTeamNoteId}
               currentUserId={currentUserId}
+              breadcrumb={teamBreadcrumb}
               initialCommentId={deepLinkCommentId}
               autoFocusTitle={selectedTeamNoteId === focusTitleNoteId}
               onTitleFocused={() => setFocusTitleNoteId(null)}
+              onSaved={() => getTeamNotesListAction().then(setTeamNotes)}
               onDeleted={() => {
                 setSelectedTeamNoteId(null);
                 getTeamNotesListAction().then(setTeamNotes);
@@ -589,7 +595,11 @@ function BottomBar({
   return (
     <div className="flex items-center gap-1.5 border-t border-neutral-100 p-2.5">
       <div className="relative min-w-0 flex-1">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400" />
+        <Icon
+          name="Interface/Search_Magnifying_Glass"
+          size={14}
+          className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400"
+        />
         <input
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
@@ -619,7 +629,7 @@ function BottomBar({
             className="flex h-8 w-8 items-center justify-center rounded-full border border-neutral-200 hover:bg-neutral-50"
             style={teamFilter ? { background: "var(--brand-purple-tint)", borderColor: "var(--brand-purple)", color: "var(--brand-purple)" } : { color: "#737373" }}
           >
-            <FilterIcon />
+            <Icon name="Interface/Filter" size={14} />
           </button>
           {filterOpen && (
             <div className="absolute bottom-full right-0 z-20 mb-1.5 w-48 rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
@@ -684,7 +694,7 @@ function BottomBar({
             className="flex h-8 w-8 items-center justify-center rounded-full text-white"
             style={{ background: "var(--brand-purple)" }}
           >
-            <PlusIcon />
+            <Icon name="Edit/Add_Plus" size={16} />
           </button>
           {menuOpen && (
             <div className="absolute bottom-full right-0 z-20 mb-1.5 w-40 rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
@@ -784,27 +794,3 @@ function NoteSearchResults({
   );
 }
 
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-      <path d="M21 21l-4.3-4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function FilterIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M4 5h16l-6 7.5V19l-4 2v-8.5L4 5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-    </svg>
-  );
-}

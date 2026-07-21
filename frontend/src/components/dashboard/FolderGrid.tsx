@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { Category, DocumentSummary } from "@/lib/api";
 import { colorForCategory } from "@/lib/tag-colors";
+import { Icon } from "@/components/dashboard/Icon";
 
 export function FolderGrid({
   categories,
@@ -43,7 +44,11 @@ export function FolderGrid({
   return (
     <div>
       <div className="relative mb-4 max-w-xs">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400" />
+        <Icon
+          name="Interface/Search_Magnifying_Glass"
+          size={13}
+          className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400"
+        />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -81,15 +86,9 @@ export function FolderGrid({
   );
 }
 
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-      <path d="M21 21l-4.3-4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
+// Deliberately kept as a hand-drawn SVG, not swapped for the icon pack — the
+// translucent color fill (tinted per category, not just an outline) is the
+// whole point of this one, and the pack's icons are outline-only (fill=none).
 function FolderIcon({ size, color }: { size: number; color: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden style={{ color }}>

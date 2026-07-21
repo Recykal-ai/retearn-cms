@@ -151,8 +151,11 @@ documentsRouter.get("/recent", requireAuth, async (req, res) => {
   const orderedIds = recentActivity.map((a) => a.targetId);
   if (orderedIds.length === 0) return res.json([]);
 
+  // A doc rejected since it was last viewed is unopenable now (see
+  // /:id/view-url), so it's excluded here too rather than left in as a dead
+  // entry that 403s the moment it's clicked.
   const docs = await prisma.document.findMany({
-    where: { id: { in: orderedIds }, deletedAt: null },
+    where: { id: { in: orderedIds }, deletedAt: null, status: { not: "REJECTED" } },
     include: documentInclude,
   });
   const docsById = new Map(docs.map((d) => [d.id, d]));
@@ -176,8 +179,10 @@ documentsRouter.get("/pinned", requireAuth, async (req, res) => {
   const orderedIds = pins.map((p) => p.documentId);
   if (orderedIds.length === 0) return res.json([]);
 
+  // Same reasoning as /recent — a pin on a document that's since been
+  // rejected shouldn't linger as a dead, unopenable entry.
   const docs = await prisma.document.findMany({
-    where: { id: { in: orderedIds }, deletedAt: null },
+    where: { id: { in: orderedIds }, deletedAt: null, status: { not: "REJECTED" } },
     include: documentInclude,
   });
   const docsById = new Map(docs.map((d) => [d.id, d]));
@@ -948,6 +953,14 @@ documentsRouter.get<{ id: string }>("/:id/view-url", requireAuth, async (req, re
 
   const isOwner = doc.uploadedById === req.user!.userId;
   const isAdmin = isAdminRole(req.user!.role);
+  // A rejected document's content is unopenable by anyone, including the
+  // Admin who rejected it or the Super Admin — effectively a soft delete on
+  // the file itself, not just a "not published yet" gate. Its metadata (the
+  // GET /:id route below) is deliberately left reachable so the Approvals
+  // rejected queue can still show what was rejected and why.
+  if (doc.status === "REJECTED") {
+    return res.status(403).json({ error: "This document was rejected and can no longer be viewed." });
+  }
   if (doc.status !== "PUBLISHED" && !isOwner && !isAdmin) {
     return res.status(403).json({ error: "This document is not published yet" });
   }
@@ -1018,6 +1031,11 @@ documentsRouter.get<{ id: string; version: string }>("/:id/versions/:version/vie
 
   const isOwner = doc.uploadedById === req.user!.userId;
   const isAdmin = isAdminRole(req.user!.role);
+  // Same unconditional lockout as the current-version /view-url above — a
+  // rejected document's file content (any version) is unopenable by anyone.
+  if (doc.status === "REJECTED") {
+    return res.status(403).json({ error: "This document was rejected and can no longer be viewed." });
+  }
   if (doc.status !== "PUBLISHED" && !isOwner && !isAdmin) {
     return res.status(403).json({ error: "This document is not published yet" });
   }

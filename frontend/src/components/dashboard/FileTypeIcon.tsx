@@ -13,6 +13,11 @@ const STYLE: Record<FileTypeKey, { bg: string; label: string }> = {
 export function FileTypeIcon({ type }: { type: FileTypeKey }) {
   const style = STYLE[type];
 
+  // Kept as hand-drawn SVGs, not the icon pack — at the small size these
+  // render (~20px, often smaller in dense lists) the pack's outline glyphs
+  // for "link" and "generic file" read as an indistinct squiggle next to the
+  // crisp colored W/X/PDF badges; these rounded chain-loop/dog-eared-page
+  // shapes stay legible at that size and next to those badges.
   if (type === "link") {
     return (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: "#6b7280" }}>

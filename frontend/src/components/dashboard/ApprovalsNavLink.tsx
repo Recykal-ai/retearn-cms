@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getApprovalsCountAction } from "@/app/dashboard/documents-actions";
+import { Icon } from "@/components/dashboard/Icon";
 
 const POLL_MS = 8000;
 
@@ -35,7 +36,7 @@ export function ApprovalsNavLink({ isAdmin }: { isAdmin: boolean }) {
       href="/dashboard/approvals"
       className="relative flex items-center gap-1.5 text-sm font-semibold text-neutral-700 transition-colors hover:text-neutral-900"
     >
-      <CheckIcon />
+      <Icon name="Interface/Check_Big" size={14} className="text-neutral-500" />
       Approval
       {count > 0 && (
         <span
@@ -47,13 +48,5 @@ export function ApprovalsNavLink({ isAdmin }: { isAdmin: boolean }) {
         </span>
       )}
     </Link>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: "#737373" }}>
-      <path d="M5 12.5l4.5 4.5L19 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }

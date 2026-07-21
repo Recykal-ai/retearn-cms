@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import type { Team, Product } from "@/lib/api";
 import { DeleteTagModal } from "@/components/dashboard/admin/DeleteTagModal";
 import { useToast } from "@/components/ToastProvider";
+import { Icon } from "@/components/dashboard/Icon";
 
 export function EntityPanel({
   title,
@@ -58,7 +59,7 @@ export function EntityPanel({
                 aria-label={`Remove ${it.name}`}
                 className="flex h-3.5 w-3.5 items-center justify-center rounded-full text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-neutral-300 hover:text-neutral-700"
               >
-                <XIcon />
+                <Icon name="Menu/Close_SM" size={9} />
               </button>
             )}
           </span>
@@ -99,10 +100,3 @@ export function EntityPanel({
   );
 }
 
-function XIcon() {
-  return (
-    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  );
-}

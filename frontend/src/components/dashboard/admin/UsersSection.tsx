@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import type { AppUser, Team, Product, Role } from "@/lib/api";
 import { relativeTime } from "@/lib/relative-time";
+import { Icon } from "@/components/dashboard/Icon";
 import {
   setUserRoleAction,
   setUserActiveAction,
@@ -57,7 +58,11 @@ export function UsersSection({
       </p>
 
       <div className="relative mb-4 max-w-sm">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400" />
+        <Icon
+          name="Interface/Search_Magnifying_Glass"
+          size={13}
+          className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400"
+        />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -642,14 +647,5 @@ function GrantAccessModal({
         </div>
       </div>
     </div>
-  );
-}
-
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-      <path d="M21 21l-4.3-4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Team, Product } from "@/lib/api";
+import { Icon } from "@/components/dashboard/Icon";
 
 export function NavSidebar({
   mode,
@@ -67,7 +68,11 @@ export function NavSidebar({
       ) : (
         <>
           <div className="relative mb-4">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-neutral-400" />
+            <Icon
+              name="Interface/Search_Magnifying_Glass"
+              size={14}
+              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-neutral-400"
+            />
             <input
               type="text"
               value={query}
@@ -128,14 +133,5 @@ export function NavSidebar({
         </>
       )}
     </div>
-  );
-}
-
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-      <path d="M21 21l-4.3-4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
   );
 }

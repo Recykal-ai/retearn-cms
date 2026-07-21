@@ -5,6 +5,8 @@ import type { Editor, Range } from "@tiptap/core";
 import Suggestion from "@tiptap/suggestion";
 import { ReactRenderer } from "@tiptap/react";
 import { forwardRef, useImperativeHandle, useState } from "react";
+import { Icon } from "@/components/dashboard/Icon";
+import { createSuggestionDismissTracker } from "@/lib/tiptap-suggestion-dismiss";
 
 export interface SlashCommandItem {
   section: string;
@@ -28,16 +30,6 @@ function Badge({ children, style }: { children: React.ReactNode; style?: React.C
   );
 }
 
-function ImageBadgeIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="8.5" cy="9.5" r="1.5" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M4 17l5-5 4 4 3-3 4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function buildItems(onInsertImage: () => void): SlashCommandItem[] {
   return [
     {
@@ -45,7 +37,7 @@ function buildItems(onInsertImage: () => void): SlashCommandItem[] {
       label: "Image",
       icon: (
         <Badge>
-          <ImageBadgeIcon />
+          <Icon name="Media/Image_01" size={14} />
         </Badge>
       ),
       onSelect: (editor, range) => {
@@ -210,6 +202,10 @@ export const SlashCommand = Extension.create<{ onInsertImage: () => void }>({
 
   addProseMirrorPlugins() {
     const items = buildItems(this.options.onInsertImage);
+    // See lib/tiptap-suggestion-dismiss.ts — makes a dismissed "/" (typed a
+    // space, hit Escape, clicked away) stay permanently inert instead of
+    // reopening the menu the moment the cursor comes back to sit next to it.
+    const dismissTracker = createSuggestionDismissTracker();
     return [
       Suggestion<SlashCommandItem>({
         editor: this.editor,
@@ -219,6 +215,7 @@ export const SlashCommand = Extension.create<{ onInsertImage: () => void }>({
         // line immediately before "/") is exactly what's wanted: "abcdef/"
         // typed mid-word must never open the menu, only "abcdef /" or "/"
         // at the start of a line, matching Notion's own behavior.
+        allow: dismissTracker.allow,
         command: ({ editor, range, props }) => props.onSelect(editor, range),
         items: ({ query }) => items.filter((i) => i.label.toLowerCase().includes(query.toLowerCase())),
         render: () => {
@@ -240,7 +237,8 @@ export const SlashCommand = Extension.create<{ onInsertImage: () => void }>({
               if (props.event.key === "Escape") return true;
               return component?.ref?.onKeyDown(props) ?? false;
             },
-            onExit: () => {
+            onExit: (props) => {
+              dismissTracker.trackExit(props.range);
               unmount?.();
               component?.destroy();
             },

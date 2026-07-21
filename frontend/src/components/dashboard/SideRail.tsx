@@ -9,6 +9,7 @@ import type { DocumentSummary } from "@/lib/api";
 import { FileTypeIcon } from "@/components/dashboard/FileTypeIcon";
 import { fileTypeOf } from "@/lib/file-type";
 import { useDocumentViewer } from "@/components/dashboard/useDocumentViewer";
+import { Icon } from "@/components/dashboard/Icon";
 
 const NOTES_POLL_MS = 8000;
 
@@ -132,7 +133,7 @@ export function SideRail({
           aria-label="Recently opened or edited files"
           className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700"
         >
-          <ClockIcon />
+          <Icon name="Calendar/Clock" size={16} />
         </button>
 
         {openMenu === "recents" && (
@@ -171,7 +172,7 @@ export function SideRail({
         aria-label="Documents you've pinned"
         className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700"
       >
-        <StarRailIcon />
+        <Icon name="Interface/Star" size={15} />
       </Link>
 
       <Link
@@ -180,7 +181,7 @@ export function SideRail({
         aria-label="Notes — personal and team"
         className="relative flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700"
       >
-        <NoteRailIcon />
+        <Icon name="File/Note" size={15} />
         {unreadNotes > 0 && (
           <span
             aria-label={`${unreadNotes} unread mention${unreadNotes === 1 ? "" : "s"}`}
@@ -199,67 +200,10 @@ export function SideRail({
           aria-label="Recycle Bin — deleted documents"
           className="mt-auto flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700"
         >
-          <TrashIcon />
+          <Icon name="Interface/Trash_Empty" size={15} />
         </Link>
       )}
       {viewerNode}
     </div>
-  );
-}
-
-function NoteRailIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M6 4.5h9.5L19 8v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      <path d="M9 10h6M9 13.5h6M9 17h3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function StarRailIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 3.5l2.6 5.4 5.9.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.2 5.9-.8L12 3.5Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M5 7h14M9.5 7V5.2a1.2 1.2 0 0 1 1.2-1.2h2.6a1.2 1.2 0 0 1 1.2 1.2V7M7.5 7l.9 12.1A1.5 1.5 0 0 0 9.9 20.5h4.2a1.5 1.5 0 0 0 1.5-1.4L16.5 7"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M10.3 10.5v6M13.7 10.5v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ClockIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
-      <path
-        d="M12 7v5l3.5 2"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

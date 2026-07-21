@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { IconPickerButton } from "@/components/dashboard/IconPickerButton";
+import { Icon } from "@/components/dashboard/Icon";
 import { Tag } from "@/components/dashboard/Tag";
 import { colorForScope } from "@/lib/tag-colors";
 
@@ -55,6 +56,26 @@ export function buildFolderOptions(
   }
   walk(null, 0);
   return options;
+}
+
+// Root-first folder names for a note's `folderId`, e.g. ["Engineering",
+// "Sprint notes"] for a note filed two levels deep — the note editors render
+// this as a breadcrumb above the title. `null`/an id with no match (already
+// deleted, or the note isn't in a folder) both just mean no breadcrumb.
+export function buildBreadcrumb(folders: TreeFolder[], folderId: string | null): string[] {
+  const byId = new Map(folders.map((f) => [f.id, f]));
+  const path: string[] = [];
+  let current = folderId ? byId.get(folderId) : undefined;
+  // Cycle guard — folder moves are validated server-side to reject cycles,
+  // but a stale client-side folders list mid-move shouldn't be able to hang
+  // the render in a loop.
+  const seen = new Set<string>();
+  while (current && !seen.has(current.id)) {
+    seen.add(current.id);
+    path.unshift(current.name);
+    current = current.parentId ? byId.get(current.parentId) : undefined;
+  }
+  return path;
 }
 
 export interface TreeNote {
@@ -470,61 +491,42 @@ function RowMenu({
 }
 
 export function MoreVerticalIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="5" r="2" fill="currentColor" />
-      <circle cx="12" cy="12" r="2" fill="currentColor" />
-      <circle cx="12" cy="19" r="2" fill="currentColor" />
-    </svg>
-  );
+  return <Icon name="Menu/More_Vertical" size={13} />;
 }
 
 function ChevronIcon({ collapsed }: { collapsed: boolean }) {
   return (
-    <svg
-      width="11"
-      height="11"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-      style={{ transform: collapsed ? "rotate(0deg)" : "rotate(90deg)", transition: "transform 0.1s" }}
-    >
-      <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <span style={{ display: "inline-flex", transform: collapsed ? "rotate(0deg)" : "rotate(90deg)", transition: "transform 0.1s" }}>
+      <Icon name="Arrow/Chevron_Right" size={11} />
+    </span>
   );
 }
 
 function PlusIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
+  return <Icon name="Edit/Add_Plus" size={12} />;
 }
 
 export function FolderIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0 text-neutral-400">
-      <path
-        d="M4 6.5A1.5 1.5 0 0 1 5.5 5h4.4l1.8 2h7.3A1.5 1.5 0 0 1 20.5 8.5v9A1.5 1.5 0 0 1 19 19H5.5A1.5 1.5 0 0 1 4 17.5v-11Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <Icon name="File/Folder" size={14} className="shrink-0 text-neutral-400" />;
 }
 
 export function NoteIcon() {
+  return <Icon name="File/Note" size={14} className="shrink-0 text-neutral-400" />;
+}
+
+// Rendered above a note's title in both editors when it lives inside a
+// folder (root-only notes render nothing — no point in a zero-segment
+// breadcrumb) — root-first, e.g. "Engineering / Sprint notes".
+export function NoteBreadcrumb({ path }: { path: string[] }) {
+  if (path.length === 0) return null;
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0 text-neutral-400">
-      <path
-        d="M6 4.5h9.5L19 8v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      <path d="M9 10h6M9 13.5h6M9 17h3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
+    <div className="mb-2 flex min-w-0 flex-wrap items-center gap-1 text-xs text-neutral-400">
+      {path.map((name, i) => (
+        <span key={i} className="flex min-w-0 items-center gap-1">
+          {i > 0 && <Icon name="Arrow/Chevron_Right" size={9} className="shrink-0 text-neutral-300" />}
+          <span className="truncate">{name}</span>
+        </span>
+      ))}
+    </div>
   );
 }

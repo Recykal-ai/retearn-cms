@@ -18,7 +18,8 @@ import { DateTimePicker } from "@/components/dashboard/DateTimePicker";
 import { NoteHistoryPanel } from "@/components/dashboard/NoteHistoryPanel";
 import { FloatingComments, CONTENT_MARGIN_RESERVE, type DraftComment } from "@/components/dashboard/FloatingComments";
 import { IconPickerButton } from "@/components/dashboard/IconPickerButton";
-import { MoreVerticalIcon } from "@/components/dashboard/NoteFolderTree";
+import { MoreVerticalIcon, NoteBreadcrumb } from "@/components/dashboard/NoteFolderTree";
+import { Icon } from "@/components/dashboard/Icon";
 import { NoteBioComments } from "@/components/dashboard/NoteBioComments";
 import { useToast } from "@/components/ToastProvider";
 
@@ -45,13 +46,19 @@ function formatMetaDate(localValue: string): string {
 export function TeamNoteEditor({
   noteId,
   currentUserId,
+  breadcrumb,
   initialCommentId,
   autoFocusTitle,
   onTitleFocused,
+  onSaved,
   onDeleted,
 }: {
   noteId: string;
   currentUserId: string;
+  // Root-first folder name path (see NoteFolderTree.tsx's buildBreadcrumb),
+  // computed by the parent from its own folders list — empty for a note
+  // filed at the root, which renders nothing.
+  breadcrumb?: string[];
   // Set once by NotesPageContent when arriving via a "Copy link" URL
   // (?teamNote=&comment=) — consumed the first time this note's comments
   // load, then just sits unused; harmless if it doesn't match any thread
@@ -62,6 +69,12 @@ export function TeamNoteEditor({
   // actually loaded (there's no title input to focus before then).
   autoFocusTitle?: boolean;
   onTitleFocused?: () => void;
+  // Called after every successful title/content/meeting/icon save — the
+  // sidebar tree's row (title, icon, "also in" subtitle) is rendered from a
+  // separately-fetched list (NotesPageContent's teamNotes/teamTreeNotes
+  // state), not from this component's own `detail`, so without this the
+  // list only ever catches up on a full page reload.
+  onSaved?: () => void;
   onDeleted: () => void;
 }) {
   const [detail, setDetail] = useState<TeamNoteDetail | null>(null);
@@ -228,6 +241,7 @@ export function TeamNoteEditor({
       return;
     }
     setSaveState("saved");
+    onSaved?.();
   }
 
   function scheduleSave() {
@@ -251,7 +265,11 @@ export function TeamNoteEditor({
   async function handleSetIcon(next: string | null) {
     setIcon(next);
     const result = await updateTeamNoteAction(noteId, { icon: next });
-    if (result.error) show(result.error, "error");
+    if (result.error) {
+      show(result.error, "error");
+      return;
+    }
+    onSaved?.();
   }
 
   async function handleDelete() {
@@ -439,6 +457,7 @@ export function TeamNoteEditor({
           </div>
         </div>
       <div ref={contentColumnRef} className="py-8" style={contentStyle}>
+        <NoteBreadcrumb path={breadcrumb ?? []} />
         {/* "Add icon"/"Add comment" only appear on hovering the title block
             specifically — scoped to just this inner wrapper (icon row +
             title input), not the whole content column (contentColumnRef
@@ -468,7 +487,7 @@ export function TeamNoteEditor({
                 onClick={() => setBioComposerOpen(true)}
                 className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-neutral-500 opacity-0 transition-opacity hover:bg-neutral-100 hover:text-neutral-700 group-hover:opacity-100"
               >
-                <CommentIcon />
+                <Icon name="Communication/Chat" size={14} />
                 Add comment
               </button>
             )}
@@ -567,19 +586,6 @@ function TitleIconPlaceholder() {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden className="text-neutral-300">
       <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
       <path d="M9 10h.01M15 10h.01M8.5 14.5c.9 1 2.1 1.5 3.5 1.5s2.6-.5 3.5-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function CommentIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v10a1.5 1.5 0 0 1-1.5 1.5H9l-4 3.5V17H5.5A1.5 1.5 0 0 1 4 15.5v-10Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
     </svg>
   );
 }

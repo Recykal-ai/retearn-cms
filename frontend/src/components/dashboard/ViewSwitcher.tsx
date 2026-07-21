@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import Link from "next/link";
+import { Icon } from "@/components/dashboard/Icon";
 
 const VIEWS = [
   { value: "list", label: "List" },
@@ -38,7 +39,7 @@ export function ViewSwitcher({ baseHref, view }: { baseHref: string; view: ViewM
         style={{ fontFamily: "var(--font-ui)" }}
       >
         <ViewIcon view={current.value} />
-        <ChevronIcon />
+        <Icon name="Arrow/Chevron_Down" size={10} />
       </summary>
       <div
         className="absolute top-8 left-0 z-20 w-32 rounded-md border border-neutral-200 bg-white py-1 shadow-lg"
@@ -64,39 +65,7 @@ export function ViewSwitcher({ baseHref, view }: { baseHref: string; view: ViewM
 }
 
 function ViewIcon({ view }: { view: ViewMode }) {
-  if (view === "tabs") {
-    return (
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <rect x="3" y="4" width="8" height="7" rx="1" stroke="currentColor" strokeWidth="1.6" />
-        <rect x="13" y="4" width="8" height="7" rx="1" stroke="currentColor" strokeWidth="1.6" />
-        <rect x="3" y="13" width="8" height="7" rx="1" stroke="currentColor" strokeWidth="1.6" />
-        <rect x="13" y="13" width="8" height="7" rx="1" stroke="currentColor" strokeWidth="1.6" />
-      </svg>
-    );
-  }
-  if (view === "folders") {
-    return (
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path
-          d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4.5l2 2.5H19a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5v-9Z"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinejoin="round"
-        />
-      </svg>
-    );
-  }
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ChevronIcon() {
-  return (
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+  if (view === "tabs") return <Icon name="Menu/More_Grid_Small" size={13} />;
+  if (view === "folders") return <Icon name="File/Folder" size={13} />;
+  return <Icon name="Menu/Hamburger_MD" size={13} />;
 }

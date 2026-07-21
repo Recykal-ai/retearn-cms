@@ -5,6 +5,7 @@ import type { Team, Product, Category } from "@/lib/api";
 import { createCategoryAction, deleteCategoryAction } from "@/app/dashboard/admin/admin-actions";
 import { DeleteTagModal } from "@/components/dashboard/admin/DeleteTagModal";
 import { useToast } from "@/components/ToastProvider";
+import { Icon } from "@/components/dashboard/Icon";
 
 type Mode = "team" | "product";
 
@@ -117,7 +118,7 @@ export function CategoriesSection({
             className="flex min-w-48 items-center justify-between gap-2 rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:border-neutral-400"
           >
             {isAllSelected ? "All (every team & product)" : selected ? selected.name : `Select a ${mode}…`}
-            <ChevronIcon />
+            <Icon name="Arrow/Chevron_Down" size={12} style={{ color: "#a3a3a3" }} />
           </button>
 
           {open && (
@@ -208,7 +209,7 @@ export function CategoriesSection({
                     aria-label={`Remove ${c.name}`}
                     className="flex h-3.5 w-3.5 items-center justify-center rounded-full text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-neutral-300 hover:text-neutral-700"
                   >
-                    <XIcon />
+                    <Icon name="Menu/Close_SM" size={9} />
                   </button>
                 )}
               </span>
@@ -251,21 +252,5 @@ export function CategoriesSection({
         />
       )}
     </div>
-  );
-}
-
-function XIcon() {
-  return (
-    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ChevronIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: "#a3a3a3" }}>
-      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "@/components/dashboard/Icon";
 
 // A from-scratch replacement for <input type="datetime-local"> — the native
 // picker's popup is OS/browser chrome, not part of the page, so it can't be
@@ -84,7 +85,7 @@ export function DateTimePicker({
         className="flex w-full items-center justify-between gap-2 rounded-md border border-neutral-200 px-2.5 py-1.5 text-left text-sm focus:border-neutral-400 focus:outline-none"
       >
         <span className={value ? "text-neutral-800" : "text-neutral-400"}>{value ? displayValue(value) : placeholder}</span>
-        <CalendarIcon />
+        <Icon name="Calendar/Calendar" size={15} style={{ color: "var(--brand-purple)" }} />
       </button>
 
       {open && (
@@ -181,7 +182,7 @@ function TimeStepper({
         className="flex h-5 w-8 items-center justify-center rounded hover:bg-neutral-100"
         style={{ color: "var(--brand-purple)" }}
       >
-        <ChevronIcon direction="up" />
+        <Icon name="Arrow/Chevron_Up" size={12} />
       </button>
       <div
         className="flex h-9 w-11 items-center justify-center rounded-md text-base font-semibold"
@@ -196,32 +197,9 @@ function TimeStepper({
         className="flex h-5 w-8 items-center justify-center rounded hover:bg-neutral-100"
         style={{ color: "var(--brand-purple)" }}
       >
-        <ChevronIcon direction="down" />
+        <Icon name="Arrow/Chevron_Down" size={12} />
       </button>
     </div>
-  );
-}
-
-function ChevronIcon({ direction }: { direction: "up" | "down" }) {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d={direction === "up" ? "M5 15l7-7 7 7" : "M5 9l7 7 7-7"}
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function CalendarIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: "var(--brand-purple)" }}>
-      <rect x="3.5" y="5" width="17" height="15" rx="2" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M3.5 9.5h17M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
   );
 }
 
