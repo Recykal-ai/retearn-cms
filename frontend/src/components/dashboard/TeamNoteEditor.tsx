@@ -342,7 +342,7 @@ export function TeamNoteEditor({
   };
 
   return (
-    <div ref={scrollContainerRef} className="relative h-full overflow-y-auto">
+    <div ref={scrollContainerRef} className="relative h-full overflow-y-auto" data-notes-scroll-container>
       {/* Pinned near the top-right of the pane, independent of the title
           row's own width — Notion's own page controls (Share/comment/"...")
           live in a fixed top bar rather than sharing a flex row with the
@@ -456,7 +456,7 @@ export function TeamNoteEditor({
             )}
           </div>
         </div>
-      <div ref={contentColumnRef} className="py-8" style={contentStyle}>
+      <div ref={contentColumnRef} className="py-8" style={contentStyle} data-notes-content-column>
         <NoteBreadcrumb path={breadcrumb ?? []} />
         {/* "Add icon"/"Add comment" only appear on hovering the title block
             specifically — scoped to just this inner wrapper (icon row +

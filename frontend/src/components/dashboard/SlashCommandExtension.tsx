@@ -46,6 +46,20 @@ function buildItems(onInsertImage: () => void): SlashCommandItem[] {
       },
     },
     {
+      section: "Insert",
+      label: "Table",
+      icon: (
+        <Badge>
+          <Icon name="Edit/Table" size={14} />
+        </Badge>
+      ),
+      // A 3x3 starting grid with a header row, matching Notion's own
+      // default — row/column controls (add/delete) live in the selection
+      // toolbar once the cursor is inside the table (see SelectionToolbar.tsx).
+      onSelect: (editor, range) =>
+        editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+    },
+    {
       section: "Basic blocks",
       label: "Text",
       icon: <Badge>T</Badge>,

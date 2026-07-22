@@ -4,12 +4,14 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useEditor, EditorContent, ReactRenderer, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { NodeSelection } from "@tiptap/pm/state";
+import { CellSelection } from "@tiptap/pm/tables";
 import StarterKit from "@tiptap/starter-kit";
 import Mention, { type MentionNodeAttrs } from "@tiptap/extension-mention";
 import Highlight from "@tiptap/extension-highlight";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Placeholder from "@tiptap/extension-placeholder";
+import { TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import { DocumentEmbed } from "@/components/dashboard/DocumentEmbedExtension";
 import { AtMentionMenu, type AtMenuSelection } from "@/components/dashboard/AtMentionMenu";
@@ -17,6 +19,8 @@ import { NoteImage } from "@/components/dashboard/NoteImageExtension";
 import { CommentMark, commentHighlightPluginKey } from "@/components/dashboard/CommentMarkExtension";
 import { SlashCommand } from "@/components/dashboard/SlashCommandExtension";
 import { SelectionToolbar } from "@/components/dashboard/SelectionToolbar";
+import { TableGripControls } from "@/components/dashboard/TableGripControls";
+import { ResizableTable } from "@/components/dashboard/TableExtension";
 import { createSuggestionDismissTracker } from "@/lib/tiptap-suggestion-dismiss";
 import { uploadNoteImageAction } from "@/app/dashboard/notes-actions";
 import { useToast } from "@/components/ToastProvider";
@@ -223,6 +227,18 @@ export const RichTextEditor = forwardRef<
       DocumentEmbed,
       NoteImage,
       CommentMark,
+      // Resizable columns AND a whole-table resize handle (see
+      // TableGripControls' bottom-right handle, which is what the
+      // ResizableTable extension's `width` attribute actually plugs into) —
+      // no cell-merging UI exposed (kept simple — see the "Table"
+      // slash-command item and TableGripControls, which cover insert/delete
+      // row/column but not the fancier ops). ResizableTable stands in for
+      // TableKit's bundled `table` sub-extension; TableRow/Cell/Header are
+      // the same ones TableKit would otherwise register for you.
+      ResizableTable.configure({ resizable: true }),
+      TableRow,
+      TableCell,
+      TableHeader,
       Placeholder.configure({
         placeholder: ({ editor: e }) => (e.isEmpty ? `${placeholder ?? "Write something…"} Press '/' for commands` : ""),
       }),
@@ -428,6 +444,7 @@ export const RichTextEditor = forwardRef<
     // page rather than a small box with dead space beneath it.
     <div>
       <EditorContent editor={editor} />
+      <TableGripControls editor={editor} />
       <input
         ref={fileInputRef}
         type="file"
@@ -439,10 +456,30 @@ export const RichTextEditor = forwardRef<
           no right-click needed) and auto-hides once it isn't. shouldShow
           adds one thing on top of the plugin's own default: excludes node
           selections (e.g. clicking a noteImage to select it as a whole
-          block), since Bold/Link/etc. have nothing to act on there. */}
+          block) AND cell selections (a whole row/column selected via
+          TableGripControls' grips), since Bold/Link/etc. have nothing
+          sensible to act on there — a CellSelection is non-empty too, so
+          without this exclusion selecting/dragging a row or column via the
+          grips popped this text-formatting menu up over the table on top of
+          the grips' own controls. Table row/column editing lives entirely
+          in TableGripControls below instead. */}
       <BubbleMenu
         editor={editor}
-        shouldShow={({ state }) => !state.selection.empty && !(state.selection instanceof NodeSelection)}
+        // BubbleMenuPlugin appends its element to the editor DOM's own
+        // parent (see @tiptap/extension-bubble-menu's default appendTo),
+        // not document.body — so without an explicit z-index it paints
+        // *underneath* TeamNoteEditor's FloatingComments cards, which are a
+        // separate sibling rendered later in that tree. That made this
+        // toolbar's own options (Link, Comment, ...) unreachable — visually
+        // covered by a comment card — the moment a selection near a comment
+        // anchor opened both at once, worst-case in a table cell that sits
+        // right under an existing thread. z-index alone is enough since
+        // both are plain `position: absolute` elements sharing the same
+        // stacking context; no portal needed.
+        style={{ zIndex: 60 }}
+        shouldShow={({ state }) =>
+          !state.selection.empty && !(state.selection instanceof NodeSelection) && !(state.selection instanceof CellSelection)
+        }
       >
         <SelectionToolbar editor={editor} onRequestComment={onRequestComment} />
       </BubbleMenu>

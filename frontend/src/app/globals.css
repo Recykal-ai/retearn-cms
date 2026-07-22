@@ -281,6 +281,96 @@ button:not(:disabled) {
   text-decoration: line-through;
 }
 
+/* Table (@tiptap/extension-table, built on prosemirror-tables) — the
+   package ships its own stylesheet, but only unopinionated layout rules
+   (no visible borders/header shading at all); this is a from-scratch look
+   matching the app's own borders/tints rather than importing that CSS. */
+.ProseMirror .tableWrapper {
+  overflow-x: auto;
+  margin: 0.6em 0;
+  /* Obsidian's model, not Notion's breakout: a table NEVER extends past the
+     note's own reading column — the exact same right margin every other
+     block (paragraphs, headings, images) already respects, not a wider,
+     separately-computed ceiling. width: fit-content lets a small table
+     stay small (no forced full-width wrapper); max-width: 100% is the only
+     boundary — a 100% here always resolves against this wrapper's own
+     parent, which bottoms out at the content column's own centered
+     max-width (see PersonalNoteEditor.tsx/TeamNoteEditor.tsx's
+     contentStyle), so nothing needs to read pane/column geometry in JS to
+     keep this in sync. Once the table (from adding/widening columns, or
+     the whole-table corner-resize handle in TableGripControls.tsx) needs
+     more room than that, overflow-x above puts a plain scrollbar under it
+     — matching how Obsidian itself handles a too-wide table, and simpler
+     than the multi-round Notion-breakout ceiling this replaced, which
+     never reliably held under live testing. */
+  width: fit-content;
+  max-width: 100%;
+  /* prosemirror-tables draws its column-resize handle (below) positioned
+     `right: -2px` relative to whichever cell it's nearest — for every
+     *internal* column border that 2px sliver still lands inside the
+     table's own total width, but for the very LAST column it pokes just
+     past the table's own right edge. Since the wrapper is sized via
+     `width: fit-content` with zero slack (it fits the table exactly), that
+     sliver fell inside this element's own overflow-x: auto clipping and
+     was invisible/unclickable — the one column whose width you'd most
+     expect to be able to drag. box-sizing: border-box (Tailwind's global
+     reset) keeps this padding inside the wrapper's own width/max-width. */
+  padding-right: 8px;
+}
+.ProseMirror table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  /* Deliberately no width: 100% — prosemirror-tables' own TableView already
+     sets an inline width/min-width on the table element (see
+     @tiptap/extension-table's updateColumns()), computed from the columns'
+     actual/resized widths. Forcing 100% here overrode that, stretching even
+     a small untouched table to fill the whole (width: fit-content, see the
+     .tableWrapper rule above) wrapper — a table only uses the width its
+     content/columns actually need, same as any other block. */
+}
+.ProseMirror td,
+.ProseMirror th {
+  position: relative;
+  vertical-align: top;
+  box-sizing: border-box;
+  min-width: 3em;
+  padding: 0.4em 0.6em;
+  border: 1px solid var(--canvas-border);
+}
+.ProseMirror th {
+  background: var(--canvas);
+  font-weight: 600;
+  text-align: left;
+}
+.ProseMirror td > p,
+.ProseMirror th > p {
+  margin: 0;
+}
+.ProseMirror .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  z-index: 20;
+  background-color: var(--brand-purple-light);
+  pointer-events: none;
+}
+.ProseMirror.resize-cursor {
+  cursor: col-resize;
+}
+/* Selected cell(s) — a purple overlay to match the app's own selection tint
+   elsewhere, rather than prosemirror-tables' default blue. */
+.ProseMirror .selectedCell:after {
+  z-index: 2;
+  position: absolute;
+  content: "";
+  inset: 0;
+  background: var(--brand-purple-tint);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 /* Comment thread anchor — an open thread reads like Notion's yellow
    highlight; resolved gets a quiet dashed underline instead. Resolved/hover
    state is rendered via a ProseMirror Decoration nested *inside* the mark's

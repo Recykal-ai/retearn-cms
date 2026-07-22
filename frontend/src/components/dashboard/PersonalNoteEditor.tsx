@@ -160,7 +160,7 @@ export function PersonalNoteEditor({
   };
 
   return (
-    <div className="relative h-full overflow-y-auto">
+    <div className="relative h-full overflow-y-auto" data-notes-scroll-container>
       <div className="absolute top-6 right-6 z-30 flex items-center gap-2">
         <span className="shrink-0 text-xs text-neutral-400">
           {saveState === "pending" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
@@ -175,7 +175,7 @@ export function PersonalNoteEditor({
         </button>
       </div>
 
-      <div className="py-8" style={contentStyle}>
+      <div className="py-8" style={contentStyle} data-notes-content-column>
         <NoteBreadcrumb path={breadcrumb ?? []} />
         {/* "Add icon" only appears on hovering the title block specifically
             — scoped to just this wrapper (icon row + title input), not the

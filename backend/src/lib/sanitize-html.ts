@@ -28,6 +28,15 @@ const ALLOWED_TAGS = [
   // expires long before the note does); the editor's NoteImage NodeView
   // re-resolves a fresh signed URL from the key at render time instead.
   "img",
+  // Tables (@tiptap/extension-table, added well after this allow-list was
+  // first written — tables were silently getting stripped on every save
+  // and only ever appeared to work because the in-memory editor state
+  // still showed them until the next reload). "colgroup"/"col" are
+  // deliberately NOT here — TableView constructs those itself, imperatively,
+  // on every render (see TableExtension.tsx); they're never part of the
+  // schema's own toDOM output, so editor.getHTML() never emits them and
+  // there's nothing to allow-list.
+  "table", "tbody", "tr", "th", "td",
 ];
 const ALLOWED_ATTR = [
   "data-type", "data-id", "data-label", "data-mention-suggestion-char",
@@ -39,6 +48,12 @@ const ALLOWED_ATTR = [
   // update the TeamNoteComment row, never this mark), so it needs no
   // "resolved" attribute counterpart.
   "data-comment-id",
+  // Table structure/sizing — colspan/rowspan/colwidth are plain HTML
+  // attributes @tiptap/extension-table's TableCell renders directly (see
+  // its addAttributes()); "style" is TableExtension.tsx's ResizableTable
+  // persisting a corner-drag width as `style="width: …px"` on the <table>
+  // element itself, the only place this editor ever emits a style attr.
+  "colspan", "rowspan", "colwidth", "style",
 ];
 
 export function sanitizeNoteHtml(html: string): string {
