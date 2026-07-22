@@ -1,8 +1,11 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import {
+  exportNoteToPdf,
+  createDocument,
   getPersonalNotes,
   getPersonalNote,
   createPersonalNote,
@@ -363,6 +366,46 @@ export async function resolveTeamNoteCommentAction(
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to update comment" };
   }
+}
+
+// Backs UploadModal's controlled "Upload to portal" mode (NotesPageContent.tsx),
+// mirroring documents-actions.ts's uploadDocumentAction almost exactly — same
+// flash/redirect pattern, same auto-publish-if-admin toast — except the file
+// itself doesn't come from the submitted form (there's no file input in that
+// mode); it's generated here by rendering the note to PDF server-side, then
+// fed into the exact same createDocument() call any other upload uses.
+export async function exportNoteToPortalAction(formData: FormData) {
+  const session = await requireSession();
+  const ownerTeamId = formData.get("ownerTeamId");
+  const productIds: string[] = JSON.parse((formData.get("productIds") as string) || "[]");
+  const categoryIds: string[] = JSON.parse((formData.get("categoryIds") as string) || "[]");
+  const sourceNoteId = formData.get("sourceNoteId") as string;
+  const sourceNoteType = formData.get("sourceNoteType") as "personal" | "team";
+  const sourceNoteTitle = (formData.get("sourceNoteTitle") as string) || "Note";
+
+  const isAdmin = session.role === "ADMIN" || session.role === "SUPER_ADMIN";
+  const destination = ownerTeamId
+    ? `/dashboard?mode=team&entity=${ownerTeamId}`
+    : productIds[0]
+      ? `/dashboard?mode=product&entity=${productIds[0]}`
+      : "/dashboard";
+
+  let flash = isAdmin ? "upload_published" : "upload_pending";
+  try {
+    const pdfBytes = await exportNoteToPdf(session.appToken!, sourceNoteId, sourceNoteType);
+    const uploadFormData = new FormData();
+    uploadFormData.set("ownerTeamId", typeof ownerTeamId === "string" ? ownerTeamId : "");
+    uploadFormData.set("productIds", JSON.stringify(productIds));
+    uploadFormData.set("categoryIds", JSON.stringify(categoryIds));
+    uploadFormData.set("sourceType", "FILE");
+    uploadFormData.set("file", new Blob([pdfBytes], { type: "application/pdf" }), `${sourceNoteTitle}.pdf`);
+    await createDocument(session.appToken!, uploadFormData);
+  } catch {
+    flash = "upload_error";
+  }
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/approvals");
+  redirect(`${destination}${destination.includes("?") ? "&" : "?"}flash=${flash}`);
 }
 
 export async function deleteTeamNoteCommentAction(id: string, commentId: string): Promise<{ error?: string }> {

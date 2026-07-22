@@ -173,6 +173,23 @@ export function getCategories(appToken: string, scope: string) {
   return backendFetch<Category[]>(`/api/categories?scope=${scope}`, appToken);
 }
 
+// Not routed through backendFetch — that helper always parses the response
+// as JSON, but this endpoint returns raw PDF bytes (see personal-notes.ts /
+// team-notes.ts's export-pdf routes).
+export async function exportNoteToPdf(appToken: string, noteId: string, noteKind: "personal" | "team"): Promise<ArrayBuffer> {
+  const path = noteKind === "personal" ? `/api/personal-notes/${noteId}/export-pdf` : `/api/team-notes/${noteId}/export-pdf`;
+  const res = await fetch(`${BACKEND_URL}${path}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${appToken}` },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const message = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(message.error ?? `${path} failed with ${res.status}`);
+  }
+  return res.arrayBuffer();
+}
+
 export type SortField = "modified" | "name";
 export type SortDir = "asc" | "desc";
 

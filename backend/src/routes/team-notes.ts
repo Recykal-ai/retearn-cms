@@ -5,6 +5,7 @@ import { sanitizeNoteHtml, extractMentionIds } from "../lib/sanitize-html.js";
 import { extractImageKeys, extractDocumentEmbedIds, stripStructuralNodes } from "../lib/note-content-diff.js";
 import { isTeamNoteMember, canCurateTeamNotes } from "../lib/notes-access.js";
 import { loadAdminScope } from "../lib/admin-scope.js";
+import { renderNoteToPdf } from "../lib/note-pdf.js";
 import type { Prisma } from "../generated/prisma/client.js";
 
 export const teamNotesRouter = Router();
@@ -160,6 +161,26 @@ teamNotesRouter.get<{ id: string }>("/:id", requireAuth, async (req, res) => {
     createdBy: { id: note.createdBy.id, name: note.createdBy.name },
     members: note.members.map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email, addedAt: m.addedAt })),
   });
+});
+
+// POST /api/team-notes/:id/export-pdf — renders the note to PDF for the
+// "Upload to portal" flow. Gated by isTeamNoteMember, same as GET /:id above
+// — any member can export, not just a curator, matching this note's own
+// existing viewing rule.
+teamNotesRouter.post<{ id: string }>("/:id/export-pdf", requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!(await isTeamNoteMember(req.user!.userId, id))) {
+    return res.status(403).json({ error: "You don't have access to this note" });
+  }
+
+  const note = await prisma.teamNote.findUnique({ where: { id } });
+  if (!note) return res.status(404).json({ error: "Note not found" });
+
+  const pdf = await renderNoteToPdf(note.title, note.content);
+  if (!pdf) return res.status(500).json({ error: "Failed to generate PDF from this note" });
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.send(pdf);
 });
 
 teamNotesRouter.put<{ id: string }>("/:id", requireAuth, async (req, res) => {

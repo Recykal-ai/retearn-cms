@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { sanitizeNoteHtml } from "../lib/sanitize-html.js";
+import { renderNoteToPdf } from "../lib/note-pdf.js";
 
 export const personalNotesRouter = Router();
 
@@ -104,6 +105,24 @@ personalNotesRouter.patch<{ id: string }>("/:id", requireAuth, async (req, res) 
     include: { team: { select: { id: true, name: true } } },
   });
   res.json(updated);
+});
+
+// POST /api/personal-notes/:id/export-pdf — renders the note to PDF for the
+// "Upload to portal" flow (see notes-actions.ts's exportNoteToPortalAction).
+// Owner-scoped like every other route here; the resulting bytes get fed into
+// the normal POST /api/documents upload from the frontend, so this route
+// itself does nothing with Team/Product/Category — it just returns a file.
+personalNotesRouter.post<{ id: string }>("/:id/export-pdf", requireAuth, async (req, res) => {
+  const note = await prisma.personalNote.findFirst({
+    where: { id: req.params.id, userId: req.user!.userId },
+  });
+  if (!note) return res.status(404).json({ error: "Note not found" });
+
+  const pdf = await renderNoteToPdf(note.title, note.content);
+  if (!pdf) return res.status(500).json({ error: "Failed to generate PDF from this note" });
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.send(pdf);
 });
 
 // Hard delete — a private scratchpad, deliberately not soft-deleted/recoverable

@@ -57,4 +57,14 @@ export const s3Storage = {
     const { client, bucket } = getClient();
     await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key })).catch(() => {});
   },
+
+  async getBytes(key: string): Promise<Buffer> {
+    const { client, bucket } = getClient();
+    const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of res.Body as AsyncIterable<Uint8Array>) {
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks);
+  },
 };

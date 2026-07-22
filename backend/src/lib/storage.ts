@@ -5,6 +5,11 @@ export interface StorageAdapter {
   save(key: string, buffer: Buffer): Promise<void>;
   getSignedUrl(key: string): Promise<{ url: string; expiresIn: number }>;
   delete(key: string): Promise<void>;
+  // Raw bytes for server-side use only (never expose these directly to a
+  // client — that would bypass the signed-URL view-only enforcement). Added
+  // for note-to-PDF export (lib/note-pdf.ts), which needs an image's actual
+  // bytes to inline as a data: URI for LibreOffice's offline HTML render.
+  getBytes(key: string): Promise<Buffer>;
 }
 
 // Swapping providers is exactly this env var — no route, schema, or call-site

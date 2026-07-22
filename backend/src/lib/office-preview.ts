@@ -38,6 +38,13 @@ const SOFFICE_BIN = process.env.SOFFICE_PATH || "soffice";
 // instance. Returns null (never throws) on any failure — soffice missing,
 // a corrupt file, a conversion timeout — so callers can fall back rather
 // than blocking the whole upload on a converter issue.
+//
+// Note: note-pdf.ts's HTML-to-PDF export deliberately does NOT use this
+// pipeline — LibreOffice's HTML import filter has very weak CSS support
+// (table borders and multi-line <pre> backgrounds render badly), so that
+// path renders through headless Chromium (Puppeteer) instead, a real
+// browser engine. This one stays LibreOffice-only because it's converting
+// actual Office document formats, not arbitrary CSS-styled HTML.
 export async function convertOfficeToPdf(buffer: Buffer, filename: string): Promise<Buffer | null> {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "bin";
   const workDir = await mkdtemp(path.join(tmpdir(), "office-preview-"));

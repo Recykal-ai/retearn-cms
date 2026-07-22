@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "crypto";
-import { mkdir, writeFile, unlink } from "fs/promises";
+import { mkdir, writeFile, unlink, readFile } from "fs/promises";
 import { dirname, join } from "path";
 
 // Local-disk storage adapter for Phase 1. Swapping to a real object store
@@ -41,6 +41,10 @@ export const localStorage = {
 
   async delete(key: string): Promise<void> {
     await unlink(join(UPLOAD_ROOT, key)).catch(() => {});
+  },
+
+  async getBytes(key: string): Promise<Buffer> {
+    return readFile(join(UPLOAD_ROOT, key));
   },
 
   filePath(key: string): string {

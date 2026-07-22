@@ -110,6 +110,7 @@ export function NoteFolderTree({
   onSetNoteIcon,
   onCreateNoteInFolder,
   onCreateSubfolder,
+  onExportToPortal,
   autoRenameFolderId,
   emptyLabel,
 }: {
@@ -127,6 +128,10 @@ export function NoteFolderTree({
   onSetNoteIcon: (note: TreeNote, icon: string | null) => void;
   onCreateNoteInFolder: (folderId: string) => void;
   onCreateSubfolder: (folderId: string) => void;
+  // Opens the "Upload to portal" flow for a note (NotesPageContent.tsx) —
+  // shown for every note row regardless of canManage, since any note member
+  // can export (not just a curator/admin) — see NoteRow below.
+  onExportToPortal: (note: TreeNote) => void;
   // The folder just created via "New folder"/"New subfolder" — that one row
   // mounts already in rename mode instead of requiring an extra click,
   // matching Confluence's "Untitled folder" auto-rename behavior.
@@ -192,6 +197,7 @@ export function NoteFolderTree({
         onSetNoteIcon={onSetNoteIcon}
         onCreateNoteInFolder={onCreateNoteInFolder}
         onCreateSubfolder={onCreateSubfolder}
+        onExportToPortal={onExportToPortal}
         autoRenameFolderId={autoRenameFolderId ?? null}
       />
     </div>
@@ -217,6 +223,7 @@ interface LevelProps {
   onSetNoteIcon: (note: TreeNote, icon: string | null) => void;
   onCreateNoteInFolder: (folderId: string) => void;
   onCreateSubfolder: (folderId: string) => void;
+  onExportToPortal: (note: TreeNote) => void;
   autoRenameFolderId: string | null;
 }
 
@@ -257,6 +264,7 @@ function FolderLevel(props: LevelProps) {
           onMove={() => props.onMoveNote(note)}
           onDelete={() => props.onDeleteNote(note)}
           onSetIcon={(icon) => props.onSetNoteIcon(note, icon)}
+          onExportToPortal={() => props.onExportToPortal(note)}
         />
       ))}
     </>
@@ -384,6 +392,7 @@ function NoteRow({
   onMove,
   onSetIcon,
   onDelete,
+  onExportToPortal,
 }: {
   note: TreeNote;
   depth: number;
@@ -393,6 +402,7 @@ function NoteRow({
   onMove: () => void;
   onSetIcon: (icon: string | null) => void;
   onDelete: () => void;
+  onExportToPortal: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
@@ -415,16 +425,18 @@ function NoteRow({
           </span>
         )}
       </button>
-      {canManage && (
-        <RowMenu
-          open={menuOpen}
-          onOpenChange={setMenuOpen}
-          items={[
-            { label: "Move to…", onClick: onMove },
-            { label: "Delete", onClick: onDelete, danger: true },
-          ]}
-        />
-      )}
+      {/* "Upload to portal" always shows, regardless of canManage — any note
+          member can export it (see NotesPageContent.tsx), same access rule
+          as viewing the note itself. Move/Delete stay canManage-gated. */}
+      <RowMenu
+        open={menuOpen}
+        onOpenChange={setMenuOpen}
+        items={[
+          ...(canManage ? [{ label: "Move to…", onClick: onMove }] : []),
+          { label: "Upload to portal", icon: <Icon name="File/Cloud_Upload" size={13} />, onClick: onExportToPortal },
+          ...(canManage ? [{ label: "Delete", onClick: onDelete, danger: true }] : []),
+        ]}
+      />
     </div>
   );
 }

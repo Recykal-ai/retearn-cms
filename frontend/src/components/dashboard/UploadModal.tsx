@@ -45,13 +45,33 @@ export function UploadModal({
   products,
   categoriesByScope,
   action,
+  open: openProp,
+  onOpenChange,
+  sourceNote,
 }: {
   teams: Team[];
   products: Product[];
   categoriesByScope: Record<string, Category[]>;
   action: (formData: FormData) => void;
+  // Controlled-mode pair — when provided, this modal's visibility is driven
+  // externally instead of by its own trigger button. Used by the notes
+  // "Upload to portal" flow (NotesPageContent.tsx), which opens this modal
+  // from a row menu rather than an inline "+ Upload" button. Omitted by
+  // ActionBar.tsx's own self-contained usage, which keeps rendering that
+  // button exactly as before.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  // Set when this upload is generating its file from a note rather than an
+  // actual picked file/link — hides the file input and link section, shows
+  // which note is being exported instead, and skips the "choose a file or
+  // link" validation (notes-actions.ts's exportNoteToPortalAction produces
+  // the file server-side).
+  sourceNote?: { id: string; kind: "personal" | "team"; title: string };
 }) {
-  const [open, setOpen] = useState(false);
+  const isControlled = openProp !== undefined;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = isControlled ? openProp! : internalOpen;
+  const setOpen = isControlled ? (v: boolean) => onOpenChange?.(v) : setInternalOpen;
   const [ownerTeamId, setOwnerTeamId] = useState<string | null>(null);
   const [productIds, setProductIds] = useState<string[]>([]);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
@@ -133,7 +153,7 @@ export function UploadModal({
       setError("Pick at least one category tag.");
       return;
     }
-    if (!fileName && !linkUrl) {
+    if (!sourceNote && !fileName && !linkUrl) {
       e.preventDefault();
       setError("Choose a file or paste a link.");
       return;
@@ -144,16 +164,18 @@ export function UploadModal({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 text-sm font-semibold text-neutral-700 transition-colors hover:text-neutral-900"
-      >
-        <span aria-hidden className="text-base leading-none text-neutral-500">
-          +
-        </span>
-        Upload
-      </button>
+      {!isControlled && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex items-center gap-1.5 text-sm font-semibold text-neutral-700 transition-colors hover:text-neutral-900"
+        >
+          <span aria-hidden className="text-base leading-none text-neutral-500">
+            +
+          </span>
+          Upload
+        </button>
+      )}
 
       {open && (
         <div
@@ -167,7 +189,9 @@ export function UploadModal({
             className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
           >
             <div className="mb-5 flex items-center justify-between">
-              <h1 className="text-lg font-semibold text-neutral-900">Upload a document</h1>
+              <h1 className="text-lg font-semibold text-neutral-900">
+                {sourceNote ? "Upload note to portal" : "Upload a document"}
+              </h1>
               <button
                 type="button"
                 onClick={close}
@@ -287,50 +311,63 @@ export function UploadModal({
 
             <input type="hidden" name="sourceType" value={sourceType} />
 
-            <div className="mb-4">
-              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-neutral-600">
-                <Icon name="File/Folder" size={14} style={{ color: "#8a8a8a" }} />
-                Upload a file
-              </label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                name="file"
-                onChange={onFileChange}
-                className="w-full rounded-md border border-dashed border-neutral-300 px-3 py-4 text-sm text-neutral-600"
-              />
-            </div>
+            {sourceNote ? (
+              <>
+                <input type="hidden" name="sourceNoteId" value={sourceNote.id} />
+                <input type="hidden" name="sourceNoteType" value={sourceNote.kind} />
+                <input type="hidden" name="sourceNoteTitle" value={sourceNote.title} />
+                <div className="mb-5 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm text-neutral-600">
+                  Exporting note: <span className="font-semibold text-neutral-900">{sourceNote.title}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-4">
+                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-neutral-600">
+                    <Icon name="File/Folder" size={14} style={{ color: "#8a8a8a" }} />
+                    Upload a file
+                  </label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    name="file"
+                    onChange={onFileChange}
+                    className="w-full rounded-md border border-dashed border-neutral-300 px-3 py-4 text-sm text-neutral-600"
+                  />
+                </div>
 
-            <div className="mb-2 flex items-center gap-3 text-xs font-medium text-neutral-400">
-              <div className="h-px flex-1 bg-neutral-200" />
-              or
-              <div className="h-px flex-1 bg-neutral-200" />
-            </div>
+                <div className="mb-2 flex items-center gap-3 text-xs font-medium text-neutral-400">
+                  <div className="h-px flex-1 bg-neutral-200" />
+                  or
+                  <div className="h-px flex-1 bg-neutral-200" />
+                </div>
 
-            <div className="mb-5">
-              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-neutral-600">
-                <Icon name="Interface/Link" size={14} style={{ color: "#8a8a8a" }} />
-                Link an existing doc
-              </label>
-              <input
-                ref={linkTitleRef}
-                name="title"
-                placeholder="Title"
-                onChange={onLinkChange}
-                className="mb-2 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
-              />
-              <input
-                ref={linkUrlRef}
-                type="url"
-                name="externalUrl"
-                placeholder="https://docs.google.com/document/d/…"
-                onChange={onLinkChange}
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
-              />
-              <p className="mt-1.5 text-xs text-neutral-400">
-                Set the Drive share to viewer-only so it stays view-only once linked here.
-              </p>
-            </div>
+                <div className="mb-5">
+                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-neutral-600">
+                    <Icon name="Interface/Link" size={14} style={{ color: "#8a8a8a" }} />
+                    Link an existing doc
+                  </label>
+                  <input
+                    ref={linkTitleRef}
+                    name="title"
+                    placeholder="Title"
+                    onChange={onLinkChange}
+                    className="mb-2 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
+                  />
+                  <input
+                    ref={linkUrlRef}
+                    type="url"
+                    name="externalUrl"
+                    placeholder="https://docs.google.com/document/d/…"
+                    onChange={onLinkChange}
+                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
+                  />
+                  <p className="mt-1.5 text-xs text-neutral-400">
+                    Set the Drive share to viewer-only so it stays view-only once linked here.
+                  </p>
+                </div>
+              </>
+            )}
 
             {error && <p className="mb-3 text-xs font-medium text-red-600">{error}</p>}
 

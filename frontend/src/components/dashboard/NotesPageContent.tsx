@@ -21,12 +21,14 @@ import {
   deleteTeamNoteAction,
   getNotificationsAction,
   markNotificationReadAction,
+  exportNoteToPortalAction,
 } from "@/app/dashboard/notes-actions";
-import type { PersonalNote, TeamNoteSummary, NotificationEntry, CreatableTeam, TeamNoteFolder } from "@/lib/api";
+import type { PersonalNote, TeamNoteSummary, NotificationEntry, CreatableTeam, TeamNoteFolder, Team, Product, Category } from "@/lib/api";
 import { PersonalNoteEditor } from "@/components/dashboard/PersonalNoteEditor";
 import { TeamNoteEditor } from "@/components/dashboard/TeamNoteEditor";
 import { CreateTeamNoteModal } from "@/components/dashboard/CreateTeamNoteModal";
 import { MoveToFolderModal } from "@/components/dashboard/MoveToFolderModal";
+import { UploadModal } from "@/components/dashboard/UploadModal";
 import { NoteFolderTree, NoteIcon, FolderIcon, buildBreadcrumb, type TreeFolder, type TreeNote } from "@/components/dashboard/NoteFolderTree";
 import { Icon } from "@/components/dashboard/Icon";
 import { Tag } from "@/components/dashboard/Tag";
@@ -51,8 +53,25 @@ type TeamNoteModalContext = { teamId?: string; teamName?: string; folderId?: str
 // folder's own "+" creates directly inside it, root-level creation comes
 // from the bottom-pinned bar — never a modal asking "which folder." See
 // NoteFolderTree.tsx for the tree itself.
-export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean; currentUserId: string }) {
+export function NotesPageContent({
+  isAdmin,
+  currentUserId,
+  teams,
+  products,
+  categoriesByScope,
+}: {
+  isAdmin: boolean;
+  currentUserId: string;
+  teams: Team[];
+  products: Product[];
+  categoriesByScope: Record<string, Category[]>;
+}) {
   const [mode, setMode] = useState<Mode>("individual");
+  // The note currently being exported via "Upload to portal" — drives the
+  // controlled UploadModal below. kind distinguishes which export-pdf route
+  // to hit (personal vs team note), set alongside title/id at the row-menu
+  // click site since NoteFolderTree's own TreeNote shape doesn't carry it.
+  const [exportTarget, setExportTarget] = useState<{ id: string; kind: "personal" | "team"; title: string } | null>(null);
   const [personalNotes, setPersonalNotes] = useState<PersonalNote[] | null>(null);
   const [personalFolders, setPersonalFolders] = useState<TreeFolder[] | null>(null);
   const [teamNotes, setTeamNotes] = useState<TeamNoteSummary[] | null>(null);
@@ -384,6 +403,7 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
                 onSetNoteIcon={handleSetPersonalNoteIcon}
                 onCreateNoteInFolder={handleQuickCreatePersonalNote}
                 onCreateSubfolder={handleQuickCreatePersonalFolder}
+                onExportToPortal={(note) => setExportTarget({ id: note.id, kind: "personal", title: note.title })}
                 autoRenameFolderId={autoRenameFolderId}
                 emptyLabel="No notes yet — private to you only."
               />
@@ -419,6 +439,7 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
                   if (!folder) return;
                   handleQuickCreateTeamFolder(folder.teamId, folder.id);
                 }}
+                onExportToPortal={(note) => setExportTarget({ id: note.id, kind: "team", title: note.title })}
                 autoRenameFolderId={autoRenameFolderId}
                 emptyLabel="You haven't been added to any team notes yet."
               />
@@ -484,6 +505,20 @@ export function NotesPageContent({ isAdmin, currentUserId }: { isAdmin: boolean;
             <EmptyState label="Select a team note to view it." />
           ))}
       </div>
+
+      <UploadModal
+        // Remounts on every new export target so its internal team/category
+        // picks reset cleanly (React's own recommended alternative to an
+        // effect-driven reset — see react.dev "resetting state with a key").
+        key={exportTarget?.id ?? "closed"}
+        teams={teams}
+        products={products}
+        categoriesByScope={categoriesByScope}
+        action={exportNoteToPortalAction}
+        open={!!exportTarget}
+        onOpenChange={(o) => !o && setExportTarget(null)}
+        sourceNote={exportTarget ?? undefined}
+      />
 
       {teamNoteModalContext && (
         <CreateTeamNoteModal
