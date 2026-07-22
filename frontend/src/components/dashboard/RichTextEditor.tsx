@@ -21,6 +21,7 @@ import { SlashCommand } from "@/components/dashboard/SlashCommandExtension";
 import { SelectionToolbar } from "@/components/dashboard/SelectionToolbar";
 import { TableGripControls } from "@/components/dashboard/TableGripControls";
 import { ResizableTable } from "@/components/dashboard/TableExtension";
+import { NonInclusiveLink } from "@/components/dashboard/LinkExtension";
 import { createSuggestionDismissTracker } from "@/lib/tiptap-suggestion-dismiss";
 import { uploadNoteImageAction } from "@/app/dashboard/notes-actions";
 import { useToast } from "@/components/ToastProvider";
@@ -225,15 +226,30 @@ export const RichTextEditor = forwardRef<
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
-      // Tiptap v3's StarterKit bundles the Link extension — autolink turns a
-      // pasted or typed URL into a real <a> automatically, and the same
-      // extension's setLink/unsetLink commands back the selection toolbar's
-      // manual "Link" button below. openOnClick: false so clicking a link
-      // while editing doesn't navigate the whole tab away mid-edit (still
-      // openable via the usual ctrl/cmd+click). underline isn't configured
-      // here at all — StarterKit registers it by default.
-      StarterKit.configure({
-        link: { autolink: true, openOnClick: false, HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" } },
+      // link: false — StarterKit's own bundled Link extension can't have
+      // its inclusive() method overridden through .configure() (that only
+      // forwards plain options), which is what NonInclusiveLink below
+      // needs to fix (see LinkExtension.tsx's own comment): typing right
+      // after an existing link — even just a trailing space — was
+      // inheriting the link mark, since autolink:true also makes the
+      // stock extension's mark "inclusive" of its own end boundary.
+      // underline isn't configured here at all — StarterKit registers it
+      // by default.
+      StarterKit.configure({ link: false }),
+      // autolink turns a pasted or typed URL into a real <a> automatically,
+      // and the same extension's setLink/unsetLink commands back the
+      // selection toolbar's manual "Link" button below. openOnClick: true
+      // — a link visibly auto-detects on paste but doing nothing at all on
+      // a normal click read as broken, not as "use ctrl/cmd+click instead"
+      // (an earlier version set this to false specifically to avoid that
+      // shortcut, but it isn't a discoverable one, and target: "_blank"
+      // below already means a click opens a new tab rather than
+      // navigating this one away — the actual risk that guarded against
+      // was smaller than it looked).
+      NonInclusiveLink.configure({
+        autolink: true,
+        openOnClick: true,
+        HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" },
       }),
       Highlight,
       TaskList,

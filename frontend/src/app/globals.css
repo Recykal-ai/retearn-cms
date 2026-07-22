@@ -211,6 +211,12 @@ button:not(:disabled) {
   color: var(--brand-purple);
   text-decoration: underline;
   text-underline-offset: 0.15em;
+  /* Inside a contentEditable region the browser's own default is the text
+     (I-beam) cursor everywhere, including over a link — reasonable for
+     plain text, but a link is now actually clickable (see
+     RichTextEditor.tsx's openOnClick), so it should read as clickable
+     too, the same way it would outside an editor. */
+  cursor: pointer;
 }
 
 .ProseMirror mark {
