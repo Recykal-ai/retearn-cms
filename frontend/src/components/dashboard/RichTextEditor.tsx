@@ -138,26 +138,40 @@ function imageFilesFrom(list: FileList | null | undefined): File[] {
 }
 
 // Notion detects a code paste well beyond just "counts some brackets" (it
-// reads clipboard metadata a real code editor attaches), but a copy from
-// VS Code specifically DOES carry an extra clipboard type — checking for
-// that first is a near-zero-false-positive signal. Everything else (a
-// paste from a browser/terminal/plain text file with no such metadata)
-// falls back to a plain heuristic: enough code-shaped punctuation/keywords,
-// packed densely enough, that it reads as code rather than prose — the
-// same rough idea. Kept intentionally conservative (requires several
-// matches AND either real density or multiple indented lines) since a
-// false positive silently turns someone's paragraph into a code block.
+// reads clipboard metadata a real code editor attaches), and a copy from
+// VS Code specifically DOES carry an extra clipboard type ("vscode-editor-
+// data") — but that turned out NOT to be the near-zero-false-positive
+// signal the original version of this comment assumed: VS Code attaches it
+// to every copy made from inside it, including a plain-text/markdown file
+// with no code in it at all, not just actual source files. Treating it as
+// an unconditional "wrap this in a code block" bypass meant pasting a
+// paragraph of ordinary prose copied from a .txt file open in VS Code
+// silently landed in a code block. It's now just a signal that LOWERS the
+// bar for the same punctuation/keyword heuristic below (1 match instead of
+// 4) rather than skipping that heuristic entirely — genuine code (even a
+// short one-liner) still gets caught, but prose with zero code-shaped
+// characters in it never does, regardless of where it was copied from.
 const CODE_SIGNAL_REGEX =
   /[{}\[\];]|=>|\bfunction\b|\bconst\b|\blet\b|\bvar\b|\bimport\b|\bexport\b|\bclass\b|\bdef\b|\breturn\b|#include|:\s*["'{]/gi;
 
-function looksLikeCode(text: string): boolean {
+function looksLikeCode(text: string, lenient = false): boolean {
   const trimmed = text.trim();
   if (!trimmed) return false;
   const matches = trimmed.match(CODE_SIGNAL_REGEX) ?? [];
-  if (matches.length < 4) return false;
+  if (matches.length < (lenient ? 1 : 4)) return false;
   const density = matches.length / trimmed.length;
   const indentedLines = trimmed.split("\n").filter((l) => /^(\s{2,}|\t)/.test(l)).length;
-  return density > 0.02 || indentedLines >= 2 || trimmed.split("\n").length >= 4;
+  // Deliberately NOT "OR trimmed.split('\n').length >= 4" (a former third
+  // disjunct here) — density and indentation are both real code-shaped
+  // signals; raw line/paragraph count is not. Several of the regex's own
+  // keywords ("class," "return," "let," "var") are ordinary English words
+  // too, so any sufficiently long multi-paragraph paste — Lorem Ipsum
+  // included — can rack up 4+ incidental matches purely by being long,
+  // without a single line of it actually looking like code. That let the
+  // "4+ lines" disjunct bypass the density check for exactly that case:
+  // low density, zero indentation, plain prose, wrapped in a code block
+  // anyway just because it happened to be long enough to span 4 lines.
+  return density > 0.02 || indentedLines >= 2;
 }
 
 export const RichTextEditor = forwardRef<
@@ -288,7 +302,7 @@ export const RichTextEditor = forwardRef<
 
         const text = event.clipboardData?.getData("text/plain") ?? "";
         const fromCodeEditor = Array.from(event.clipboardData?.types ?? []).includes("vscode-editor-data");
-        if (fromCodeEditor || looksLikeCode(text)) {
+        if (looksLikeCode(text, fromCodeEditor)) {
           event.preventDefault();
           editor
             .chain()
