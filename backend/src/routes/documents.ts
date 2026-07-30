@@ -6,7 +6,15 @@ import { storage } from "../lib/storage.js";
 import { sanitizeFilename } from "../lib/filename.js";
 import { logger } from "../lib/logger.js";
 import { documentInclude, serializeDocument, loadPinnedIds } from "../lib/document-serializer.js";
-import { loadAdminScope, canManageTeamOrProducts } from "../lib/admin-scope.js";
+import { loadAdminScope, canManageTeamOrProducts, getAdminsForTeamOrProducts } from "../lib/admin-scope.js";
+import {
+  notifyDocumentPending,
+  notifyDocumentApproved,
+  notifyDocumentRejected,
+  notifyDeletionRequested,
+  notifyDeletionApproved,
+  notifyDeletionRejected,
+} from "../lib/notification-emails.js";
 import { getOrCreateOthersCategory } from "../lib/fallback-entities.js";
 import { isOfficePreviewCandidate, convertOfficeToPdf } from "../lib/office-preview.js";
 import {
@@ -465,6 +473,12 @@ documentsRouter.post("/", requireAuth, upload.single("file"), async (req, res) =
     where: { id: document.id },
     include: documentInclude,
   });
+
+  if (!autoPublish) {
+    const admins = await getAdminsForTeamOrProducts(ownerTeamId, productIds);
+    await notifyDocumentPending(admins, { id: full.id, title: full.title }, { name: full.uploadedBy.name }, "upload");
+  }
+
   res.status(201).json(serializeDocument(full));
 });
 
@@ -547,6 +561,14 @@ documentsRouter.post<{ id: string }>("/:id/versions", requireAuth, upload.single
       metadata: { version: nextVersion, autoPublished: autoPublish },
     },
   });
+
+  if (!autoPublish) {
+    const admins = await getAdminsForTeamOrProducts(
+      updated.ownerTeamId,
+      updated.products.map((p) => p.product.id),
+    );
+    await notifyDocumentPending(admins, { id: updated.id, title: updated.title }, { name: updated.uploadedBy.name }, "new_version");
+  }
 
   res.status(201).json(serializeDocument(updated));
 });
@@ -636,6 +658,14 @@ documentsRouter.post<{ id: string; version: string }>(
         metadata: { toVersion: targetVersionNumber, newVersion: nextVersion, autoPublished: autoPublish },
       },
     });
+
+    if (!autoPublish) {
+      const admins = await getAdminsForTeamOrProducts(
+        updated.ownerTeamId,
+        updated.products.map((p) => p.product.id),
+      );
+      await notifyDocumentPending(admins, { id: updated.id, title: updated.title }, { name: updated.uploadedBy.name }, "revert");
+    }
 
     res.status(201).json(serializeDocument(updated));
   },
@@ -753,6 +783,10 @@ documentsRouter.patch<{ id: string }>("/:id/approve", requireAuth, requireRole("
   await prisma.auditLog.create({
     data: { userId: req.user!.userId, action: "approve", targetId: doc.id },
   });
+  await notifyDocumentApproved(
+    { email: updated.uploadedBy.email, name: updated.uploadedBy.name },
+    { id: updated.id, title: updated.title },
+  );
   res.json(serializeDocument(updated));
 });
 
@@ -780,6 +814,11 @@ documentsRouter.patch<{ id: string }>("/:id/reject", requireAuth, requireRole("A
   await prisma.auditLog.create({
     data: { userId: req.user!.userId, action: "reject", targetId: doc.id, metadata: { note: note ?? null } },
   });
+  await notifyDocumentRejected(
+    { email: updated.uploadedBy.email, name: updated.uploadedBy.name },
+    { id: updated.id, title: updated.title },
+    updated.rejectionNote,
+  );
   res.json(serializeDocument(updated));
 });
 
@@ -808,6 +847,11 @@ documentsRouter.post<{ id: string }>("/:id/request-deletion", requireAuth, async
       metadata: { note: note?.trim() || null },
     },
   });
+  const admins = await getAdminsForTeamOrProducts(
+    updated.ownerTeamId,
+    updated.products.map((p) => p.product.id),
+  );
+  await notifyDeletionRequested(admins, { id: updated.id, title: updated.title }, { name: updated.uploadedBy.name });
   res.status(201).json(serializeDocument(updated));
 });
 
@@ -832,6 +876,12 @@ documentsRouter.patch<{ id: string }>(
       return res.status(403).json({ error: "You don't have admin access to this document's team/product" });
     }
 
+    // Captured before the update below nulls it — deletionRequestedById has
+    // no Prisma relation (a bare id, same convention as
+    // DocumentVersion.uploadedBy), and this is the only fetch of `doc` this
+    // handler ever does.
+    const requesterId = doc.deletionRequestedById;
+
     await prisma.document.update({
       where: { id: doc.id },
       data: {
@@ -848,6 +898,12 @@ documentsRouter.patch<{ id: string }>(
     await prisma.auditLog.create({
       data: { userId: req.user!.userId, action: "delete", targetId: doc.id },
     });
+
+    if (requesterId) {
+      const requester = await prisma.user.findUnique({ where: { id: requesterId }, select: { name: true, email: true } });
+      if (requester) await notifyDeletionApproved(requester, { title: doc.title });
+    }
+
     res.status(204).send();
   },
 );
@@ -873,6 +929,10 @@ documentsRouter.patch<{ id: string }>(
       return res.status(403).json({ error: "You don't have admin access to this document's team/product" });
     }
 
+    // Captured before the update below nulls it — same convention as
+    // approve-deletion above (no Prisma relation on deletionRequestedById).
+    const requesterId = doc.deletionRequestedById;
+
     const updated = await prisma.document.update({
       where: { id: doc.id },
       data: { deletionRequestedAt: null, deletionRequestedById: null, deletionRequestNote: null },
@@ -881,6 +941,12 @@ documentsRouter.patch<{ id: string }>(
     await prisma.auditLog.create({
       data: { userId: req.user!.userId, action: "reject_deletion", targetId: doc.id },
     });
+
+    if (requesterId) {
+      const requester = await prisma.user.findUnique({ where: { id: requesterId }, select: { name: true, email: true } });
+      if (requester) await notifyDeletionRejected(requester, { id: updated.id, title: updated.title });
+    }
+
     res.json(serializeDocument(updated));
   },
 );

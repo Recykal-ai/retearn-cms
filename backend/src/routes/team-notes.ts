@@ -6,6 +6,7 @@ import { extractImageKeys, extractDocumentEmbedIds, stripStructuralNodes } from 
 import { isTeamNoteMember, canCurateTeamNotes, canCurateTeamNote } from "../lib/notes-access.js";
 import { loadAdminScope } from "../lib/admin-scope.js";
 import { renderNoteToPdf } from "../lib/note-pdf.js";
+import { notifyMentioned } from "../lib/notification-emails.js";
 import type { Prisma } from "../generated/prisma/client.js";
 
 export const teamNotesRouter = Router();
@@ -303,6 +304,11 @@ teamNotesRouter.put<{ id: string }>("/:id", requireAuth, async (req, res) => {
     await prisma.notification.createMany({
       data: newlyMentioned.map((userId) => ({ userId, teamNoteId: id, triggeredById: req.user!.userId })),
     });
+    const [recipients, mentioner] = await Promise.all([
+      prisma.user.findMany({ where: { id: { in: newlyMentioned } }, select: { email: true, name: true } }),
+      prisma.user.findUnique({ where: { id: req.user!.userId }, select: { name: true } }),
+    ]);
+    await notifyMentioned(recipients, { name: mentioner?.name ?? "Someone" }, { id, title: updated.title });
   }
   if (activityRows.length > 0) {
     await prisma.teamNoteActivity.createMany({ data: activityRows as Prisma.TeamNoteActivityCreateManyInput[] });
@@ -400,6 +406,14 @@ teamNotesRouter.delete<{ id: string; userId: string }>("/:id/members/:userId", r
   const { id, userId } = req.params;
   if (!(await canCurateTeamNote(req.user!.userId, req.user!.role, id))) {
     return res.status(403).json({ error: "You don't have admin access to this team" });
+  }
+
+  // The creator can't be removed from their own note — enforced here too,
+  // not just hidden in the UI, since a curator (including the creator
+  // themself) could otherwise hit this route directly.
+  const note = await prisma.teamNote.findUnique({ where: { id }, select: { createdById: true } });
+  if (note?.createdById === userId) {
+    return res.status(400).json({ error: "The note's creator can't be removed from it" });
   }
 
   await prisma.teamNoteMembership.deleteMany({ where: { teamNoteId: id, userId } });
@@ -521,9 +535,16 @@ teamNotesRouter.post<{ id: string }>("/:id/comments", requireAuth, async (req, r
     );
     const notifyIds = mentionIds.filter((mid) => memberIds.has(mid) && mid !== req.user!.userId);
     if (notifyIds.length > 0) {
+      const uniqueIds = [...new Set(notifyIds)];
       await prisma.notification.createMany({
-        data: [...new Set(notifyIds)].map((userId) => ({ userId, teamNoteId: id, triggeredById: req.user!.userId })),
+        data: uniqueIds.map((userId) => ({ userId, teamNoteId: id, triggeredById: req.user!.userId })),
       });
+      const [recipients, note, mentioner] = await Promise.all([
+        prisma.user.findMany({ where: { id: { in: uniqueIds } }, select: { email: true, name: true } }),
+        prisma.teamNote.findUnique({ where: { id }, select: { title: true } }),
+        prisma.user.findUnique({ where: { id: req.user!.userId }, select: { name: true } }),
+      ]);
+      await notifyMentioned(recipients, { name: mentioner?.name ?? "Someone" }, { id, title: note?.title ?? "Untitled note" }, comment.id);
     }
   }
 

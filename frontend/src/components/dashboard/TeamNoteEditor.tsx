@@ -308,6 +308,12 @@ export function TeamNoteEditor({
     }
     setDetail(await getTeamNoteAction(noteId));
     setQuery("");
+    // Explicit re-fetch, not just setQuery("") — the candidates-search effect
+    // below only re-runs when `query` actually changes, so adding someone
+    // from the *default* (empty-query) candidate list left them stuck
+    // showing in that list even though they're now a member (setQuery("")
+    // is a same-value no-op when query was already "").
+    setCandidates(await searchCandidateUsersAction(noteId, ""));
   }
 
   async function handleRemoveMember(userId: string) {
@@ -317,6 +323,9 @@ export function TeamNoteEditor({
       return;
     }
     setDetail(await getTeamNoteAction(noteId));
+    // Same reasoning as handleAddMember — a removed member should become an
+    // addable candidate again immediately, not just after the query changes.
+    setCandidates(await searchCandidateUsersAction(noteId, query));
   }
 
   if (!detail) {
@@ -430,21 +439,38 @@ export function TeamNoteEditor({
               <div className="absolute top-full right-0 z-20 mt-1 w-64 rounded-lg border border-neutral-200 bg-white p-3 shadow-lg">
                 <p className="mb-2 text-xs font-semibold tracking-wide text-neutral-400 uppercase">Members</p>
                 <ul className="mb-3 max-h-40 space-y-1 overflow-y-auto">
-                  {detail.members.map((m) => (
-                    <li key={m.id} className="group flex items-center justify-between gap-1">
-                      <span className="truncate text-sm text-neutral-700">{m.name}</span>
-                      {detail.canCurate && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveMember(m.id)}
-                          aria-label={`Remove ${m.name}`}
-                          className="shrink-0 text-xs text-neutral-400 opacity-0 hover:text-red-600 group-hover:opacity-100"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </li>
-                  ))}
+                  {/* Creator pinned to the top regardless of membership-row
+                      order (addedAt can tie across everyone added in the
+                      same initial creation batch, so it isn't a reliable
+                      "creator is first" signal on its own) — identified via
+                      detail.createdBy.id, not position. */}
+                  {[...detail.members].sort((a, b) => Number(b.id === detail.createdBy.id) - Number(a.id === detail.createdBy.id)).map((m) => {
+                    const isCreator = m.id === detail.createdBy.id;
+                    return (
+                      <li key={m.id} className="group flex items-center justify-between gap-1">
+                        <span className="flex min-w-0 items-baseline gap-1.5">
+                          <span className="truncate text-sm text-neutral-700">{m.name}</span>
+                          {isCreator && (
+                            <span className="shrink-0 rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">
+                              Creator
+                            </span>
+                          )}
+                        </span>
+                        {/* The creator can't be removed from their own note —
+                            not by themself, not by another curator. */}
+                        {detail.canCurate && !isCreator && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMember(m.id)}
+                            aria-label={`Remove ${m.name}`}
+                            className="shrink-0 text-xs text-neutral-400 opacity-0 hover:text-red-600 group-hover:opacity-100"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
                 {detail.canCurate && (
                   <div>

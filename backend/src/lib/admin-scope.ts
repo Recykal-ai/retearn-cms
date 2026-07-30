@@ -26,3 +26,33 @@ export function canManageTeamOrProducts(
   if (teamId && scope.teamIds.has(teamId)) return true;
   return productIds.some((id) => scope.productIds.has(id));
 }
+
+export interface NotifiableAdmin {
+  id: string;
+  name: string;
+  email: string;
+}
+
+// Reverse of canManageTeamOrProducts — given a document's team/product
+// scope, who should be notified? The union of every active SUPER_ADMIN
+// (always global), every active ADMIN with zero AdminScope rows (the same
+// "global admin" default loadAdminScope treats as unrestricted), and every
+// active ADMIN whose rows match this teamId or any of these productIds.
+// `active: true` mirrors middleware/auth.ts's own login gate — a
+// deactivated admin shouldn't get emailed either.
+export async function getAdminsForTeamOrProducts(
+  teamId: string | null | undefined,
+  productIds: string[],
+): Promise<NotifiableAdmin[]> {
+  const admins = await prisma.user.findMany({
+    where: { active: true, role: { in: ["SUPER_ADMIN", "ADMIN"] } },
+    include: { adminScopes: true },
+  });
+  return admins
+    .filter((a) => {
+      if (a.role === "SUPER_ADMIN") return true;
+      if (a.adminScopes.length === 0) return true; // global admin
+      return a.adminScopes.some((s) => (teamId && s.teamId === teamId) || (s.productId && productIds.includes(s.productId)));
+    })
+    .map((a) => ({ id: a.id, name: a.name, email: a.email }));
+}

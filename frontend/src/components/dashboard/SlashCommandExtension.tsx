@@ -238,11 +238,20 @@ export const SlashCommand = Extension.create<{ onInsertImage: () => void }>({
 
           return {
             onStart: (props) => {
-              component = new ReactRenderer(SlashCommandList, {
-                props: { items: props.items, command: props.command },
-                editor: props.editor,
+              // Deferred by a microtask — same fix, same reason as
+              // AtMentionMenu's suggestion in RichTextEditor.tsx: ReactRenderer's
+              // constructor calls flushSync() synchronously once the editor is
+              // mounted, which trips React's "flushSync called while already
+              // rendering" warning when onStart fires from inside a React
+              // commit phase (as it does here, via ProseMirror's transaction
+              // dispatch). See that file's comment for the full explanation.
+              queueMicrotask(() => {
+                component = new ReactRenderer(SlashCommandList, {
+                  props: { items: props.items, command: props.command },
+                  editor: props.editor,
+                });
+                unmount = props.mount(component.element as HTMLElement);
               });
-              unmount = props.mount(component.element as HTMLElement);
             },
             onUpdate: (props) => {
               component?.updateProps({ items: props.items, command: props.command });

@@ -79,26 +79,48 @@ export interface MentionCandidate {
 // carry whatever AtMentionMenu actually passes (an AtMenuSelection, not a
 // MentionNodeAttrs), since `command` is overridden immediately below to stop
 // relying on Mention's own default (mention-node-only) implementation.
-function buildAtMenuSuggestion(candidates: MentionCandidate[]): Partial<SuggestionOptions<MentionCandidate, MentionNodeAttrs>> {
+function buildAtMenuSuggestion(
+  getCandidates: () => MentionCandidate[],
+): Partial<SuggestionOptions<MentionCandidate, MentionNodeAttrs>> {
   // See lib/tiptap-suggestion-dismiss.ts — a dismissed "@" (typed a space,
   // hit Escape, clicked away) stays permanently inert instead of reopening
   // the menu the moment the cursor comes back to sit next to it.
   const dismissTracker = createSuggestionDismissTracker();
   return {
     allow: dismissTracker.allow,
+    // Reads via a getter (backed by a ref, see the call site) rather than
+    // closing over a plain array — useEditor only builds this extension
+    // config once, at mount, so a bare closed-over array would freeze
+    // whatever the member list looked like at that moment. Someone added as
+    // a note member after that (e.g. via "Manage members" while the note
+    // stays open, no remount) wouldn't show up in "@" until the note was
+    // closed and reopened. The ref always holds the latest prop value.
     items: ({ query }) =>
-      candidates.filter((c) => c.label.toLowerCase().includes(query.toLowerCase())).slice(0, 5),
+      getCandidates().filter((c) => c.label.toLowerCase().includes(query.toLowerCase())).slice(0, 5),
     render: () => {
       let component: ReactRenderer<{ onKeyDown: (props: { event: KeyboardEvent }) => boolean }> | undefined;
       let unmount: (() => void) | undefined;
 
       return {
         onStart: (props) => {
-          component = new ReactRenderer(AtMentionMenu, {
-            props: { people: props.items, query: props.query, command: props.command as unknown as (item: AtMenuSelection) => void },
-            editor: props.editor,
+          // ReactRenderer's constructor calls React's flushSync()
+          // synchronously once the editor is already mounted (see
+          // node_modules/@tiptap/react's ReactRenderer.tsx) — but onStart
+          // itself fires from inside ProseMirror's transaction-dispatch
+          // cycle, which here runs from within a React commit phase,
+          // tripping React's "flushSync called while already rendering"
+          // warning. Deferring construction by one microtask moves it
+          // outside that call stack — the delay is imperceptible, and no
+          // other Suggestion callback (onUpdate/onKeyDown/onExit) can fire
+          // before this microtask drains, since those only ever run in
+          // response to a later keystroke (a separate macrotask).
+          queueMicrotask(() => {
+            component = new ReactRenderer(AtMentionMenu, {
+              props: { people: props.items, query: props.query, command: props.command as unknown as (item: AtMenuSelection) => void },
+              editor: props.editor,
+            });
+            unmount = props.mount(component.element as HTMLElement);
           });
-          unmount = props.mount(component.element as HTMLElement);
         },
         onUpdate: (props) => {
           component?.updateProps({ people: props.items, query: props.query, command: props.command as unknown as (item: AtMenuSelection) => void });
@@ -220,6 +242,15 @@ export const RichTextEditor = forwardRef<
   const insertImageAtRef = useRef<number | null>(null);
   const { show } = useToast();
 
+  // Kept in sync every render (no deps array) so the "@" suggestion's
+  // items() — set up once at editor construction, see buildAtMenuSuggestion
+  // below — always reads the current member list instead of whatever it
+  // was when the editor first mounted.
+  const mentionCandidatesRef = useRef<MentionCandidate[]>(mentionCandidates ?? []);
+  useEffect(() => {
+    mentionCandidatesRef.current = mentionCandidates ?? [];
+  });
+
   // Shared by the slash-menu's "Insert image" (file picker), pasting an
   // image from the clipboard, and dragging one in — all three just need to
   // get bytes to the server and drop a noteImage node in wherever's
@@ -311,7 +342,7 @@ export const RichTextEditor = forwardRef<
           // "mentions don't work" from a real user just typing
           // naturally. null lifts that restriction entirely.
           allowedPrefixes: null,
-          ...buildAtMenuSuggestion(mentionCandidates ?? []),
+          ...buildAtMenuSuggestion(() => mentionCandidatesRef.current),
         },
       }),
     ],

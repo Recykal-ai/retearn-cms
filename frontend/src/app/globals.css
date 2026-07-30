@@ -293,7 +293,17 @@ button:not(:disabled) {
    matching the app's own borders/tints rather than importing that CSS. */
 .ProseMirror .tableWrapper {
   overflow-x: auto;
-  margin: 0.6em 0;
+  /* Top margin specifically needs to clear TableGripControls.tsx's column-
+     grip hover zone, which sits ZONE_SIZE (16px) + GRIP_GAP (4px) = 20px
+     above the table itself. The previous symmetric 0.6em (~9-10px at normal
+     body size) left that zone overlapping the last line of whatever
+     preceding paragraph the table was inserted right after — not just a
+     visual overlap, that zone's button also silently ate clicks meant for
+     the text underneath it. Fixed px (not em) since this is pixel-precise
+     clearance for a fixed-size UI element, not typographic rhythm; bottom
+     stays the original 0.6em since nothing sits below the table needing it.
+  */
+  margin: 24px 0 0.6em;
   /* Obsidian's model, not Notion's breakout: a table NEVER extends past the
      note's own reading column — the exact same right margin every other
      block (paragraphs, headings, images) already respects, not a wider,

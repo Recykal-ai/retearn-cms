@@ -150,7 +150,11 @@ function cacheAllTableWidths(editor: Editor, cache: Map<number, number[]>) {
     if (firstRow) {
       cache.set(pos, Array.from(firstRow.cells).map((c) => Math.round(c.getBoundingClientRect().width)));
     }
-    return false; // no nested tables to descend into
+    // Keep descending — a cell's content can itself contain another table
+    // (nested tables are a real, supported case, not a hypothetical one),
+    // and that inner table needs its own entry in `cache` too, keyed by its
+    // own tablePos, same as any top-level one.
+    return true;
   });
 }
 
@@ -530,7 +534,10 @@ export function TableGripControls({ editor }: { editor: Editor }) {
           } else {
             lastColWidthsByTableRef.current.set(pos, widths);
           }
-          return false;
+          // Keep descending (see the other branch's comment below for the
+          // full reasoning) — a cell in THIS table can itself contain a
+          // nested table that also needs reconciling.
+          return true;
         }
         lastColWidthsByTableRef.current.set(pos, widths);
 
@@ -543,7 +550,16 @@ export function TableGripControls({ editor }: { editor: Editor }) {
             }
           }
         }
-        return false;
+        // Keep descending into this table's own cell content — a nested
+        // table (a cell containing another whole table) is a real, working
+        // case (see NoteImageExtension-adjacent table nesting), and it needs
+        // its own pass through this exact function, keyed by its own pos,
+        // same as any top-level table. Returning false here used to skip
+        // that entirely: @tiptap/extension-table's TableView still clears a
+        // nested table's own style.width on every transaction same as any
+        // other table's, but nothing ever reasserted it back, since this
+        // walk never reached it — the resize-then-snap-back bug.
+        return true;
       });
 
       // Forget tables that no longer exist (deleted) so a future table
@@ -659,6 +675,17 @@ export function TableGripControls({ editor }: { editor: Editor }) {
     } else {
       withFreshTable(({ tr, map, table, tableStart }) => removeRow(tr, rectFor(map, table, tableStart), index));
     }
+    setMenu(null);
+  }
+
+  // Deletes the whole table in one step — previously the only way to get
+  // rid of a table entirely was to delete every column/row down to the
+  // last one (which removeColumnAt/removeRowAt above already special-case
+  // into a deleteTable() themselves), one at a time. Same underlying
+  // command, just reachable directly from either grip's menu instead of
+  // requiring that whole column-by-column/row-by-row teardown first.
+  function deleteWholeTable() {
+    editor.chain().focus().deleteTable().run();
     setMenu(null);
   }
 
@@ -957,6 +984,7 @@ export function TableGripControls({ editor }: { editor: Editor }) {
             danger
             onClick={() => (menu.kind === "col" ? removeColumnAt(menu.index) : removeRowAt(menu.index))}
           />
+          <MenuItem icon="Interface/Trash_Empty" label="Delete table" danger onClick={deleteWholeTable} />
         </div>
       )}
     </>,
