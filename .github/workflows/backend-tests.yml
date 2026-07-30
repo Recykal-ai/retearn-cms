@@ -1,0 +1,63 @@
+name: Backend tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      # Matches the local Postgres 17 the dev DB runs on. GitHub spins this
+      # up as a throwaway container for the job's lifetime only — nothing
+      # persists between runs, so no separate "create the test DB" step is
+      # needed, POSTGRES_DB below does that on container start.
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: retearn_cms_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # None of these are real secrets — the routes that would actually use
+      # a genuine Google OAuth client / signed file URL aren't exercised by
+      # this test suite (see backend/tests's own scope notes); these values
+      # only need to exist so the modules that read them at import time
+      # don't throw. Safe to keep inline here rather than as GitHub Secrets.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/retearn_cms_test?schema=public
+      JWT_SECRET: ci-jwt-secret-do-not-use-in-prod
+      GOOGLE_CLIENT_ID: ci-google-client-id
+      FILE_URL_SECRET: ci-file-url-secret
+      FRONTEND_ORIGIN: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      # Not run automatically on install (no postinstall hook in
+      # package.json) — src/generated/prisma is gitignored, so it doesn't
+      # exist on a fresh checkout until this runs.
+      - run: npx prisma generate
+
+      # tests/global-setup.ts pushes the schema to the (already-empty,
+      # freshly-created) test DB itself — no separate migrate/push step
+      # needed here.
+      - run: npm test
