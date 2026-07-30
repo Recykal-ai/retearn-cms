@@ -52,6 +52,7 @@ export function TeamNoteEditor({
   onTitleFocused,
   onSaved,
   onDeleted,
+  onFlushRef,
 }: {
   noteId: string;
   currentUserId: string;
@@ -76,6 +77,11 @@ export function TeamNoteEditor({
   // list only ever catches up on a full page reload.
   onSaved?: () => void;
   onDeleted: () => void;
+  // Hands the parent a way to force any pending (debounced) autosave to
+  // happen immediately — called on every render so the parent always holds
+  // the latest closure. Used by NotesPageContent's "Upload to portal" flow —
+  // see PersonalNoteEditor.tsx's matching prop for the full rationale.
+  onFlushRef?: (flush: () => Promise<void>) => void;
 }) {
   const [detail, setDetail] = useState<TeamNoteDetail | null>(null);
   const [title, setTitle] = useState("");
@@ -249,6 +255,17 @@ export function TeamNoteEditor({
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(flush, AUTOSAVE_DELAY_MS);
   }
+
+  async function forceFlush() {
+    if (!timerRef.current) return; // nothing pending — already saved
+    clearTimeout(timerRef.current);
+    timerRef.current = null;
+    await flush();
+  }
+
+  useEffect(() => {
+    onFlushRef?.(forceFlush);
+  });
 
   useEffect(() => {
     return () => {

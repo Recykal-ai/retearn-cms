@@ -72,6 +72,14 @@ export function NotesPageContent({
   // to hit (personal vs team note), set alongside title/id at the row-menu
   // click site since NoteFolderTree's own TreeNote shape doesn't carry it.
   const [exportTarget, setExportTarget] = useState<{ id: string; kind: "personal" | "team"; title: string } | null>(null);
+  // Handed to us by whichever editor is currently mounted (PersonalNoteEditor/
+  // TeamNoteEditor's onFlushRef prop), re-assigned on every one of their
+  // renders so it always points at the current closure. Only the editor for
+  // the currently-open note is relevant — exporting a different, unopened
+  // note has nothing pending to flush, since its last edit was already saved
+  // before the user navigated away from it.
+  const personalFlushRef = useRef<(() => Promise<void>) | null>(null);
+  const teamFlushRef = useRef<(() => Promise<void>) | null>(null);
   const [personalNotes, setPersonalNotes] = useState<PersonalNote[] | null>(null);
   const [personalFolders, setPersonalFolders] = useState<TreeFolder[] | null>(null);
   const [teamNotes, setTeamNotes] = useState<TeamNoteSummary[] | null>(null);
@@ -403,7 +411,14 @@ export function NotesPageContent({
                 onSetNoteIcon={handleSetPersonalNoteIcon}
                 onCreateNoteInFolder={handleQuickCreatePersonalNote}
                 onCreateSubfolder={handleQuickCreatePersonalFolder}
-                onExportToPortal={(note) => setExportTarget({ id: note.id, kind: "personal", title: note.title })}
+                onExportToPortal={async (note) => {
+                  // If this note is the one currently open, its most recent
+                  // edits may still be sitting in the 1.2s autosave debounce
+                  // — flush them first so the export doesn't silently ship a
+                  // stale version. See PersonalNoteEditor.tsx's onFlushRef.
+                  if (note.id === selectedPersonalId) await personalFlushRef.current?.();
+                  setExportTarget({ id: note.id, kind: "personal", title: note.title });
+                }}
                 autoRenameFolderId={autoRenameFolderId}
                 emptyLabel="No notes yet — private to you only."
               />
@@ -439,7 +454,10 @@ export function NotesPageContent({
                   if (!folder) return;
                   handleQuickCreateTeamFolder(folder.teamId, folder.id);
                 }}
-                onExportToPortal={(note) => setExportTarget({ id: note.id, kind: "team", title: note.title })}
+                onExportToPortal={async (note) => {
+                  if (note.id === selectedTeamNoteId) await teamFlushRef.current?.();
+                  setExportTarget({ id: note.id, kind: "team", title: note.title });
+                }}
                 autoRenameFolderId={autoRenameFolderId}
                 emptyLabel="You haven't been added to any team notes yet."
               />
@@ -480,6 +498,9 @@ export function NotesPageContent({
                 setSelectedPersonalId(null);
                 getPersonalNotesAction().then(setPersonalNotes);
               }}
+              onFlushRef={(fn) => {
+                personalFlushRef.current = fn;
+              }}
             />
           ) : (
             <EmptyState label="Select a note, or create a new one." />
@@ -499,6 +520,9 @@ export function NotesPageContent({
               onDeleted={() => {
                 setSelectedTeamNoteId(null);
                 getTeamNotesListAction().then(setTeamNotes);
+              }}
+              onFlushRef={(fn) => {
+                teamFlushRef.current = fn;
               }}
             />
           ) : (

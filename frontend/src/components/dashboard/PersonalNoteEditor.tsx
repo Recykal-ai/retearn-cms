@@ -29,6 +29,7 @@ export function PersonalNoteEditor({
   onTitleFocused,
   onSaved,
   onDeleted,
+  onFlushRef,
 }: {
   note: PersonalNote;
   // Root-first folder name path (see NoteFolderTree.tsx's buildBreadcrumb),
@@ -43,6 +44,13 @@ export function PersonalNoteEditor({
   onTitleFocused?: () => void;
   onSaved: () => void;
   onDeleted: () => void;
+  // Hands the parent a way to force any pending (debounced) autosave to
+  // happen immediately — called on every render so the parent always holds
+  // the latest closure. Used by NotesPageContent's "Upload to portal" flow:
+  // exporting this note while it's the one currently open and mid-edit would
+  // otherwise export whatever was last autosaved up to 1.2s ago, silently
+  // missing the most recent keystrokes.
+  onFlushRef?: (flush: () => Promise<void>) => void;
 }) {
   const [title, setTitle] = useState(note.title);
   const [icon, setIcon] = useState(note.icon);
@@ -107,6 +115,17 @@ export function PersonalNoteEditor({
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(flush, AUTOSAVE_DELAY_MS);
   }
+
+  async function forceFlush() {
+    if (!timerRef.current) return; // nothing pending — already saved
+    clearTimeout(timerRef.current);
+    timerRef.current = null;
+    await flush();
+  }
+
+  useEffect(() => {
+    onFlushRef?.(forceFlush);
+  });
 
   useEffect(() => {
     return () => {

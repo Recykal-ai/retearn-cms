@@ -152,27 +152,37 @@ function imageFilesFrom(list: FileList | null | undefined): File[] {
 // 4) rather than skipping that heuristic entirely — genuine code (even a
 // short one-liner) still gets caught, but prose with zero code-shaped
 // characters in it never does, regardless of where it was copied from.
-const CODE_SIGNAL_REGEX =
-  /[{}\[\];]|=>|\bfunction\b|\bconst\b|\blet\b|\bvar\b|\bimport\b|\bexport\b|\bclass\b|\bdef\b|\breturn\b|#include|:\s*["'{]/gi;
+// Split into two tiers, not one flat regex — STRUCTURAL_REGEX's punctuation
+// essentially never appears in ordinary prose, while every keyword in
+// KEYWORD_REGEX ("class," "return," "let," "var," "import," "export") is
+// also a completely ordinary English word. Treating a keyword hit and a
+// structural hit as equally strong evidence is what let a plain sentence
+// like "You can import this design, export it as a class, and return to the
+// previous screen." (4 keyword hits, zero brackets/semicolons/arrows) trip
+// the density check below despite not containing a single code-shaped line —
+// the same failure class as the Lorem-Ipsum/4-line-disjunct case fixed
+// previously, just triggered by common-word density instead of raw length.
+const STRUCTURAL_REGEX = /[{}[\];]|=>|#include|:\s*["'{]/g;
+const KEYWORD_REGEX = /\bfunction\b|\bconst\b|\blet\b|\bvar\b|\bimport\b|\bexport\b|\bclass\b|\bdef\b|\breturn\b/gi;
 
 function looksLikeCode(text: string, lenient = false): boolean {
   const trimmed = text.trim();
   if (!trimmed) return false;
-  const matches = trimmed.match(CODE_SIGNAL_REGEX) ?? [];
-  if (matches.length < (lenient ? 1 : 4)) return false;
-  const density = matches.length / trimmed.length;
+  const structural = trimmed.match(STRUCTURAL_REGEX) ?? [];
+  const keywords = trimmed.match(KEYWORD_REGEX) ?? [];
+  const totalMatches = structural.length + keywords.length;
+  if (totalMatches < (lenient ? 1 : 4)) return false;
   const indentedLines = trimmed.split("\n").filter((l) => /^(\s{2,}|\t)/.test(l)).length;
-  // Deliberately NOT "OR trimmed.split('\n').length >= 4" (a former third
-  // disjunct here) — density and indentation are both real code-shaped
-  // signals; raw line/paragraph count is not. Several of the regex's own
-  // keywords ("class," "return," "let," "var") are ordinary English words
-  // too, so any sufficiently long multi-paragraph paste — Lorem Ipsum
-  // included — can rack up 4+ incidental matches purely by being long,
-  // without a single line of it actually looking like code. That let the
-  // "4+ lines" disjunct bypass the density check for exactly that case:
-  // low density, zero indentation, plain prose, wrapped in a code block
-  // anyway just because it happened to be long enough to span 4 lines.
-  return density > 0.02 || indentedLines >= 2;
+  if (indentedLines >= 2) return true;
+  // Without external confirmation this came from a code editor (lenient —
+  // see the vscode-editor-data clipboard signal below), a keyword-only
+  // match set is exactly the ambiguous-with-English case above — density
+  // alone isn't trusted unless there's at least one unambiguous structural
+  // signal backing it up. `lenient` skips this: the clipboard already told
+  // us where the text came from, so a bare keyword match is enough there.
+  if (!lenient && structural.length === 0) return false;
+  const density = totalMatches / trimmed.length;
+  return density > 0.02;
 }
 
 export const RichTextEditor = forwardRef<
@@ -200,6 +210,14 @@ export const RichTextEditor = forwardRef<
   ref,
 ) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Where to insert the image the file picker (opened via the "/" menu's
+  // "Insert image") returns — captured the instant the picker opens, not
+  // read fresh in handleFileChosen. The native picker dialog itself can sit
+  // open for an arbitrary amount of time while the user browses, during
+  // which the cursor/selection can easily have moved on if they click
+  // elsewhere first — by the time onChange fires, "wherever the selection
+  // currently is" is no longer "where the user meant to insert this."
+  const insertImageAtRef = useRef<number | null>(null);
   const { show } = useToast();
 
   // Shared by the slash-menu's "Insert image" (file picker), pasting an
@@ -275,7 +293,12 @@ export const RichTextEditor = forwardRef<
       // Notion-style "/" command palette — replaces the old right-click menu
       // entirely. Same @tiptap/suggestion utility @mention already uses
       // below, just triggered by "/" and rendering block/format commands.
-      SlashCommand.configure({ onInsertImage: () => fileInputRef.current?.click() }),
+      SlashCommand.configure({
+        onInsertImage: () => {
+          insertImageAtRef.current = editor?.state.selection.to ?? null;
+          fileInputRef.current?.click();
+        },
+      }),
       // Unconditional (not gated behind having any people to @mention) —
       // referencing a portal document via "@" is always useful, even in a
       // personal note with nobody to mention. See buildAtMenuSuggestion.
@@ -307,7 +330,15 @@ export const RichTextEditor = forwardRef<
         const files = imageFilesFrom(event.clipboardData?.files);
         if (files.length > 0 && editor) {
           event.preventDefault();
-          files.forEach((file) => uploadAndInsertImage(editor, file));
+          // Captured now, not read from the selection once the upload
+          // resolves — uploadAndInsertImage's own upload call is async, so
+          // without pinning this down here, an image pasted then followed by
+          // more typing/clicking elsewhere before the network round trip
+          // finishes would land wherever the cursor happened to end up
+          // instead of the paste point (matches handleDrop's dropPos below,
+          // which already captures its position up front for the same reason).
+          const pastePos = editor.state.selection.to;
+          files.forEach((file) => uploadAndInsertImage(editor, file, pastePos));
           return true;
         }
 
@@ -464,7 +495,7 @@ export const RichTextEditor = forwardRef<
     const file = e.target.files?.[0];
     e.target.value = ""; // lets picking the same file twice in a row still fire onChange
     if (!file || !editor) return;
-    uploadAndInsertImage(editor, file);
+    uploadAndInsertImage(editor, file, insertImageAtRef.current ?? undefined);
   }
 
   return (

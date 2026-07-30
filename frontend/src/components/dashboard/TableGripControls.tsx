@@ -704,11 +704,19 @@ export function TableGripControls({ editor }: { editor: Editor }) {
       const t = targetIndexAt(kind, ev);
       if (t !== null) setDragOver(t);
     }
+    // pointercancel (button released outside the window/tab, alt-tab
+    // mid-drag, a touch gesture the browser cancels) never fires pointerup —
+    // without this listener too, the row/column stays stuck mid-drag
+    // (dragging state, listeners) forever. Routed through the same handler:
+    // ev.clientX/Y on a cancel event is whatever it last was, so this just
+    // falls back to "no valid target" and cleans up rather than committing
+    // a move, which is the right behavior for an aborted drag either way.
     function onUp(ev: PointerEvent) {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
       if (!dragging) return; // plain click — let the button's own onClick run
-      const target = targetIndexAt(kind, ev);
+      const target = ev.type === "pointercancel" ? null : targetIndexAt(kind, ev);
       if (target !== null && target !== index) {
         const move = kind === "col" ? moveTableColumn : moveTableRow;
         move({ from: index, to: target })(editor.view.state, editor.view.dispatch);
@@ -719,6 +727,7 @@ export function TableGripControls({ editor }: { editor: Editor }) {
     }
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   }
 
   // Whole-table resize (not a per-column drag — that's the separate
@@ -744,13 +753,20 @@ export function TableGripControls({ editor }: { editor: Editor }) {
     function onMove(ev: PointerEvent) {
       tableEl.style.width = `${clamp(startWidth + (ev.clientX - startX))}px`;
     }
+    // pointercancel needs the same cleanup as pointerup (see startGripDrag's
+    // comment above) — without it, resizingRef.current can get stuck `true`
+    // forever, which permanently disables width persistence for every table
+    // in the note (computeAll's width-heal guard stays suspended) until the
+    // page is reloaded.
     function onUp(ev: PointerEvent) {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      resizingRef.current = false;
+      if (ev.type === "pointercancel") return; // aborted — don't commit a width
       const next = clamp(startWidth + (ev.clientX - startX));
       const { state } = editor.view;
       const node = info ? state.doc.nodeAt(info.tablePos) : null;
-      resizingRef.current = false;
       if (!node) return;
       const tr = state.tr.setNodeMarkup(info!.tablePos, undefined, { ...node.attrs, style: `width: ${next}px` });
       editor.view.dispatch(tr);
@@ -758,6 +774,7 @@ export function TableGripControls({ editor }: { editor: Editor }) {
     }
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   }
 
   return createPortal(

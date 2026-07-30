@@ -3,7 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { sanitizeNoteHtml, extractMentionIds } from "../lib/sanitize-html.js";
 import { extractImageKeys, extractDocumentEmbedIds, stripStructuralNodes } from "../lib/note-content-diff.js";
-import { isTeamNoteMember, canCurateTeamNotes } from "../lib/notes-access.js";
+import { isTeamNoteMember, canCurateTeamNotes, canCurateTeamNote } from "../lib/notes-access.js";
 import { loadAdminScope } from "../lib/admin-scope.js";
 import { renderNoteToPdf } from "../lib/note-pdf.js";
 import type { Prisma } from "../generated/prisma/client.js";
@@ -111,6 +111,18 @@ teamNotesRouter.post("/", requireAuth, async (req, res) => {
 
   const pickedIds = new Set(parseIdArray(memberIds));
   pickedIds.add(req.user!.userId); // creator is always a member of their own note
+
+  // Same active-user gate POST /:id/members enforces for adding a member to
+  // an existing note — without it here, a deactivated (or nonexistent) id in
+  // the initial picker list would either silently become a member or throw
+  // an unhandled FK-violation 500 instead of a clean 400.
+  const otherIds = [...pickedIds].filter((id) => id !== req.user!.userId);
+  if (otherIds.length > 0) {
+    const activeCount = await prisma.user.count({ where: { id: { in: otherIds }, active: true } });
+    if (activeCount !== otherIds.length) {
+      return res.status(400).json({ error: "memberIds must all be existing, active users" });
+    }
+  }
 
   const note = await prisma.teamNote.create({
     data: {
@@ -307,7 +319,7 @@ teamNotesRouter.put<{ id: string }>("/:id", requireAuth, async (req, res) => {
   });
 });
 
-// DELETE /api/team-notes/:id — curator-only (canCurateTeamNotes), same gate
+// DELETE /api/team-notes/:id — curator-only (canCurateTeamNote), same gate
 // as creating one in the first place — since creating a team note already
 // requires curator status, its creator is always already a curator, so
 // there's no separate "creator can always delete" carve-out to add here.
@@ -315,17 +327,22 @@ teamNotesRouter.put<{ id: string }>("/:id", requireAuth, async (req, res) => {
 // note has no approval/versioning lifecycle to preserve history for.
 teamNotesRouter.delete<{ id: string }>("/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
-  const note = await prisma.teamNote.findUnique({ where: { id } });
-  if (!note) return res.status(404).json({ error: "Note not found" });
-  if (!(await canCurateTeamNotes(req.user!.userId, req.user!.role, note.teamId))) {
+  if (!(await canCurateTeamNote(req.user!.userId, req.user!.role, id))) {
     return res.status(403).json({ error: "You don't have admin access to this team" });
   }
 
-  await prisma.notification.deleteMany({ where: { teamNoteId: id } });
-  await prisma.teamNoteMembership.deleteMany({ where: { teamNoteId: id } });
-  await prisma.teamNoteComment.deleteMany({ where: { teamNoteId: id } });
-  await prisma.teamNoteActivity.deleteMany({ where: { teamNoteId: id } });
-  await prisma.teamNote.delete({ where: { id } });
+  // None of these relations cascade at the DB level (no onDelete: Cascade in
+  // schema.prisma), so they're deleted explicitly here — wrapped in a
+  // transaction so a failure partway through can't leave an orphaned note
+  // (e.g. memberships gone but the note row still there, unreachable by
+  // anyone yet still listed for a curator to find and retry-delete).
+  await prisma.$transaction([
+    prisma.notification.deleteMany({ where: { teamNoteId: id } }),
+    prisma.teamNoteMembership.deleteMany({ where: { teamNoteId: id } }),
+    prisma.teamNoteComment.deleteMany({ where: { teamNoteId: id } }),
+    prisma.teamNoteActivity.deleteMany({ where: { teamNoteId: id } }),
+    prisma.teamNote.delete({ where: { id } }),
+  ]);
 
   res.status(204).send();
 });
@@ -357,9 +374,7 @@ teamNotesRouter.get<{ id: string }>("/:id/activity", requireAuth, async (req, re
 
 teamNotesRouter.post<{ id: string }>("/:id/members", requireAuth, async (req, res) => {
   const { id } = req.params;
-  const note = await prisma.teamNote.findUnique({ where: { id } });
-  if (!note) return res.status(404).json({ error: "Note not found" });
-  if (!(await canCurateTeamNotes(req.user!.userId, req.user!.role, note.teamId))) {
+  if (!(await canCurateTeamNote(req.user!.userId, req.user!.role, id))) {
     return res.status(403).json({ error: "You don't have admin access to this team" });
   }
 
@@ -383,9 +398,7 @@ teamNotesRouter.post<{ id: string }>("/:id/members", requireAuth, async (req, re
 
 teamNotesRouter.delete<{ id: string; userId: string }>("/:id/members/:userId", requireAuth, async (req, res) => {
   const { id, userId } = req.params;
-  const note = await prisma.teamNote.findUnique({ where: { id } });
-  if (!note) return res.status(404).json({ error: "Note not found" });
-  if (!(await canCurateTeamNotes(req.user!.userId, req.user!.role, note.teamId))) {
+  if (!(await canCurateTeamNote(req.user!.userId, req.user!.role, id))) {
     return res.status(403).json({ error: "You don't have admin access to this team" });
   }
 
@@ -402,9 +415,7 @@ teamNotesRouter.delete<{ id: string; userId: string }>("/:id/members/:userId", r
 // team, excludes existing members. Used when adding more people later.
 teamNotesRouter.get<{ id: string }>("/:id/candidate-users", requireAuth, async (req, res) => {
   const { id } = req.params;
-  const note = await prisma.teamNote.findUnique({ where: { id } });
-  if (!note) return res.status(404).json({ error: "Note not found" });
-  if (!(await canCurateTeamNotes(req.user!.userId, req.user!.role, note.teamId))) {
+  if (!(await canCurateTeamNote(req.user!.userId, req.user!.role, id))) {
     return res.status(403).json({ error: "You don't have admin access to this team" });
   }
 

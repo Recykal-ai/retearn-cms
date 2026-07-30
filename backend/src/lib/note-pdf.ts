@@ -40,6 +40,14 @@ function getBrowser(): Promise<Browser> {
       headless: "shell",
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
+    // A launch failure (e.g. a transient cold-start filesystem issue)
+    // otherwise caches the rejected promise forever — every future export
+    // would re-await and re-throw that same rejection instead of retrying,
+    // permanently breaking the feature until the process restarts. Clearing
+    // it back to null lets the next call attempt a fresh launch.
+    browserPromise.catch(() => {
+      browserPromise = null;
+    });
   }
   return browserPromise;
 }

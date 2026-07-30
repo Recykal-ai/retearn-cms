@@ -199,9 +199,19 @@ function NoteImageView({ node, updateAttributes, deleteNode, editor, getPos }: R
         updateColumnsOnResize(ctx.tableNode, colgroupEl, tableEl, DEFAULT_CELL_MIN_WIDTH, ctx.colIndex, w + cellExtra);
       }
     }
+    // pointercancel (button released outside the window/tab, alt-tab
+    // mid-drag) never fires pointerup — without also listening for it, the
+    // imgEl.style.maxWidth/maxHeight "none" overrides set above stay stuck
+    // forever (nothing else resets them) and resizingRef.current never goes
+    // back to false. Routed through the same handler rather than a separate
+    // discard path — the width math (clamp(startWidth + dx)) is well-defined
+    // at whatever position the cursor last reported, so there's no
+    // "committing a bogus value" concern the way a table-move's target-cell
+    // lookup would have.
     function onUp(ev: PointerEvent) {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
       resizingRef.current = false;
       // The onMouseLeave guard suppressed hover-tracking for the whole
       // drag, so if the cursor ended up outside the wrapper, `hovered` is
@@ -224,6 +234,7 @@ function NoteImageView({ node, updateAttributes, deleteNode, editor, getPos }: R
     }
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   }
 
   // data-image-key here (not just in renderHTML's serialized form below) is

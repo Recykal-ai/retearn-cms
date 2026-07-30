@@ -12,6 +12,15 @@ const upload = multer({
   limits: { fileSize: 8 * 1024 * 1024 },
 });
 
+// A narrower allow-list than "any image/*" — deliberately kept in lockstep
+// with mime-types.ts's own image entries. Accepting an image/* mimetype that
+// mime-types.ts doesn't recognize (e.g. image/heic, image/bmp) used to mean
+// note-pdf.ts's inlineNoteImages would silently fall back to
+// application/octet-stream for the data: URI, which Chromium can't render —
+// a broken image in the exported PDF with no error logged anywhere. Every
+// type accepted here must have a matching extension entry in MIME_TYPES.
+const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"]);
+
 // Every key this route will ever hand out or resolve lives under this
 // prefix — GET /view-url checks it below so a client can't pass an
 // arbitrary document's storage key here and get a signed URL for it.
@@ -27,8 +36,8 @@ const KEY_PREFIX = "note-images/";
 // for embedding an existing document.
 noteImagesRouter.post("/", requireAuth, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "file is required" });
-  if (!req.file.mimetype.startsWith("image/")) {
-    return res.status(400).json({ error: "Only image files are allowed" });
+  if (!ALLOWED_IMAGE_MIME_TYPES.has(req.file.mimetype)) {
+    return res.status(400).json({ error: "Only PNG, JPEG, GIF, WebP, or SVG images are allowed" });
   }
 
   const key = `${KEY_PREFIX}${randomUUID()}/${sanitizeFilename(req.file.originalname)}`;
