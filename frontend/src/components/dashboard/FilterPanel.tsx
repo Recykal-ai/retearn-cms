@@ -6,6 +6,13 @@ import type { Category, DocStatus } from "@/lib/api";
 import { FILE_TYPE_LABEL, type FileTypeKey } from "@/lib/file-type";
 import { FileTypeIcon } from "@/components/dashboard/FileTypeIcon";
 import { colorForCategory } from "@/lib/tag-colors";
+import { FilterSection } from "@/components/dashboard/FilterSection";
+import { FilterTriggerButton } from "@/components/dashboard/FilterTriggerButton";
+import { FilterDrawerHeader } from "@/components/dashboard/FilterDrawerHeader";
+import { FilterDrawer } from "@/components/dashboard/FilterDrawer";
+import { ModifiedDateSlider } from "@/components/dashboard/ModifiedDateSlider";
+import { UploaderFilterSection, type UploaderOption } from "@/components/dashboard/UploaderFilterSection";
+import { GroupedTagSection, type TagGroup, type TagSuperGroup } from "@/components/dashboard/GroupedTagSection";
 
 // No standalone "Published" option — leaving status unset already resolves
 // to status=PUBLISHED server-side (see documents.ts), so it'd be a second
@@ -16,13 +23,6 @@ const STATUS_OPTIONS: { value: DocStatus | ""; label: string }[] = [
   { value: "REJECTED", label: "Rejected" },
 ];
 
-const DATE_PRESETS: { value: string; label: string }[] = [
-  { value: "", label: "Any time" },
-  { value: "1", label: "Today" },
-  { value: "7", label: "Last 7 days" },
-  { value: "30", label: "Last 30 days" },
-];
-
 const TYPE_OPTIONS: FileTypeKey[] = ["word", "excel", "powerpoint", "pdf", "image", "link", "other"];
 
 export function FilterPanel({
@@ -31,16 +31,24 @@ export function FilterPanel({
   categoryCounts,
   status,
   modifiedSince,
+  uploadedBy,
   type,
   category,
+  uploaders,
+  categoryGroups,
+  categorySuperGroups,
 }: {
   baseHref: string;
   categories: Category[];
   categoryCounts?: Record<string, number>;
   status?: string;
   modifiedSince?: string;
+  uploadedBy?: string;
   type?: string;
   category?: string;
+  uploaders?: UploaderOption[];
+  categoryGroups?: TagGroup[];
+  categorySuperGroups?: TagSuperGroup[];
 }) {
   const [open, setOpen] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
@@ -55,10 +63,11 @@ export function FilterPanel({
 
   const activeTypes = type ? type.split(",").filter(Boolean) : [];
   const activeCategories = category ? category.split(",").filter(Boolean) : [];
+  const activeUploaders = uploadedBy ? uploadedBy.split(",").filter(Boolean) : [];
   const activeDays = modifiedSince ? daysFromIso(modifiedSince) : "";
 
   const activeCount =
-    (status ? 1 : 0) + (modifiedSince ? 1 : 0) + activeTypes.length + activeCategories.length;
+    (status ? 1 : 0) + (modifiedSince ? 1 : 0) + activeTypes.length + activeCategories.length + activeUploaders.length;
 
   const filteredCategories = categories.filter((c) =>
     c.name.toLowerCase().includes(tagSearch.trim().toLowerCase()),
@@ -66,16 +75,16 @@ export function FilterPanel({
 
   // Every control below applies immediately (no separate Apply step).
   // baseHref is the identity URL (mode/entity/view/folder) — it deliberately
-  // does NOT carry status/modifiedSince/type (see DocumentsPanel's
-  // identityHref), so those three are always re-written here from this
-  // panel's own current props rather than trusted to already be on baseHref;
-  // otherwise toggling one would silently erase the other two. category is
-  // the opposite: left untouched unless its own handler fires, since while
-  // inside a folder it's nav state baked into baseHref, not something this
-  // panel owns (see DocumentsPanel's filterCategoryId) — rewriting it from
-  // this panel's own (often-empty) idea of it used to kick you out of
-  // whatever folder you were standing in the moment you touched any other filter.
-  function push(next: { status?: string; days?: string; types?: string[]; categories?: string[] }) {
+  // does NOT carry status/modifiedSince/type/uploadedBy (see DocumentsPanel's
+  // identityHref), so those are always re-written here from this panel's own
+  // current props rather than trusted to already be on baseHref; otherwise
+  // toggling one would silently erase the others. category is the opposite:
+  // left untouched unless its own handler fires, since while inside a folder
+  // it's nav state baked into baseHref, not something this panel owns (see
+  // DocumentsPanel's filterCategoryId) — rewriting it from this panel's own
+  // (often-empty) idea of it used to kick you out of whatever folder you
+  // were standing in the moment you touched any other filter.
+  function push(next: { status?: string; days?: string; types?: string[]; categories?: string[]; uploadedBy?: string[] }) {
     const url = new URL(baseHref, "http://placeholder");
 
     const nextStatus = next.status ?? status ?? "";
@@ -92,6 +101,10 @@ export function FilterPanel({
     const nextTypes = next.types ?? activeTypes;
     if (nextTypes.length) url.searchParams.set("type", nextTypes.join(","));
     else url.searchParams.delete("type");
+
+    const nextUploaders = next.uploadedBy ?? activeUploaders;
+    if (nextUploaders.length) url.searchParams.set("uploadedBy", nextUploaders.join(","));
+    else url.searchParams.delete("uploadedBy");
 
     if (next.categories) {
       if (next.categories.length) url.searchParams.set("category", next.categories.join(","));
@@ -125,51 +138,29 @@ export function FilterPanel({
     push({ categories: activeCategories.includes(id) ? activeCategories.filter((v) => v !== id) : [...activeCategories, id] });
   }
 
+  function toggleUploader(id: string) {
+    push({ uploadedBy: activeUploaders.includes(id) ? activeUploaders.filter((v) => v !== id) : [...activeUploaders, id] });
+  }
+
   function clear() {
     const url = new URL(baseHref, "http://placeholder");
     url.searchParams.delete("status");
     url.searchParams.delete("modifiedSince");
     url.searchParams.delete("type");
     url.searchParams.delete("category");
+    url.searchParams.delete("uploadedBy");
     router.push(`${url.pathname}${url.search}`);
     setOpen(false);
   }
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors"
-        style={
-          activeCount > 0
-            ? { borderColor: "var(--brand-purple)", color: "var(--brand-purple)", background: "var(--brand-purple-tint)" }
-            : { borderColor: "#e5e5e5", color: "#525252" }
-        }
-      >
-        Filter{activeCount > 0 ? ` (${activeCount})` : ""}
-      </button>
+      <FilterTriggerButton activeCount={activeCount} onClick={() => setOpen(true)} />
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="flex-1 bg-black/20" onClick={() => setOpen(false)} />
-          <div
-            className="flex h-full w-80 flex-col overflow-y-auto bg-white shadow-xl"
-            style={{ fontFamily: "var(--font-ui)" }}
-          >
-            <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4">
-              <h2 className="text-base font-semibold text-neutral-900">Filters</h2>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-                className="text-xl leading-none text-neutral-400 hover:text-neutral-600"
-              >
-                ×
-              </button>
-            </div>
+      <FilterDrawer open={open} onClose={() => setOpen(false)}>
+        <FilterDrawerHeader onClose={() => setOpen(false)} onClear={clear} showClear={activeCount > 0} />
 
-            <div className="flex-1 px-5 py-4">
+        <div className="flex-1 px-5 py-4">
               <FilterSection title="Status">
                 <div className="flex flex-col gap-1.5">
                   {STATUS_OPTIONS.map((opt) => (
@@ -187,20 +178,14 @@ export function FilterPanel({
               </FilterSection>
 
               <FilterSection title="Modified">
-                <div className="flex flex-col gap-1.5">
-                  {DATE_PRESETS.map((opt) => (
-                    <label key={opt.value} className="flex items-center gap-2 text-sm text-neutral-700">
-                      <input
-                        type="radio"
-                        name="date-filter"
-                        checked={activeDays === opt.value}
-                        onChange={() => setDays(opt.value)}
-                      />
-                      {opt.label}
-                    </label>
-                  ))}
-                </div>
+                <ModifiedDateSlider value={activeDays} onChange={setDays} />
               </FilterSection>
+
+              {uploaders && uploaders.length > 0 && (
+                <FilterSection title={`Modified By${activeUploaders.length ? ` (${activeUploaders.length})` : ""}`}>
+                  <UploaderFilterSection uploaders={uploaders} selected={activeUploaders} onToggle={toggleUploader} />
+                </FilterSection>
+              )}
 
               <FilterSection title={`Type${activeTypes.length ? ` (${activeTypes.length})` : ""}`}>
                 <div className="flex flex-col gap-1.5">
@@ -218,74 +203,70 @@ export function FilterPanel({
                 </div>
               </FilterSection>
 
-              {categories.length > 0 && (
-                <FilterSection
-                  title={`Tags${activeCategories.length ? ` (${activeCategories.length})` : ""}`}
-                  last
-                >
-                  <input
-                    type="text"
-                    value={tagSearch}
-                    onChange={(e) => setTagSearch(e.target.value)}
-                    placeholder="Search tags…"
-                    className="mb-2 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-700 outline-none focus:border-neutral-400"
-                  />
-                  {filteredCategories.length === 0 && (
-                    <p className="py-1 text-xs text-neutral-400">No tags match &ldquo;{tagSearch}&rdquo;.</p>
-                  )}
-                  <div className="flex flex-col gap-1.5">
-                    {filteredCategories.map((c) => {
-                      const color = colorForCategory(c);
-                      const count = categoryCounts?.[c.id] ?? 0;
-                      return (
-                        <label
-                          key={c.id}
-                          className="flex items-center justify-between gap-2 text-sm text-neutral-700"
-                        >
-                          <span className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={activeCategories.includes(c.id)}
-                              onChange={() => toggleCategory(c.id)}
-                            />
-                            <span
-                              className="h-2.5 w-2.5 rounded-full"
-                              style={{ background: color.fg }}
-                              aria-hidden
-                            />
-                            {c.name}
-                          </span>
-                          <span className="text-xs text-neutral-400">{count}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </FilterSection>
+              {categoryGroups !== undefined ? (
+                (categoryGroups.length > 0 || (categorySuperGroups?.length ?? 0) > 0) && (
+                  <FilterSection
+                    title={`Tags${activeCategories.length ? ` (${activeCategories.length})` : ""}`}
+                    last
+                  >
+                    <GroupedTagSection
+                      groups={categoryGroups}
+                      superGroups={categorySuperGroups}
+                      selected={activeCategories}
+                      onToggle={toggleCategory}
+                      counts={categoryCounts}
+                    />
+                  </FilterSection>
+                )
+              ) : (
+                categories.length > 0 && (
+                  <FilterSection
+                    title={`Tags${activeCategories.length ? ` (${activeCategories.length})` : ""}`}
+                    last
+                  >
+                    <input
+                      type="text"
+                      value={tagSearch}
+                      onChange={(e) => setTagSearch(e.target.value)}
+                      placeholder="Search tags…"
+                      className="mb-2 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-700 outline-none focus:border-neutral-400"
+                    />
+                    {filteredCategories.length === 0 && (
+                      <p className="py-1 text-xs text-neutral-400">No tags match &ldquo;{tagSearch}&rdquo;.</p>
+                    )}
+                    <div className="flex flex-col gap-1.5">
+                      {filteredCategories.map((c) => {
+                        const color = colorForCategory(c);
+                        const count = categoryCounts?.[c.id] ?? 0;
+                        return (
+                          <label
+                            key={c.id}
+                            className="flex items-center justify-between gap-2 text-sm text-neutral-700"
+                          >
+                            <span className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={activeCategories.includes(c.id)}
+                                onChange={() => toggleCategory(c.id)}
+                              />
+                              <span
+                                className="h-2.5 w-2.5 rounded-full"
+                                style={{ background: color.fg }}
+                                aria-hidden
+                              />
+                              {c.name}
+                            </span>
+                            <span className="text-xs text-neutral-400">{count}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </FilterSection>
+                )
               )}
-            </div>
-
-            <div className="border-t border-neutral-100 px-5 py-4">
-              <button
-                type="button"
-                onClick={clear}
-                className="w-full rounded-md border border-neutral-200 py-2 text-sm font-medium text-neutral-600"
-              >
-                Clear all
-              </button>
-            </div>
-          </div>
         </div>
-      )}
+      </FilterDrawer>
     </>
-  );
-}
-
-function FilterSection({ title, children, last }: { title: string; children: React.ReactNode; last?: boolean }) {
-  return (
-    <div className={last ? "" : "mb-5 border-b border-neutral-100 pb-5"}>
-      <p className="mb-2 text-xs font-semibold text-neutral-600">{title}</p>
-      {children}
-    </div>
   );
 }
 
@@ -294,5 +275,7 @@ function daysFromIso(iso: string): string {
   if (days <= 1) return "1";
   if (days <= 7) return "7";
   if (days <= 30) return "30";
+  if (days <= 90) return "90";
+  if (days <= 365) return "365";
   return "";
 }

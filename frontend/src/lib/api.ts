@@ -202,6 +202,7 @@ export function getDocuments(
     q?: string;
     status?: DocStatus;
     modifiedSince?: string;
+    uploadedBy?: string;
     sort?: SortField;
     dir?: SortDir;
   },
@@ -213,6 +214,7 @@ export function getDocuments(
   if (params.q) qs.set("q", params.q);
   if (params.status) qs.set("status", params.status);
   if (params.modifiedSince) qs.set("modifiedSince", params.modifiedSince);
+  if (params.uploadedBy) qs.set("uploadedBy", params.uploadedBy);
   if (params.sort) qs.set("sort", params.sort);
   if (params.dir) qs.set("dir", params.dir);
   return backendFetch<DocumentSummary[]>(`/api/documents?${qs.toString()}`, appToken);

@@ -287,3 +287,47 @@ describe("Deletion request/approve/reject trio", () => {
     );
   });
 });
+
+async function createPublishedDocument(ownerTeamId: string, uploaderId: string) {
+  return prisma.document.create({
+    data: {
+      title: "Published doc",
+      status: "PUBLISHED",
+      ownerTeamId,
+      uploadedById: uploaderId,
+      sourceType: "LINK",
+      externalUrl: "https://docs.example.com/published",
+    },
+  });
+}
+
+describe("GET /api/documents — uploadedBy filter", () => {
+  it("narrows the list to only the given uploader's PUBLISHED docs", async () => {
+    const alice = await createTestUser("USER");
+    const bob = await createTestUser("USER");
+    const viewer = await createTestUser("USER");
+    const team = await makeTeam();
+    const aliceDoc = await createPublishedDocument(team.id, alice.id);
+    await createPublishedDocument(team.id, bob.id);
+
+    const res = await request(app)
+      .get(`/api/documents?uploadedBy=${alice.id}`)
+      .set(authHeaderFor(viewer));
+    expect(res.status).toBe(200);
+    expect(res.body.map((d: { id: string }) => d.id)).toEqual([aliceDoc.id]);
+  });
+
+  it("a non-admin's Pending view stays restricted to their own docs even with an unrelated uploadedBy filter", async () => {
+    const user = await createTestUser("USER");
+    const otherUser = await createTestUser("USER");
+    const team = await makeTeam();
+    await createPendingDocument(team.id, user.id);
+    await createPendingDocument(team.id, otherUser.id);
+
+    const res = await request(app)
+      .get(`/api/documents?status=PENDING&uploadedBy=${otherUser.id}`)
+      .set(authHeaderFor(user));
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+});

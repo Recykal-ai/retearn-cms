@@ -78,9 +78,9 @@ const SORTABLE_FIELDS: Record<string, string> = {
   name: "title",
 };
 
-// GET /api/documents?mode=team|product&entityId=&category=&q=&status=&modifiedSince=&sort=&dir=
+// GET /api/documents?mode=team|product&entityId=&category=&q=&status=&modifiedSince=&uploadedBy=&sort=&dir=
 documentsRouter.get("/", requireAuth, async (req, res) => {
-  const { mode, entityId, category, q, status, modifiedSince, sort, dir } = req.query as Record<
+  const { mode, entityId, category, q, status, modifiedSince, uploadedBy, sort, dir } = req.query as Record<
     string,
     string | undefined
   >;
@@ -101,6 +101,10 @@ documentsRouter.get("/", requireAuth, async (req, res) => {
   else where.status = "PUBLISHED";
   if (q) where.title = { contains: q, mode: "insensitive" };
   if (modifiedSince) where.updatedAt = { gte: new Date(modifiedSince) };
+  if (uploadedBy) {
+    const uploaderIds = uploadedBy.split(",").filter(Boolean);
+    where.uploadedById = { in: uploaderIds };
+  }
 
   // Pending/Rejected documents haven't been vetted for publication yet, so
   // they're not visible org-wide the way Published docs are — a plain User
@@ -120,7 +124,15 @@ documentsRouter.get("/", requireAuth, async (req, res) => {
         ];
       }
     } else {
-      where.uploadedById = req.user!.userId;
+      // A plain User only ever sees their own non-published docs — merge
+      // with (rather than clobber) any uploadedBy filter already applied
+      // above, so picking a Modified-By filter that isn't yourself while
+      // viewing Pending/Rejected correctly yields zero results instead of
+      // silently ignoring the self-restriction.
+      const existing = where.uploadedById as { in: string[] } | undefined;
+      where.uploadedById = existing
+        ? { in: existing.in.includes(req.user!.userId) ? [req.user!.userId] : [] }
+        : req.user!.userId;
     }
   }
 

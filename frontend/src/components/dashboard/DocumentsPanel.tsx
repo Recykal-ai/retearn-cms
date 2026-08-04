@@ -7,6 +7,8 @@ import { DocumentsTable } from "@/components/dashboard/DocumentsTable";
 import { DocumentsCardGrid } from "@/components/dashboard/DocumentsCardGrid";
 import { FolderGrid } from "@/components/dashboard/FolderGrid";
 import { ViewSwitcher, type ViewMode } from "@/components/dashboard/ViewSwitcher";
+import type { UploaderOption } from "@/components/dashboard/UploaderFilterSection";
+import type { TagGroup, TagSuperGroup } from "@/components/dashboard/GroupedTagSection";
 
 export function DocumentsPanel({
   mode,
@@ -16,12 +18,16 @@ export function DocumentsPanel({
   selectedCategoryId,
   status,
   modifiedSince,
+  uploadedBy,
   type,
   sort,
   dir,
   view,
   documents,
   categoryCounts,
+  uploaders,
+  categoryGroups,
+  categorySuperGroups,
   isAdmin,
   currentUserId,
 }: {
@@ -32,12 +38,16 @@ export function DocumentsPanel({
   selectedCategoryId?: string;
   status?: string;
   modifiedSince?: string;
+  uploadedBy?: string;
   type?: string;
   sort?: SortField;
   dir?: SortDir;
   view: ViewMode;
   documents: DocumentSummary[];
   categoryCounts?: Record<string, number>;
+  uploaders?: UploaderOption[];
+  categoryGroups?: TagGroup[];
+  categorySuperGroups?: TagSuperGroup[];
   isAdmin?: boolean;
   currentUserId?: string;
 }) {
@@ -75,6 +85,7 @@ export function DocumentsPanel({
     const url = new URL(`${entityHref}&view=folders`, "http://placeholder");
     if (status) url.searchParams.set("status", status);
     if (modifiedSince) url.searchParams.set("modifiedSince", modifiedSince);
+    if (uploadedBy) url.searchParams.set("uploadedBy", uploadedBy);
     if (type) url.searchParams.set("type", type);
     return `${url.pathname}${url.search}`;
   })();
@@ -94,6 +105,7 @@ export function DocumentsPanel({
     const url = new URL(identityHref, "http://placeholder");
     if (status) url.searchParams.set("status", status);
     if (modifiedSince) url.searchParams.set("modifiedSince", modifiedSince);
+    if (uploadedBy) url.searchParams.set("uploadedBy", uploadedBy);
     if (type) url.searchParams.set("type", type);
     return `${url.pathname}${url.search}`;
   })();
@@ -114,7 +126,15 @@ export function DocumentsPanel({
   // currently selected. Inert (no href) only when already exactly there, so
   // it doesn't look clickable for no reason.
   const isAtGlobalHome =
-    mode === "all" && !selectedCategoryId && !status && !modifiedSince && !type && !sort && !dir && view === "folders";
+    mode === "all" &&
+    !selectedCategoryId &&
+    !status &&
+    !modifiedSince &&
+    !uploadedBy &&
+    !type &&
+    !sort &&
+    !dir &&
+    view === "folders";
   const documentsCrumbHref = isAtGlobalHome ? undefined : "/dashboard";
 
   // While drilled into a folder, the category is where you navigated, not a
@@ -128,6 +148,7 @@ export function DocumentsPanel({
     const url = new URL(categoryHref, "http://placeholder");
     if (status) url.searchParams.set("status", status);
     if (modifiedSince) url.searchParams.set("modifiedSince", modifiedSince);
+    if (uploadedBy) url.searchParams.set("uploadedBy", uploadedBy);
     if (type) url.searchParams.set("type", type);
     if (sort) url.searchParams.set("sort", sort);
     if (dir) url.searchParams.set("dir", dir);
@@ -158,8 +179,12 @@ export function DocumentsPanel({
           categoryCounts={categoryCounts}
           status={status}
           modifiedSince={modifiedSince}
+          uploadedBy={uploadedBy}
           type={type}
           category={filterCategoryId}
+          uploaders={uploaders}
+          categoryGroups={categoryGroups}
+          categorySuperGroups={categorySuperGroups}
         />
       </div>
 
@@ -185,9 +210,11 @@ export function DocumentsPanel({
         clearHref={clearAllHref}
         status={status}
         modifiedSince={modifiedSince}
+        uploadedBy={uploadedBy}
         type={type}
         category={filterCategoryId}
         categories={categories}
+        uploaders={uploaders}
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto p-6">

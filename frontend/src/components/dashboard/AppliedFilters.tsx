@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Category } from "@/lib/api";
 import { FILE_TYPE_LABEL, type FileTypeKey } from "@/lib/file-type";
 import { colorForCategory } from "@/lib/tag-colors";
+import type { UploaderOption } from "@/components/dashboard/UploaderFilterSection";
 
 function withoutParam(baseHref: string, key: string, value?: string): string {
   const url = new URL(baseHref, "http://placeholder");
@@ -30,27 +31,33 @@ export function AppliedFilters({
   clearHref,
   status,
   modifiedSince,
+  uploadedBy,
   type,
   category,
   categories,
+  uploaders,
 }: {
-  // Must already contain the CURRENT status/modifiedSince/type/category values
-  // (plus view/folder, if any) — each chip's "×" removes just its own value
-  // via withoutParam, which only works if baseHref carries the sibling values
-  // to preserve. A bare identity URL here would silently wipe an entire
-  // multi-select filter (e.g. all Types) when removing just one.
+  // Must already contain the CURRENT status/modifiedSince/type/category/
+  // uploadedBy values (plus view/folder, if any) — each chip's "×" removes
+  // just its own value via withoutParam, which only works if baseHref
+  // carries the sibling values to preserve. A bare identity URL here would
+  // silently wipe an entire multi-select filter (e.g. all Types) when
+  // removing just one.
   baseHref: string;
   // Where "Clear all" goes — the identity URL with no filters, but still
   // preserving view mode/folder. Falls back to baseHref if omitted.
   clearHref?: string;
   status?: string;
   modifiedSince?: string;
+  uploadedBy?: string;
   type?: string;
   category?: string;
   categories: Category[];
+  uploaders?: UploaderOption[];
 }) {
   const types = type ? type.split(",").filter(Boolean) : [];
   const categoryIds = category ? category.split(",").filter(Boolean) : [];
+  const uploaderIds = uploadedBy ? uploadedBy.split(",").filter(Boolean) : [];
   const chips: { key: string; label: string; href: string; bg: string; fg: string }[] = [];
 
   if (status) {
@@ -85,6 +92,17 @@ export function AppliedFilters({
     if (!cat) continue;
     const color = colorForCategory(cat);
     chips.push({ key: `category-${id}`, label: cat.name, href: withoutParam(baseHref, "category", id), bg: color.bg, fg: color.fg });
+  }
+  for (const id of uploaderIds) {
+    const uploader = uploaders?.find((u) => u.id === id);
+    if (!uploader) continue;
+    chips.push({
+      key: `uploadedBy-${id}`,
+      label: uploader.name,
+      href: withoutParam(baseHref, "uploadedBy", id),
+      bg: "#f5f5f5",
+      fg: "#525252",
+    });
   }
 
   if (chips.length === 0) return null;

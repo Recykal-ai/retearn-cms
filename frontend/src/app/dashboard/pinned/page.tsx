@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { getPinnedDocuments } from "@/lib/api";
+import { getPinnedDocuments, getTeams, getProducts } from "@/lib/api";
 import { withSessionGuard } from "@/lib/session-guard";
 import { SubPageTopBar } from "@/components/dashboard/SubPageTopBar";
 import { PinnedPageContent } from "@/components/dashboard/PinnedPageContent";
@@ -15,7 +15,14 @@ export default async function PinnedPage() {
   }
 
   const appToken = session.appToken;
-  const pinnedDocs = await withSessionGuard(() => getPinnedDocuments(appToken));
+  const { pinnedDocs, teams, products } = await withSessionGuard(async () => {
+    const [pinnedDocs, teams, products] = await Promise.all([
+      getPinnedDocuments(appToken),
+      getTeams(appToken),
+      getProducts(appToken),
+    ]);
+    return { pinnedDocs, teams, products };
+  });
 
   return (
     <div className="flex h-screen flex-col" style={{ fontFamily: "var(--font-ui)", background: "var(--canvas)" }}>
@@ -30,7 +37,7 @@ export default async function PinnedPage() {
           {pinnedDocs.length === 0 ? (
             <p className="py-16 text-center text-sm text-neutral-400">Nothing pinned yet.</p>
           ) : (
-            <PinnedPageContent documents={pinnedDocs} />
+            <PinnedPageContent documents={pinnedDocs} teams={teams} products={products} />
           )}
         </div>
       </div>

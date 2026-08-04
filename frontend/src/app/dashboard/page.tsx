@@ -28,6 +28,7 @@ export default async function DashboardPage({
     category?: string;
     status?: string;
     modifiedSince?: string;
+    uploadedBy?: string;
     sort?: string;
     dir?: string;
     type?: string;
@@ -42,7 +43,7 @@ export default async function DashboardPage({
     redirect("/");
   }
 
-  const { mode: modeParam, entity, category, status, modifiedSince, sort, dir, type, view } = await searchParams;
+  const { mode: modeParam, entity, category, status, modifiedSince, uploadedBy, sort, dir, type, view } = await searchParams;
   // No mode param at all (a bare "/dashboard" landing) resolves to "all" —
   // the home view shows every team's and product's documents together,
   // rather than defaulting into whichever team happens to be first.
@@ -55,8 +56,18 @@ export default async function DashboardPage({
   const appToken = session.appToken;
   const isAdmin = session.role === "ADMIN" || session.role === "SUPER_ADMIN";
 
-  const { teams, products, categoriesByScope, categories, documents, selected, categoryCounts } =
-    await withSessionGuard(async () => {
+  const {
+    teams,
+    products,
+    categoriesByScope,
+    categories,
+    documents,
+    selected,
+    categoryCounts,
+    uploaders,
+    categoryGroups,
+    categorySuperGroups,
+  } = await withSessionGuard(async () => {
       const [teams, products] = await Promise.all([getTeams(appToken), getProducts(appToken)]);
 
       const allEntities = [...teams, ...products];
@@ -126,6 +137,7 @@ export default async function DashboardPage({
               category: resolvedCategoryParam,
               status: status as DocStatus | undefined,
               modifiedSince,
+              uploadedBy,
               sort: sort as SortField | undefined,
               dir: dir as SortDir | undefined,
             })
@@ -135,11 +147,12 @@ export default async function DashboardPage({
               category,
               status: status as DocStatus | undefined,
               modifiedSince,
+              uploadedBy,
               sort: sort as SortField | undefined,
               dir: dir as SortDir | undefined,
             }),
         // Unfiltered fetch, used to compute the Filter panel's "N docs" count
-        // per tag regardless of which filters are active.
+        // per tag/uploader regardless of which filters are active.
         isGlobal ? getDocuments(appToken, {}) : getDocuments(appToken, { mode: entityMode, entityId: selected!.id }),
       ]);
 
@@ -173,7 +186,71 @@ export default async function DashboardPage({
         }
       }
 
-      return { teams, products, categoriesByScope, categories, documents, selected, categoryCounts };
+      const uploaderCounts = new Map<string, { id: string; name: string; email: string; count: number }>();
+      for (const d of entityDocuments) {
+        const existing = uploaderCounts.get(d.uploadedBy.id);
+        if (existing) existing.count += 1;
+        else uploaderCounts.set(d.uploadedBy.id, { id: d.uploadedBy.id, name: d.uploadedBy.name, email: d.uploadedBy.email, count: 1 });
+      }
+      const uploaders = Array.from(uploaderCounts.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+      // Tag grouping (by owning Team/Product) only makes sense in the global
+      // "all" view — team/product mode's `categories` is already scoped to
+      // the one entity being browsed. Each entity's group includes ALL of
+      // its categories, global ones included — a product whose tags happen
+      // to be entirely global (a real case: see e.g. "Goa DRS", bulk-created
+      // across every team/product) still needs to show up as its own group,
+      // not vanish because none of its tags were non-global. "Global tags"
+      // stays a flat entry (pinned first); Team/Product entities each nest
+      // under their own "Team"/"Product" super-section instead of one long
+      // flat list mixing every team and product together.
+      const globalGroup =
+        isGlobal && allModeCategories.some((c) => c.isGlobal)
+          ? [{ key: "__global__", label: "Global tags", categories: allModeCategories.filter((c) => c.isGlobal) }]
+          : [];
+      const groupFor = (e: { id: string; name: string }) => {
+        const names = new Set((categoriesByScope[e.id] ?? []).map((c) => c.name));
+        return { key: e.id, label: e.name, categories: allModeCategories.filter((c) => names.has(c.name)) };
+      };
+      // undefined (not an empty array) in single-entity mode — FilterPanel
+      // uses "was this prop passed at all" to decide grouped vs. flat Tags
+      // rendering, and an empty array is truthy in JS, so passing `[]` here
+      // unconditionally would've silently selected grouped rendering (and
+      // shown nothing) even outside "all" mode.
+      if (!isGlobal) {
+        return {
+          teams,
+          products,
+          categoriesByScope,
+          categories,
+          documents,
+          selected,
+          categoryCounts,
+          uploaders,
+          categoryGroups: undefined,
+          categorySuperGroups: undefined,
+        };
+      }
+      const teamGroups = teams.map(groupFor).filter((g) => g.categories.length > 0);
+      const productGroups = products.map(groupFor).filter((g) => g.categories.length > 0);
+      const categoryGroups = globalGroup;
+      const categorySuperGroups = [
+        ...(teamGroups.length ? [{ key: "__teams__", label: "Team", groups: teamGroups }] : []),
+        ...(productGroups.length ? [{ key: "__products__", label: "Product", groups: productGroups }] : []),
+      ];
+
+      return {
+        teams,
+        products,
+        categoriesByScope,
+        categories,
+        documents,
+        selected,
+        categoryCounts,
+        uploaders,
+        categoryGroups,
+        categorySuperGroups,
+      };
     });
 
   return (
@@ -196,12 +273,16 @@ export default async function DashboardPage({
             selectedCategoryId={category}
             status={status}
             modifiedSince={modifiedSince}
+            uploadedBy={uploadedBy}
             type={type}
             sort={sort as SortField | undefined}
             dir={dir as SortDir | undefined}
             view={viewMode}
             documents={documents}
             categoryCounts={categoryCounts}
+            uploaders={uploaders}
+            categoryGroups={categoryGroups}
+            categorySuperGroups={categorySuperGroups}
             isAdmin={isAdmin}
             currentUserId={session.appUserId}
           />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import type { DeletedDocumentSummary } from "@/lib/api";
+import type { DeletedDocumentSummary, Team, Product } from "@/lib/api";
 import { relativeTime } from "@/lib/relative-time";
 import { FileTypeIcon } from "@/components/dashboard/FileTypeIcon";
 import { Tag } from "@/components/dashboard/Tag";
@@ -9,28 +9,39 @@ import { fileTypeOf, FILE_TYPE_LABEL, type FileTypeKey } from "@/lib/file-type";
 import { colorForCategory, dedupeGlobalCategories, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
 import { recoverDocumentAction } from "@/app/dashboard/recycle-bin/recycle-bin-actions";
 import { Icon } from "@/components/dashboard/Icon";
-
-// Same presets as the main dashboard's FilterPanel "Modified" section, but
-// applied to deletedBy.at (when the doc was deleted) rather than updatedAt —
-// the thing you'd actually want to narrow down here.
-const DATE_PRESETS: { value: string; label: string }[] = [
-  { value: "", label: "Any time" },
-  { value: "1", label: "Today" },
-  { value: "7", label: "Last 7 days" },
-  { value: "30", label: "Last 30 days" },
-];
+import { FilterSection } from "@/components/dashboard/FilterSection";
+import { FilterTriggerButton } from "@/components/dashboard/FilterTriggerButton";
+import { FilterDrawerHeader } from "@/components/dashboard/FilterDrawerHeader";
+import { FilterDrawer } from "@/components/dashboard/FilterDrawer";
+import { ModifiedDateSlider } from "@/components/dashboard/ModifiedDateSlider";
+import { UploaderFilterSection, type UploaderOption } from "@/components/dashboard/UploaderFilterSection";
+import {
+  GroupedTagSection,
+  type TagGroup,
+  type TagSuperGroup,
+  type GroupableCategory,
+} from "@/components/dashboard/GroupedTagSection";
 
 // Search box + filter drawer mirror Pinned's exact pattern (PinnedPageContent
 // / DocumentsCardGrid's "Find in X…" box) — same local-state, derived-from-
 // what's-actually-here approach, no URL params or server round trip, since
 // the Recycle Bin is a small, admin-only, already-fully-loaded list.
-export function RecycleBinList({ documents }: { documents: DeletedDocumentSummary[] }) {
+export function RecycleBinList({
+  documents,
+  teams,
+  products,
+}: {
+  documents: DeletedDocumentSummary[];
+  teams: Team[];
+  products: Product[];
+}) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedUploaders, setSelectedUploaders] = useState<string[]>([]);
   const [selectedDays, setSelectedDays] = useState("");
 
   useEffect(() => {
@@ -64,21 +75,79 @@ export function RecycleBinList({ documents }: { documents: DeletedDocumentSummar
     return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [documents]);
 
-  const availableCategories = useMemo(() => {
-    const byName = new Map<string, { name: string; scope: string; isGlobal: boolean }>();
+  // "Global tags" is a flat aggregate group (one entry per distinct global
+  // tag name); every Team/Product's own group additionally includes ALL of
+  // its categories, global ones included — a product whose tags happen to
+  // be entirely global (a real case, e.g. a "Goa DRS" tag bulk-created
+  // across every team/product) still needs its own group, not vanish
+  // because none of its tags were non-global. Team and Product groups nest
+  // under their own "Team"/"Product" super-section rather than one long
+  // flat list mixing every team and product together.
+  const { tagGroups, tagSuperGroups } = useMemo(() => {
+    const teamIds = new Set(teams.map((t) => t.id));
+    const scopeName = new Map<string, string>();
+    for (const t of teams) scopeName.set(t.id, t.name);
+    for (const p of products) scopeName.set(p.id, p.name);
+
+    const globalByName = new Map<string, GroupableCategory>();
+    const byScope = new Map<string, TagGroup>();
     for (const d of documents) {
       for (const c of d.categories) {
-        if (!byName.has(c.name)) byName.set(c.name, c);
+        if (c.isGlobal && !globalByName.has(c.name)) {
+          globalByName.set(c.name, { id: c.name, name: c.name, scope: c.scope, isGlobal: true });
+        }
+        const group = byScope.get(c.scope) ?? { key: c.scope, label: scopeName.get(c.scope) ?? c.scope, categories: [] };
+        if (!group.categories.some((existing) => existing.id === c.name)) {
+          group.categories.push({ id: c.name, name: c.name, scope: c.scope, isGlobal: c.isGlobal });
+        }
+        byScope.set(c.scope, group);
       }
     }
-    return Array.from(byName.values()).sort((a, b) => {
-      const globalDiff = Number(b.isGlobal) - Number(a.isGlobal);
-      return globalDiff !== 0 ? globalDiff : a.name.localeCompare(b.name);
-    });
+
+    const teamGroups: TagGroup[] = [];
+    const productGroups: TagGroup[] = [];
+    for (const group of byScope.values()) {
+      (teamIds.has(group.key) ? teamGroups : productGroups).push(group);
+    }
+    teamGroups.sort((a, b) => a.label.localeCompare(b.label));
+    productGroups.sort((a, b) => a.label.localeCompare(b.label));
+
+    const tagSuperGroups: TagSuperGroup[] = [
+      ...(teamGroups.length ? [{ key: "__teams__", label: "Team", groups: teamGroups }] : []),
+      ...(productGroups.length ? [{ key: "__products__", label: "Product", groups: productGroups }] : []),
+    ];
+    const tagGroups: TagGroup[] =
+      globalByName.size === 0
+        ? []
+        : [
+            {
+              key: "__global__",
+              label: "Global tags",
+              categories: Array.from(globalByName.values()).sort((a, b) => a.name.localeCompare(b.name)),
+            },
+          ];
+    return { tagGroups, tagSuperGroups };
+  }, [documents, teams, products]);
+
+  // "Modified By" is the original uploader (d.uploadedBy) — distinct from
+  // the "Deleted by" column/d.deletedBy already shown in the table.
+  const availableUploaders = useMemo(() => {
+    const byId = new Map<string, UploaderOption>();
+    for (const d of documents) {
+      const existing = byId.get(d.uploadedBy.id);
+      if (existing) existing.count += 1;
+      else byId.set(d.uploadedBy.id, { id: d.uploadedBy.id, name: d.uploadedBy.name, email: d.uploadedBy.email, count: 1 });
+    }
+    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [documents]);
 
   const activeCount =
-    selectedTypes.length + selectedTeams.length + selectedProducts.length + selectedCategories.length + (selectedDays ? 1 : 0);
+    selectedTypes.length +
+    selectedTeams.length +
+    selectedProducts.length +
+    selectedCategories.length +
+    selectedUploaders.length +
+    (selectedDays ? 1 : 0);
 
   const filtered = documents.filter((d) => {
     const q = query.trim().toLowerCase();
@@ -89,6 +158,7 @@ export function RecycleBinList({ documents }: { documents: DeletedDocumentSummar
     if (selectedTeams.length && !(d.ownerTeam && selectedTeams.includes(d.ownerTeam.id))) return false;
     if (selectedProducts.length && !d.products.some((p) => selectedProducts.includes(p.id))) return false;
     if (selectedCategories.length && !d.categories.some((c) => selectedCategories.includes(c.name))) return false;
+    if (selectedUploaders.length && !selectedUploaders.includes(d.uploadedBy.id)) return false;
     if (selectedDays) {
       const cutoff = Date.now() - Number(selectedDays) * 86400000;
       if (!d.deletedBy || new Date(d.deletedBy.at).getTime() < cutoff) return false;
@@ -105,6 +175,7 @@ export function RecycleBinList({ documents }: { documents: DeletedDocumentSummar
     setSelectedTeams([]);
     setSelectedProducts([]);
     setSelectedCategories([]);
+    setSelectedUploaders([]);
     setSelectedDays("");
   }
 
@@ -134,18 +205,7 @@ export function RecycleBinList({ documents }: { documents: DeletedDocumentSummar
             className="w-full rounded-md border border-neutral-200 bg-white py-1.5 pr-3 pl-8 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
           />
         </div>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="flex shrink-0 items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors"
-          style={
-            activeCount > 0
-              ? { borderColor: "var(--brand-purple)", color: "var(--brand-purple)", background: "var(--brand-purple-tint)" }
-              : { borderColor: "#e5e5e5", color: "#525252" }
-          }
-        >
-          Filter{activeCount > 0 ? ` (${activeCount})` : ""}
-        </button>
+        <FilterTriggerButton activeCount={activeCount} onClick={() => setOpen(true)} />
       </div>
 
       {filtered.length === 0 ? (
@@ -174,26 +234,10 @@ export function RecycleBinList({ documents }: { documents: DeletedDocumentSummar
         </table>
       )}
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="flex-1 bg-black/20" onClick={() => setOpen(false)} />
-          <div
-            className="flex h-full w-80 flex-col overflow-y-auto bg-white shadow-xl"
-            style={{ fontFamily: "var(--font-ui)" }}
-          >
-            <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4">
-              <h2 className="text-base font-semibold text-neutral-900">Filters</h2>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-                className="text-xl leading-none text-neutral-400 hover:text-neutral-600"
-              >
-                ×
-              </button>
-            </div>
+      <FilterDrawer open={open} onClose={() => setOpen(false)}>
+        <FilterDrawerHeader onClose={() => setOpen(false)} onClear={clear} showClear={activeCount > 0} />
 
-            <div className="flex-1 px-5 py-4">
+        <div className="flex-1 px-5 py-4">
               {availableTypes.length > 0 && (
                 <FilterSection title={`Type${selectedTypes.length ? ` (${selectedTypes.length})` : ""}`}>
                   <div className="flex flex-col gap-1.5">
@@ -213,20 +257,18 @@ export function RecycleBinList({ documents }: { documents: DeletedDocumentSummar
               )}
 
               <FilterSection title="Deleted">
-                <div className="flex flex-col gap-1.5">
-                  {DATE_PRESETS.map((opt) => (
-                    <label key={opt.value} className="flex items-center gap-2 text-sm text-neutral-700">
-                      <input
-                        type="radio"
-                        name="deleted-date-filter"
-                        checked={selectedDays === opt.value}
-                        onChange={() => setSelectedDays(opt.value)}
-                      />
-                      {opt.label}
-                    </label>
-                  ))}
-                </div>
+                <ModifiedDateSlider value={selectedDays} onChange={setSelectedDays} />
               </FilterSection>
+
+              {availableUploaders.length > 0 && (
+                <FilterSection title={`Modified By${selectedUploaders.length ? ` (${selectedUploaders.length})` : ""}`}>
+                  <UploaderFilterSection
+                    uploaders={availableUploaders}
+                    selected={selectedUploaders}
+                    onToggle={(id) => toggle(selectedUploaders, setSelectedUploaders, id)}
+                  />
+                </FilterSection>
+              )}
 
               {availableTeams.length > 0 && (
                 <FilterSection title={`Team${selectedTeams.length ? ` (${selectedTeams.length})` : ""}`}>
@@ -262,49 +304,18 @@ export function RecycleBinList({ documents }: { documents: DeletedDocumentSummar
                 </FilterSection>
               )}
 
-              {availableCategories.length > 0 && (
+              {(tagGroups.length > 0 || tagSuperGroups.length > 0) && (
                 <FilterSection title={`Tags${selectedCategories.length ? ` (${selectedCategories.length})` : ""}`} last>
-                  <div className="flex flex-col gap-1.5">
-                    {availableCategories.map((c) => {
-                      const color = colorForCategory(c);
-                      return (
-                        <label key={c.name} className="flex items-center gap-2 text-sm text-neutral-700">
-                          <input
-                            type="checkbox"
-                            checked={selectedCategories.includes(c.name)}
-                            onChange={() => toggle(selectedCategories, setSelectedCategories, c.name)}
-                          />
-                          <span className="h-2.5 w-2.5 rounded-full" style={{ background: color.fg }} aria-hidden />
-                          {c.name}
-                        </label>
-                      );
-                    })}
-                  </div>
+                  <GroupedTagSection
+                    groups={tagGroups}
+                    superGroups={tagSuperGroups}
+                    selected={selectedCategories}
+                    onToggle={(id) => toggle(selectedCategories, setSelectedCategories, id)}
+                  />
                 </FilterSection>
               )}
-            </div>
-
-            <div className="border-t border-neutral-100 px-5 py-4">
-              <button
-                type="button"
-                onClick={clear}
-                className="w-full rounded-md border border-neutral-200 py-2 text-sm font-medium text-neutral-600"
-              >
-                Clear all
-              </button>
-            </div>
-          </div>
         </div>
-      )}
-    </div>
-  );
-}
-
-function FilterSection({ title, children, last }: { title: string; children: React.ReactNode; last?: boolean }) {
-  return (
-    <div className={last ? "" : "mb-5 border-b border-neutral-100 pb-5"}>
-      <p className="mb-2 text-xs font-semibold text-neutral-600">{title}</p>
-      {children}
+      </FilterDrawer>
     </div>
   );
 }

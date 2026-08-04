@@ -162,6 +162,8 @@ model Document {
   categories            DocumentCategory[]
   versions              DocumentVersion[]
   pinnedBy              PinnedDocument[]
+
+  @@index([uploadedById])
 }
 
 // A personal bookmark — per-user, doesn't affect what anyone else sees.
