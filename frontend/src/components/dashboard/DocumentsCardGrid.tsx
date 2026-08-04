@@ -20,14 +20,26 @@ const STATUS_STYLE: Record<DocumentSummary["status"], { bg: string; fg: string; 
 
 const MAX_VISIBLE_TAGS = 4;
 
+// Reasons a card can't be opened in a `restrictToPublished` view (the main
+// dashboard grid) — see the matching helper in DocumentRow.tsx; duplicated
+// rather than shared, same convention as this file's own STATUS_STYLE copy.
+function blockedReason(doc: DocumentSummary): string | undefined {
+  if (doc.deletedAt) return "This document was recently deleted";
+  if (doc.status === "PENDING") return "Waiting for admin approval — not viewable until approved";
+  if (doc.status === "REJECTED") return "This document was rejected";
+  return undefined;
+}
+
 export function DocumentsCardGrid({
   documents,
   entityName,
   showStatus,
+  restrictToPublished,
 }: {
   documents: DocumentSummary[];
   entityName?: string;
   showStatus?: boolean;
+  restrictToPublished?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const { view, isOpening, viewerNode } = useDocumentViewer();
@@ -73,6 +85,7 @@ export function DocumentsCardGrid({
               showStatus={showStatus}
               onView={view}
               opening={isOpening(doc.id)}
+              restrictToPublished={restrictToPublished}
             />
           ))}
         </div>
@@ -87,32 +100,40 @@ function DocumentCard({
   showStatus,
   onView,
   opening,
+  restrictToPublished,
 }: {
   doc: DocumentSummary;
   showStatus?: boolean;
   onView: (doc: DocumentSummary) => void;
   opening: boolean;
+  restrictToPublished?: boolean;
 }) {
   const status = STATUS_STYLE[doc.status];
+  const isDeleted = Boolean(doc.deletedAt);
+  // Deleted is blocked everywhere; Pending/Rejected only in the main browse
+  // grid — see the matching comment in DocumentRow.tsx.
+  const isBlocked = isDeleted || (Boolean(restrictToPublished) && doc.status !== "PUBLISHED");
+  const disabled = opening || isBlocked;
 
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={() => !opening && onView(doc)}
+      onClick={() => !disabled && onView(doc)}
       onKeyDown={(e) => {
-        if (!opening && (e.key === "Enter" || e.key === " ")) {
+        if (!disabled && (e.key === "Enter" || e.key === " ")) {
           e.preventDefault();
           onView(doc);
         }
       }}
-      aria-disabled={opening}
+      aria-disabled={disabled}
+      title={isBlocked ? blockedReason(doc) : undefined}
       className="flex cursor-pointer flex-col items-start rounded-lg border border-neutral-200 p-4 text-left transition-colors hover:border-neutral-300 hover:shadow-sm aria-disabled:cursor-default aria-disabled:opacity-60"
     >
       <div className="mb-2 flex w-full items-center justify-between">
         <div className="flex items-center gap-1.5">
           <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} />
-          <StatusDot status={doc.status} recentlyPublished={doc.recentlyPublished} />
+          <StatusDot status={doc.status} recentlyPublished={doc.recentlyPublished} recentlyDeleted={doc.recentlyDeleted} />
           {doc.deletionRequestedAt && (
             <span
               title="An admin has been asked to delete this document"
@@ -132,10 +153,18 @@ function DocumentCard({
               {status.label}
             </span>
           )}
-          {doc.status === "PUBLISHED" && <PinButton documentId={doc.id} pinned={doc.pinned} />}
+          {doc.status === "PUBLISHED" && !isDeleted && <PinButton documentId={doc.id} pinned={doc.pinned} />}
         </div>
       </div>
-      <p className="mb-1.5 line-clamp-2 text-sm font-medium text-neutral-800">{doc.title}</p>
+      <p
+        className="mb-1.5 line-clamp-2 text-sm font-medium"
+        style={{
+          color: isDeleted || doc.status === "PENDING" ? "#a3a3a3" : "#262626",
+          textDecoration: isDeleted ? "line-through" : undefined,
+        }}
+      >
+        {doc.title}
+      </p>
       <div className="mb-2 flex flex-wrap gap-1">
         {(() => {
           const allTags = [

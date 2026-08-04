@@ -27,6 +27,7 @@ import {
   pinDocument,
   unpinDocument,
   getDocuments,
+  getMyApprovalsUnseen,
   type Category,
   type DocumentSummary,
 } from "@/lib/api";
@@ -190,10 +191,10 @@ export async function getDeletionRequestsAction() {
   return getDeletionRequests(session.appToken!);
 }
 
-export async function approveDeletionAction(documentId: string): Promise<{ error?: string }> {
+export async function approveDeletionsAction(documentIds: string[]): Promise<{ error?: string }> {
   const session = await requireSession();
   try {
-    await approveDeletion(session.appToken!, documentId);
+    await Promise.all(documentIds.map((id) => approveDeletion(session.appToken!, id)));
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to approve deletion" };
   }
@@ -203,10 +204,10 @@ export async function approveDeletionAction(documentId: string): Promise<{ error
   return {};
 }
 
-export async function rejectDeletionAction(documentId: string): Promise<{ error?: string }> {
+export async function rejectDeletionsAction(documentIds: string[]): Promise<{ error?: string }> {
   const session = await requireSession();
   try {
-    await rejectDeletion(session.appToken!, documentId);
+    await Promise.all(documentIds.map((id) => rejectDeletion(session.appToken!, id)));
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to reject deletion request" };
   }
@@ -221,6 +222,14 @@ export async function getApprovalsCountAction(): Promise<{ pendingUploads: numbe
     return { pendingUploads: 0, deletionRequests: 0 };
   }
   return getApprovalsCount(session.appToken!);
+}
+
+// Backs the non-admin "Approval" nav badge (ApprovalsNavLink.tsx) — true
+// when one of the caller's own uploads or deletion requests was resolved
+// since they last opened their Approvals tab.
+export async function getMyApprovalsUnseenAction(): Promise<{ hasUnseen: boolean }> {
+  const session = await requireSession();
+  return getMyApprovalsUnseen(session.appToken!);
 }
 
 export async function getViewUrlAction(documentId: string) {

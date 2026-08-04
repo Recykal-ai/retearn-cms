@@ -34,6 +34,10 @@ model User {
   role                     Role                  @default(USER)
   active                   Boolean               @default(true) // Super Admin can deactivate an account instead of deleting it
   createdAt                DateTime              @default(now())
+  // Bumped whenever the user opens their own (non-admin) Approvals tab —
+  // GET /api/documents/mine/unseen compares against this to decide whether
+  // to show the green-tick "you have news" badge on the nav link.
+  approvalsLastSeenAt      DateTime?
   documents                Document[]            @relation("UploadedBy")
   auditLogs                AuditLog[]
   adminScopes              AdminScope[]
@@ -137,6 +141,16 @@ model Document {
   deletionRequestedAt   DateTime?
   deletionRequestedById String?
   deletionRequestNote   String?
+  // Persists past deletionRequestedById being nulled on resolution — set at
+  // request time, left untouched by approve/reject-deletion, so the original
+  // requester can still be found in GET /mine and /mine/unseen after the
+  // live field above resets.
+  lastDeletionRequestedById String?
+  // Set only when an Admin declines a deletion request (doc stays exactly as
+  // it was); cleared back to null on the next fresh deletion request.
+  // Approved deletions don't need a parallel flag — deletedAt already IS
+  // that signal.
+  deletionDeclinedAt        DateTime?
   ownerTeamId           String? // optional — a document needs at least one tag (team or product), not necessarily a team
   ownerTeam             Team?              @relation("OwningTeam", fields: [ownerTeamId], references: [id])
   uploadedById          String

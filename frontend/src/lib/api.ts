@@ -44,6 +44,17 @@ export interface DocumentSummary {
   // Who asked — may differ from uploadedBy.id (requesting deletion of a doc
   // you don't own is exactly the case this field exists for).
   deletionRequestedById: string | null;
+  // Soft-delete timestamp — only ever populated when fetched via
+  // getDocuments' mergeRecent option or getMyDocuments (every other caller
+  // excludes deleted docs entirely, so this is null there regardless).
+  deletedAt: string | null;
+  // True for ~48h after deletedAt is set — same window/computation style as
+  // recentlyPublished, see document-serializer.ts.
+  recentlyDeleted: boolean;
+  // Set when an Admin declines a deletion request on this doc (it stays as
+  // it was); cleared on the next fresh deletion request. Only meaningful
+  // from getMyDocuments — see MyUploadsTable's "Deletion declined" badge.
+  deletionDeclinedAt: string | null;
   sourceType: DocSourceType;
   currentVersion: number;
   createdAt: string;
@@ -205,6 +216,10 @@ export function getDocuments(
     uploadedBy?: string;
     sort?: SortField;
     dir?: SortDir;
+    // Opt-in: merge Pending (viewer-scoped) and recently-deleted docs inline
+    // alongside Published, instead of the default Published-only list. Only
+    // takes effect server-side when status is unset — see documents.ts.
+    mergeRecent?: boolean;
   },
 ) {
   const qs = new URLSearchParams();
@@ -217,7 +232,30 @@ export function getDocuments(
   if (params.uploadedBy) qs.set("uploadedBy", params.uploadedBy);
   if (params.sort) qs.set("sort", params.sort);
   if (params.dir) qs.set("dir", params.dir);
+  if (params.mergeRecent) qs.set("mergeRecent", "true");
   return backendFetch<DocumentSummary[]>(`/api/documents?${qs.toString()}`, appToken);
+}
+
+// Everything relevant to the caller's own approval history — uploads they
+// submitted (any status) and deletions they requested (live or historical),
+// including soft-deleted docs so a resolved deletion request still shows up
+// with its outcome instead of silently disappearing. Backs the non-admin
+// Approvals tab (UserSubmissions in approvals/page.tsx).
+export function getMyDocuments(appToken: string) {
+  return backendFetch<DocumentSummary[]>(`/api/documents/mine`, appToken);
+}
+
+// True when something the caller submitted or asked to delete was resolved
+// more recently than they last opened their Approvals tab — drives the
+// green-tick nav badge for non-admins (see ApprovalsNavLink.tsx).
+export function getMyApprovalsUnseen(appToken: string) {
+  return backendFetch<{ hasUnseen: boolean }>(`/api/documents/mine/unseen`, appToken);
+}
+
+// Marks "now" as the last time the caller opened their own Approvals tab,
+// clearing the green-tick badge above.
+export function markApprovalsSeen(appToken: string) {
+  return backendFetch<void>(`/api/documents/mine/seen`, appToken, { method: "POST" });
 }
 
 export function searchDocuments(appToken: string, q: string) {

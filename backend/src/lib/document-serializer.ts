@@ -24,33 +24,41 @@ export const documentInclude = {
   products: { include: { product: { select: { id: true, name: true } } } },
 } as const;
 
-const RECENTLY_PUBLISHED_WINDOW_MS = 48 * 60 * 60 * 1000;
+// Shared "still fresh" window for both the recently-approved dot and the
+// recently-deleted dot/strikethrough — also used as the deletedAt cutoff in
+// documents.ts's mergeRecent query, so both sides of "how long does this
+// stay flagged" agree with a single source of truth.
+export const RECENT_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 export function serializeDocument(
   doc: {
     id: string;
     status: string;
     publishedAt: Date | null;
+    deletedAt: Date | null;
     products: { product: { id: string; name: string } }[];
     categories: { category: { id: string; name: string; scope: string; isGlobal: boolean } }[];
     [key: string]: unknown;
   },
   pinnedIds?: ReadonlySet<string>,
 ) {
-  const { products, categories, publishedAt, ...rest } = doc;
+  const { products, categories, publishedAt, deletedAt, ...rest } = doc;
   // Computed here (server has "now" at request time) rather than on the
   // client — comparing against Date.now() during React render is an impure
   // read that can produce stale/inconsistent results across re-renders.
   const recentlyPublished =
     doc.status === "PUBLISHED" && publishedAt !== null
-      ? Date.now() - publishedAt.getTime() < RECENTLY_PUBLISHED_WINDOW_MS
+      ? Date.now() - publishedAt.getTime() < RECENT_WINDOW_MS
       : false;
+  const recentlyDeleted = deletedAt !== null && Date.now() - deletedAt.getTime() < RECENT_WINDOW_MS;
   return {
     ...rest,
+    deletedAt,
     products: products.map((p) => p.product),
     categories: categories.map((c) => c.category),
     pinned: pinnedIds?.has(doc.id) ?? false,
     recentlyPublished,
+    recentlyDeleted,
   };
 }
 

@@ -5,7 +5,7 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 import { storage } from "../lib/storage.js";
 import { sanitizeFilename } from "../lib/filename.js";
 import { logger } from "../lib/logger.js";
-import { documentInclude, serializeDocument, loadPinnedIds } from "../lib/document-serializer.js";
+import { documentInclude, serializeDocument, loadPinnedIds, RECENT_WINDOW_MS } from "../lib/document-serializer.js";
 import { loadAdminScope, canManageTeamOrProducts, getAdminsForTeamOrProducts } from "../lib/admin-scope.js";
 import {
   notifyDocumentPending,
@@ -78,14 +78,22 @@ const SORTABLE_FIELDS: Record<string, string> = {
   name: "title",
 };
 
-// GET /api/documents?mode=team|product&entityId=&category=&q=&status=&modifiedSince=&uploadedBy=&sort=&dir=
+// GET /api/documents?mode=team|product&entityId=&category=&q=&status=&modifiedSince=&uploadedBy=&sort=&dir=&mergeRecent=
 documentsRouter.get("/", requireAuth, async (req, res) => {
-  const { mode, entityId, category, q, status, modifiedSince, uploadedBy, sort, dir } = req.query as Record<
+  const { mode, entityId, category, q, status, modifiedSince, uploadedBy, sort, dir, mergeRecent } = req.query as Record<
     string,
     string | undefined
   >;
 
-  const where: Record<string, unknown> = { deletedAt: null };
+  // The main dashboard's default (no explicit status filter) browse view
+  // opts into merging Pending/recently-deleted docs inline via mergeRecent
+  // — every other caller (Approvals' status=PENDING, My Uploads' per-status
+  // loop, the @-mention embed picker, the filter panel's own facet-count
+  // fetch) keeps passing/omitting status exactly as before and is untouched,
+  // since this only takes effect when status is absent.
+  const mergeRecentActivity = mergeRecent === "true" && !status;
+
+  const where: Record<string, unknown> = mergeRecentActivity ? {} : { deletedAt: null };
 
   if (mode === "team" && entityId) {
     where.ownerTeamId = entityId;
@@ -97,8 +105,6 @@ documentsRouter.get("/", requireAuth, async (req, res) => {
     const categoryIds = category.split(",").filter(Boolean);
     where.categories = { some: { categoryId: { in: categoryIds } } };
   }
-  if (status) where.status = status;
-  else where.status = "PUBLISHED";
   if (q) where.title = { contains: q, mode: "insensitive" };
   if (modifiedSince) where.updatedAt = { gte: new Date(modifiedSince) };
   if (uploadedBy) {
@@ -106,33 +112,69 @@ documentsRouter.get("/", requireAuth, async (req, res) => {
     where.uploadedById = { in: uploaderIds };
   }
 
-  // Pending/Rejected documents haven't been vetted for publication yet, so
-  // they're not visible org-wide the way Published docs are — a plain User
-  // only sees their own (their "My Uploads" view), and a scoped Admin only
-  // sees the ones they can actually act on (otherwise Approve/Reject buttons
-  // would just 403 on items outside their scope). Global Admins/Super Admins
-  // are unrestricted, matching their org-wide approval authority.
-  if (where.status !== "PUBLISHED") {
+  if (mergeRecentActivity) {
+    // Same admin-scope/uploader visibility rule as the explicit-Pending
+    // branch below, just merged alongside Published instead of standing
+    // alone — a plain User's own Pending upload, or a scoped Admin's
+    // in-scope Pending queue, now shows inline without switching the
+    // filter. Recently-deleted is intentionally unscoped: the doc was
+    // org-wide-visible as Published moments ago, so its "removed" ghost
+    // is shown to anyone who could browse that folder, not just an admin.
+    let pendingScope: Record<string, unknown> = { status: "PENDING" };
     if (isAdminRole(req.user!.role)) {
       const scope = await loadAdminScope(req.user!.userId, req.user!.role);
       if (scope !== null) {
         const teamIds = [...scope.teamIds];
         const productIds = [...scope.productIds];
-        where.OR = [
-          ...(teamIds.length ? [{ ownerTeamId: { in: teamIds } }] : []),
-          ...(productIds.length ? [{ products: { some: { productId: { in: productIds } } } }] : []),
-        ];
+        pendingScope = {
+          status: "PENDING",
+          OR: [
+            ...(teamIds.length ? [{ ownerTeamId: { in: teamIds } }] : []),
+            ...(productIds.length ? [{ products: { some: { productId: { in: productIds } } } }] : []),
+          ],
+        };
       }
     } else {
-      // A plain User only ever sees their own non-published docs — merge
-      // with (rather than clobber) any uploadedBy filter already applied
-      // above, so picking a Modified-By filter that isn't yourself while
-      // viewing Pending/Rejected correctly yields zero results instead of
-      // silently ignoring the self-restriction.
-      const existing = where.uploadedById as { in: string[] } | undefined;
-      where.uploadedById = existing
-        ? { in: existing.in.includes(req.user!.userId) ? [req.user!.userId] : [] }
-        : req.user!.userId;
+      pendingScope = { status: "PENDING", uploadedById: req.user!.userId };
+    }
+    const cutoff = new Date(Date.now() - RECENT_WINDOW_MS);
+    where.OR = [
+      { status: "PUBLISHED", deletedAt: null },
+      { ...pendingScope, deletedAt: null },
+      { deletedAt: { gte: cutoff } },
+    ];
+  } else {
+    if (status) where.status = status;
+    else where.status = "PUBLISHED";
+
+    // Pending/Rejected documents haven't been vetted for publication yet, so
+    // they're not visible org-wide the way Published docs are — a plain User
+    // only sees their own (their "My Uploads" view), and a scoped Admin only
+    // sees the ones they can actually act on (otherwise Approve/Reject buttons
+    // would just 403 on items outside their scope). Global Admins/Super Admins
+    // are unrestricted, matching their org-wide approval authority.
+    if (where.status !== "PUBLISHED") {
+      if (isAdminRole(req.user!.role)) {
+        const scope = await loadAdminScope(req.user!.userId, req.user!.role);
+        if (scope !== null) {
+          const teamIds = [...scope.teamIds];
+          const productIds = [...scope.productIds];
+          where.OR = [
+            ...(teamIds.length ? [{ ownerTeamId: { in: teamIds } }] : []),
+            ...(productIds.length ? [{ products: { some: { productId: { in: productIds } } } }] : []),
+          ];
+        }
+      } else {
+        // A plain User only ever sees their own non-published docs — merge
+        // with (rather than clobber) any uploadedBy filter already applied
+        // above, so picking a Modified-By filter that isn't yourself while
+        // viewing Pending/Rejected correctly yields zero results instead of
+        // silently ignoring the self-restriction.
+        const existing = where.uploadedById as { in: string[] } | undefined;
+        where.uploadedById = existing
+          ? { in: existing.in.includes(req.user!.userId) ? [req.user!.userId] : [] }
+          : req.user!.userId;
+      }
     }
   }
 
@@ -147,6 +189,56 @@ documentsRouter.get("/", requireAuth, async (req, res) => {
 
   const pinnedIds = await loadPinnedIds(req.user!.userId, docs.map((d) => d.id));
   res.json(docs.map((d) => serializeDocument(d, pinnedIds)));
+});
+
+// GET /api/documents/mine — everything relevant to the caller's own approval
+// history: uploads they submitted (any status) and deletions they requested
+// (live or historical, via lastDeletionRequestedById, which survives past
+// deletionRequestedById being nulled on resolution — see request-deletion/
+// approve-deletion/reject-deletion above). No deletedAt:null filter — a doc
+// whose deletion the caller requested and was approved must still show up,
+// with its outcome, instead of silently disappearing. Backs the non-admin
+// Approvals tab. Must come before GET /:id, same reasoning as /recent below.
+documentsRouter.get("/mine", requireAuth, async (req, res) => {
+  const userId = req.user!.userId;
+  const docs = await prisma.document.findMany({
+    where: {
+      OR: [{ uploadedById: userId }, { lastDeletionRequestedById: userId }, { deletionRequestedById: userId }],
+    },
+    include: documentInclude,
+    orderBy: { updatedAt: "desc" },
+  });
+  const pinnedIds = await loadPinnedIds(userId, docs.map((d) => d.id));
+  res.json(docs.map((d) => serializeDocument(d, pinnedIds)));
+});
+
+// GET /api/documents/mine/unseen — boolean the "Approval" nav badge polls for
+// a plain User: true when something they submitted or asked to delete was
+// resolved more recently than they last opened their Approvals tab (see POST
+// /mine/seen). Deliberately a boolean, not a count — a single "you have
+// news" tick, not a number to track down to zero.
+documentsRouter.get("/mine/unseen", requireAuth, async (req, res) => {
+  const userId = req.user!.userId;
+  const me = await prisma.user.findUnique({ where: { id: userId }, select: { approvalsLastSeenAt: true } });
+  const since = me?.approvalsLastSeenAt ?? new Date(0);
+  const match = await prisma.document.findFirst({
+    where: {
+      updatedAt: { gt: since },
+      OR: [
+        { uploadedById: userId, status: { in: ["PUBLISHED", "REJECTED"] } },
+        { lastDeletionRequestedById: userId, OR: [{ deletedAt: { not: null } }, { deletionDeclinedAt: { not: null } }] },
+      ],
+    },
+    select: { id: true },
+  });
+  res.json({ hasUnseen: Boolean(match) });
+});
+
+// POST /api/documents/mine/seen — marks "now" as the last time the caller
+// looked at their own Approvals tab, clearing the badge above.
+documentsRouter.post("/mine/seen", requireAuth, async (req, res) => {
+  await prisma.user.update({ where: { id: req.user!.userId }, data: { approvalsLastSeenAt: new Date() } });
+  res.status(204).send();
 });
 
 // GET /api/documents/recent?limit= — the current user's own most-recently
@@ -848,6 +940,8 @@ documentsRouter.post<{ id: string }>("/:id/request-deletion", requireAuth, async
       deletionRequestedAt: new Date(),
       deletionRequestedById: req.user!.userId,
       deletionRequestNote: note?.trim() || null,
+      lastDeletionRequestedById: req.user!.userId,
+      deletionDeclinedAt: null,
     },
     include: documentInclude,
   });
@@ -947,7 +1041,12 @@ documentsRouter.patch<{ id: string }>(
 
     const updated = await prisma.document.update({
       where: { id: doc.id },
-      data: { deletionRequestedAt: null, deletionRequestedById: null, deletionRequestNote: null },
+      data: {
+        deletionRequestedAt: null,
+        deletionRequestedById: null,
+        deletionRequestNote: null,
+        deletionDeclinedAt: new Date(),
+      },
       include: documentInclude,
     });
     await prisma.auditLog.create({

@@ -1,9 +1,10 @@
 import type { DocumentSummary } from "@/lib/api";
 
-const DOT_COLOR: Record<"PENDING" | "REJECTED" | "PUBLISHED", string> = {
+const DOT_COLOR: Record<"PENDING" | "REJECTED" | "PUBLISHED" | "DELETED", string> = {
   PENDING: "#c9931a",
   REJECTED: "#b3342c",
   PUBLISHED: "#2e7d3f",
+  DELETED: "#b3342c",
 };
 
 // A small at-a-glance indicator, separate from the full "Pending"/"Rejected"
@@ -15,10 +16,16 @@ const DOT_COLOR: Record<"PENDING" | "REJECTED" | "PUBLISHED", string> = {
 export function StatusDot({
   status,
   recentlyPublished,
+  recentlyDeleted,
 }: {
   status: DocumentSummary["status"];
   recentlyPublished: boolean;
+  recentlyDeleted?: boolean;
 }) {
+  // Checked first — a deleted doc's prior status is moot, and this is the
+  // same 48h "still fresh" window recentlyPublished uses, just for removal
+  // instead of approval.
+  if (recentlyDeleted) return <Dot color={DOT_COLOR.DELETED} title="Recently deleted" />;
   if (status === "PENDING") return <Dot color={DOT_COLOR.PENDING} title="Pending review" />;
   if (status === "REJECTED") return <Dot color={DOT_COLOR.REJECTED} title="Rejected" />;
   if (status === "PUBLISHED" && recentlyPublished) {

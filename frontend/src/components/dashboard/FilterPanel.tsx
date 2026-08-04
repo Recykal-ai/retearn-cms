@@ -15,10 +15,11 @@ import { UploaderFilterSection, type UploaderOption } from "@/components/dashboa
 import { GroupedTagSection, type TagGroup, type TagSuperGroup } from "@/components/dashboard/GroupedTagSection";
 
 // No standalone "Published" option — leaving status unset already resolves
-// to status=PUBLISHED server-side (see documents.ts), so it'd be a second
-// radio button doing the exact same thing as "All (published)".
+// to Published (plus your own/in-scope Pending and any recently-deleted
+// docs merged in inline — see documents.ts's mergeRecent), so it'd be a
+// second radio button doing almost the exact same thing as "All".
 const STATUS_OPTIONS: { value: DocStatus | ""; label: string }[] = [
-  { value: "", label: "All (published)" },
+  { value: "", label: "All" },
   { value: "PENDING", label: "Pending" },
   { value: "REJECTED", label: "Rejected" },
 ];

@@ -1,13 +1,18 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { getDocuments, getDeletionRequests, type DocStatus } from "@/lib/api";
+import { getDocuments, getDeletionRequests, getTeams, getProducts, getMyDocuments, markApprovalsSeen } from "@/lib/api";
 import { withSessionGuard } from "@/lib/session-guard";
 import { ApprovalsAdmin } from "@/components/dashboard/ApprovalsAdmin";
 import { DeletionRequestsAdmin } from "@/components/dashboard/DeletionRequestsAdmin";
 import { MyUploadsTable } from "@/components/dashboard/MyUploadsTable";
 import { SubPageTopBar } from "@/components/dashboard/SubPageTopBar";
+import { ApprovalsNav, type ApprovalsTab } from "@/components/dashboard/ApprovalsNav";
 
-export default async function ApprovalsPage() {
+export default async function ApprovalsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const session = await auth();
   if (!session) {
     redirect("/");
@@ -17,60 +22,74 @@ export default async function ApprovalsPage() {
   }
 
   const isAdmin = session.role === "ADMIN" || session.role === "SUPER_ADMIN";
+  const { tab } = await searchParams;
+  const activeTab: ApprovalsTab = tab === "deletions" ? "deletions" : "approvals";
 
   return (
     <div className="flex h-screen flex-col" style={{ fontFamily: "var(--font-ui)", background: "var(--canvas)" }}>
       <SubPageTopBar />
 
-      <div className="flex-1 overflow-y-auto p-8">
-        <div className="mx-auto max-w-4xl rounded-lg border border-neutral-200 bg-white shadow-sm">
+      {isAdmin ? (
+        <AdminQueue appToken={session.appToken} activeTab={activeTab} />
+      ) : (
+        <div className="flex-1 overflow-y-auto p-8">
+          <div className="mx-auto max-w-4xl rounded-lg border border-neutral-200 bg-white shadow-sm">
+            <div className="border-b border-neutral-100 px-6 py-4">
+              <h1 className="text-lg font-semibold text-neutral-900">Approvals</h1>
+              <p className="text-sm text-neutral-400">Status of documents you&apos;ve submitted or asked to delete</p>
+            </div>
+            <UserSubmissions appToken={session.appToken} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+async function AdminQueue({ appToken, activeTab }: { appToken: string; activeTab: ApprovalsTab }) {
+  const { pending, deletionRequests, teams, products } = await withSessionGuard(async () => {
+    const [pending, deletionRequests, teams, products] = await Promise.all([
+      getDocuments(appToken, { status: "PENDING" }),
+      getDeletionRequests(appToken),
+      getTeams(appToken),
+      getProducts(appToken),
+    ]);
+    return { pending, deletionRequests, teams, products };
+  });
+
+  return (
+    <div className="flex flex-1 overflow-hidden">
+      <ApprovalsNav activeTab={activeTab} pendingCount={pending.length} deletionCount={deletionRequests.length} />
+      <main className="flex-1 overflow-y-auto p-8">
+        <div className="rounded-lg border border-neutral-200 bg-white shadow-sm">
           <div className="border-b border-neutral-100 px-6 py-4">
-            <h1 className="text-lg font-semibold text-neutral-900">Approvals</h1>
+            <h1 className="text-lg font-semibold text-neutral-900">
+              {activeTab === "approvals" ? "Approval requests" : "Deletion requests"}
+            </h1>
             <p className="text-sm text-neutral-400">
-              {isAdmin ? "Documents waiting on your review" : "Status of documents you've submitted or asked to delete"}
+              {activeTab === "approvals" ? "Documents waiting on your review" : "Someone has asked for these to be removed"}
             </p>
           </div>
 
-          {isAdmin ? (
-            <AdminQueue appToken={session.appToken} />
+          {activeTab === "approvals" ? (
+            <ApprovalsAdmin documents={pending} teams={teams} products={products} />
           ) : (
-            <UserSubmissions appToken={session.appToken} userId={session.appUserId ?? ""} />
+            <DeletionRequestsAdmin documents={deletionRequests} teams={teams} products={products} />
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
 
-async function AdminQueue({ appToken }: { appToken: string }) {
-  const [pending, deletionRequests] = await withSessionGuard(() =>
-    Promise.all([getDocuments(appToken, { status: "PENDING" }), getDeletionRequests(appToken)]),
-  );
-  return (
-    <div>
-      <ApprovalsAdmin documents={pending} />
-      <div className="border-t border-neutral-100 px-6 py-4">
-        <h2 className="text-sm font-semibold text-neutral-900">Deletion requests</h2>
-        <p className="text-xs text-neutral-400">Someone has asked for these to be removed</p>
-      </div>
-      <DeletionRequestsAdmin documents={deletionRequests} />
-    </div>
-  );
-}
-
-async function UserSubmissions({ appToken, userId }: { appToken: string; userId: string }) {
-  const statuses: DocStatus[] = ["PENDING", "REJECTED", "PUBLISHED"];
+async function UserSubmissions({ appToken }: { appToken: string }) {
+  // GET /mine already scopes to "uploaded by me OR I requested its deletion
+  // (live or historical)" server-side, including soft-deleted docs — see
+  // documents.ts. markApprovalsSeen fires alongside: opening this tab is
+  // exactly what clears the green-tick nav badge.
   const mine = await withSessionGuard(async () => {
-    const lists = await Promise.all(statuses.map((status) => getDocuments(appToken, { status })));
-    return lists
-      .flat()
-      // Published docs are fetched org-wide (no ownership restriction —
-      // that's how PUBLISHED works), so this filter is what scopes the list
-      // down to "mine": either I uploaded it, or I'm the one who asked an
-      // Admin to delete it — the latter is exactly the case where I don't
-      // own the doc but still need to see my request's status here.
-      .filter((doc) => doc.uploadedBy.id === userId || doc.deletionRequestedById === userId)
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    const [docs] = await Promise.all([getMyDocuments(appToken), markApprovalsSeen(appToken)]);
+    return docs;
   });
 
   if (mine.length === 0) {

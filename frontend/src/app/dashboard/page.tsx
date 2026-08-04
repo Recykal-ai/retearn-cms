@@ -140,6 +140,7 @@ export default async function DashboardPage({
               uploadedBy,
               sort: sort as SortField | undefined,
               dir: dir as SortDir | undefined,
+              mergeRecent: true,
             })
           : getDocuments(appToken, {
               mode: entityMode,
@@ -150,6 +151,7 @@ export default async function DashboardPage({
               uploadedBy,
               sort: sort as SortField | undefined,
               dir: dir as SortDir | undefined,
+              mergeRecent: true,
             }),
         // Unfiltered fetch, used to compute the Filter panel's "N docs" count
         // per tag/uploader regardless of which filters are active.

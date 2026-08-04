@@ -221,7 +221,7 @@ export function DocumentsPanel({
         {isFolderView && !selectedCategory ? (
           <FolderGrid categories={categories} documents={documents} baseHref={folderUpHref} />
         ) : view === "tabs" ? (
-          <DocumentsCardGrid documents={documents} entityName={entityName} />
+          <DocumentsCardGrid documents={documents} entityName={entityName} restrictToPublished />
         ) : (
           <DocumentsTable
             documents={documents}
@@ -236,6 +236,7 @@ export function DocumentsPanel({
             modifiedDescHref={modifiedDescHref}
             isAdmin={isAdmin}
             currentUserId={currentUserId}
+            restrictToPublished
           />
         )}
       </div>
