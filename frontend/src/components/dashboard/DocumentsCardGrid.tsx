@@ -132,7 +132,7 @@ function DocumentCard({
     >
       <div className="mb-2 flex w-full items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} />
+          <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} externalUrl={doc.externalUrl} />
           <StatusDot status={doc.status} recentlyPublished={doc.recentlyPublished} recentlyDeleted={doc.recentlyDeleted} />
           {doc.deletionRequestedAt && (
             <span

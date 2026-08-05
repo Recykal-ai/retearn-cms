@@ -145,7 +145,7 @@ export function SideRail({
                       disabled={isOpening(doc.id)}
                       className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-neutral-50 disabled:opacity-60"
                     >
-                      <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} />
+                      <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} externalUrl={doc.externalUrl} />
                       <span className="truncate text-sm text-neutral-700">
                         {isOpening(doc.id) ? "Opening…" : doc.title}
                       </span>

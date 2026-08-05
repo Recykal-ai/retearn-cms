@@ -115,7 +115,7 @@ export function DocumentRow({
       <td className="py-3 pr-4">
         <div className="flex items-center gap-2">
           {doc.status === "PUBLISHED" && !isDeleted && <PinButton documentId={doc.id} pinned={doc.pinned} />}
-          <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} />
+          <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} externalUrl={doc.externalUrl} />
           <button
             type="button"
             onClick={() => !isBlocked && onView(doc)}

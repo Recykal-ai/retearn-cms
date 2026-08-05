@@ -68,7 +68,7 @@ function DocumentEmbedView({ node }: ReactNodeViewProps<HTMLElement>) {
         onClick={() => router.push(`${pathname}?doc=${doc.id}`)}
         className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 shadow-sm hover:border-neutral-300 hover:bg-neutral-50"
       >
-        <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} />
+        <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} externalUrl={doc.externalUrl} />
         <span className="truncate">{doc.title}</span>
         <StatusDot status={doc.status} recentlyPublished={doc.recentlyPublished} />
       </button>

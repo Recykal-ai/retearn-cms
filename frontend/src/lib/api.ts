@@ -56,6 +56,11 @@ export interface DocumentSummary {
   // from getMyDocuments — see MyUploadsTable's "Deletion declined" badge.
   deletionDeclinedAt: string | null;
   sourceType: DocSourceType;
+  // Only set when sourceType is LINK — the stored external URL (e.g. a
+  // Google Docs/Sheets/Slides share link). Used purely for icon selection
+  // (see lib/file-type.ts's googleLinkKindOf) — the real signed/external
+  // view URL still comes from GET /api/documents/:id/view-url.
+  externalUrl: string | null;
   currentVersion: number;
   createdAt: string;
   updatedAt: string;

@@ -96,7 +96,7 @@ export function SearchBar({ query }: { query?: string }) {
                     disabled={isOpening(doc.id)}
                     className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left hover:bg-neutral-50 disabled:opacity-60"
                   >
-                    <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} />
+                    <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} externalUrl={doc.externalUrl} />
                     <p className="min-w-0 shrink-0 truncate text-sm font-medium text-neutral-800" style={{ maxWidth: "45%" }}>
                       {isOpening(doc.id) ? "Opening…" : doc.title}
                     </p>

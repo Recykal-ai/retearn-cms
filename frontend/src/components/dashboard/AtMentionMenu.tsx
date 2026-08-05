@@ -331,7 +331,7 @@ function BackRow() {
 function DocRow({ doc }: { doc: DocumentSummary }) {
   return (
     <span className="flex items-center gap-2">
-      <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} />
+      <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} externalUrl={doc.externalUrl} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm text-neutral-700">{doc.title}</span>
         {(doc.ownerTeam || doc.products.length > 0 || doc.categories.length > 0) && (

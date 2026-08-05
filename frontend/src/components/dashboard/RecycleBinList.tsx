@@ -335,7 +335,7 @@ function RecycleBinRow({ doc }: { doc: DeletedDocumentSummary }) {
     <tr className="border-b border-neutral-50 last:border-0">
       <td className="py-3 pr-4">
         <div className="flex items-center gap-2">
-          <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} />
+          <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} externalUrl={doc.externalUrl} />
           <span className="font-medium text-neutral-800">{doc.title}</span>
         </div>
       </td>
