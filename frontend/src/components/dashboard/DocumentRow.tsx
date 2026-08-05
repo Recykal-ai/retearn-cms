@@ -123,7 +123,7 @@ export function DocumentRow({
             title={isBlocked ? blockedReason(doc) : undefined}
             className={`text-left font-medium text-neutral-800 disabled:opacity-60 ${isBlocked ? "cursor-default" : "hover:underline"}`}
             style={{
-              color: isDeleted || doc.status === "PENDING" || opening ? "#a3a3a3" : undefined,
+              color: isDeleted || doc.status === "PENDING" || doc.status === "REJECTED" || opening ? "#a3a3a3" : undefined,
               textDecoration: isDeleted ? "line-through" : undefined,
             }}
           >
@@ -184,7 +184,12 @@ export function DocumentRow({
           </div>
         ) : (
           <div className="flex justify-end">
-            <DocumentRowMenu doc={doc} canEdit={canEdit} isAdmin={Boolean(isAdmin)} />
+            {/* Hidden, not just disabled — every action in this menu (edit,
+                version history, share, delete) targets doc.id against
+                endpoints that 404 on a Pending/Rejected/Deleted doc here,
+                since restrictToPublished means the same isBlocked gate
+                already stops the row from being opened at all. */}
+            {!isBlocked && <DocumentRowMenu doc={doc} canEdit={canEdit} isAdmin={Boolean(isAdmin)} />}
           </div>
         )}
       </td>

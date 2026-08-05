@@ -30,6 +30,14 @@ export const documentInclude = {
 // stay flagged" agree with a single source of truth.
 export const RECENT_WINDOW_MS = 48 * 60 * 60 * 1000;
 
+// How long a Rejected doc keeps surfacing in the main dashboard's default
+// (mergeRecent) browse view before dropping out of it — deliberately much
+// shorter than RECENT_WINDOW_MS. The doc itself is never touched (no
+// soft-delete, nothing moves to the Recycle Bin — that's deleted-only); it
+// just stops being merged into the default grid and is only reachable
+// afterwards via the explicit Rejected status filter or My Uploads.
+export const REJECTED_VISIBLE_WINDOW_MS = 3 * 60 * 60 * 1000;
+
 export function serializeDocument(
   doc: {
     id: string;

@@ -159,7 +159,7 @@ function DocumentCard({
       <p
         className="mb-1.5 line-clamp-2 text-sm font-medium"
         style={{
-          color: isDeleted || doc.status === "PENDING" ? "#a3a3a3" : "#262626",
+          color: isDeleted || doc.status === "PENDING" || doc.status === "REJECTED" ? "#a3a3a3" : "#262626",
           textDecoration: isDeleted ? "line-through" : undefined,
         }}
       >

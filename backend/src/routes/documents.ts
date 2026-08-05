@@ -5,7 +5,7 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 import { storage } from "../lib/storage.js";
 import { sanitizeFilename } from "../lib/filename.js";
 import { logger } from "../lib/logger.js";
-import { documentInclude, serializeDocument, loadPinnedIds, RECENT_WINDOW_MS } from "../lib/document-serializer.js";
+import { documentInclude, serializeDocument, loadPinnedIds, REJECTED_VISIBLE_WINDOW_MS } from "../lib/document-serializer.js";
 import { loadAdminScope, canManageTeamOrProducts, getAdminsForTeamOrProducts } from "../lib/admin-scope.js";
 import {
   notifyDocumentPending,
@@ -86,11 +86,13 @@ documentsRouter.get("/", requireAuth, async (req, res) => {
   >;
 
   // The main dashboard's default (no explicit status filter) browse view
-  // opts into merging Pending/recently-deleted docs inline via mergeRecent
-  // — every other caller (Approvals' status=PENDING, My Uploads' per-status
-  // loop, the @-mention embed picker, the filter panel's own facet-count
-  // fetch) keeps passing/omitting status exactly as before and is untouched,
-  // since this only takes effect when status is absent.
+  // opts into merging Pending docs inline via mergeRecent — every other
+  // caller (Approvals' status=PENDING, My Uploads' per-status loop, the
+  // @-mention embed picker, the filter panel's own facet-count fetch) keeps
+  // passing/omitting status exactly as before and is untouched, since this
+  // only takes effect when status is absent. A deleted doc is never merged
+  // in here (regardless of how recently) — once removed it disappears from
+  // the portal immediately and only lives in the Recycle Bin.
   const mergeRecentActivity = mergeRecent === "true" && !status;
 
   const where: Record<string, unknown> = mergeRecentActivity ? {} : { deletedAt: null };
@@ -115,19 +117,15 @@ documentsRouter.get("/", requireAuth, async (req, res) => {
   if (mergeRecentActivity) {
     // Same admin-scope/uploader visibility rule as the explicit-Pending
     // branch below, just merged alongside Published instead of standing
-    // alone — a plain User's own Pending upload, or a scoped Admin's
-    // in-scope Pending queue, now shows inline without switching the
-    // filter. Recently-deleted is intentionally unscoped: the doc was
-    // org-wide-visible as Published moments ago, so its "removed" ghost
-    // is shown to anyone who could browse that folder, not just an admin.
-    let pendingScope: Record<string, unknown> = { status: "PENDING" };
+    // alone — a plain User's own Pending/Rejected doc, or a scoped Admin's
+    // in-scope queue, now shows inline without switching the filter.
+    let scopeFilter: Record<string, unknown> = {};
     if (isAdminRole(req.user!.role)) {
       const scope = await loadAdminScope(req.user!.userId, req.user!.role);
       if (scope !== null) {
         const teamIds = [...scope.teamIds];
         const productIds = [...scope.productIds];
-        pendingScope = {
-          status: "PENDING",
+        scopeFilter = {
           OR: [
             ...(teamIds.length ? [{ ownerTeamId: { in: teamIds } }] : []),
             ...(productIds.length ? [{ products: { some: { productId: { in: productIds } } } }] : []),
@@ -135,13 +133,13 @@ documentsRouter.get("/", requireAuth, async (req, res) => {
         };
       }
     } else {
-      pendingScope = { status: "PENDING", uploadedById: req.user!.userId };
+      scopeFilter = { uploadedById: req.user!.userId };
     }
-    const cutoff = new Date(Date.now() - RECENT_WINDOW_MS);
+    const rejectedCutoff = new Date(Date.now() - REJECTED_VISIBLE_WINDOW_MS);
     where.OR = [
       { status: "PUBLISHED", deletedAt: null },
-      { ...pendingScope, deletedAt: null },
-      { deletedAt: { gte: cutoff } },
+      { status: "PENDING", ...scopeFilter, deletedAt: null },
+      { status: "REJECTED", ...scopeFilter, deletedAt: null, rejectedAt: { gte: rejectedCutoff } },
     ];
   } else {
     if (status) where.status = status;
@@ -624,6 +622,7 @@ documentsRouter.post<{ id: string }>("/:id/versions", requireAuth, upload.single
       status: autoPublish ? "PUBLISHED" : "PENDING",
       publishedAt: autoPublish ? new Date() : null,
       rejectionNote: null,
+      rejectedAt: null,
     },
     include: documentInclude,
   });
@@ -852,7 +851,7 @@ documentsRouter.patch<{ id: string }>("/:id/approve", requireAuth, requireRole("
 
   const updated = await prisma.document.update({
     where: { id: doc.id },
-    data: { status: "PUBLISHED", rejectionNote: null, publishedAt: new Date() },
+    data: { status: "PUBLISHED", rejectionNote: null, rejectedAt: null, publishedAt: new Date() },
     include: documentInclude,
   });
   await prisma.auditLog.create({
@@ -900,7 +899,7 @@ documentsRouter.patch<{ id: string }>("/:id/reject", requireAuth, requireRole("A
 
   const updated = await prisma.document.update({
     where: { id: doc.id },
-    data: { status: "REJECTED", rejectionNote: note?.trim() || null },
+    data: { status: "REJECTED", rejectionNote: note?.trim() || null, rejectedAt: new Date() },
     include: documentInclude,
   });
   await prisma.auditLog.create({

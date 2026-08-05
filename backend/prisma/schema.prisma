@@ -133,6 +133,14 @@ model Document {
   // edits like retagging. Drives the "just approved" green status dot; null
   // once that hasn't happened yet, or for docs published before this field existed.
   publishedAt               DateTime?
+  // Timestamp of the most recent PENDING -> REJECTED transition. Drives how
+  // long a rejected doc keeps surfacing in the main browse grid (see
+  // REJECTED_VISIBLE_WINDOW_MS in document-serializer.ts) before it drops
+  // out of the default view — it's never soft-deleted, so it stays fully
+  // findable via the Rejected status filter or My Uploads either way.
+  // Cleared (set back to null) whenever the doc leaves REJECTED status,
+  // i.e. a new version is pushed.
+  rejectedAt                DateTime?
   // Set when any signed-in user requests deletion of a doc they don't have
   // delete rights to outright (admins delete directly, no request needed —
   // see DELETE /:id). Surfaced in the admin Approvals queue alongside
