@@ -28,27 +28,31 @@ enum DocSourceType {
 }
 
 model User {
-  id                       String                @id @default(uuid())
-  email                    String                @unique // verified @recykal.com address from Google
-  name                     String
-  role                     Role                  @default(USER)
-  active                   Boolean               @default(true) // Super Admin can deactivate an account instead of deleting it
-  createdAt                DateTime              @default(now())
-  documents                Document[]            @relation("UploadedBy")
-  auditLogs                AuditLog[]
-  adminScopes              AdminScope[]
-  pinnedDocs               PinnedDocument[]
-  personalNotes            PersonalNote[]
-  personalNoteFolders      PersonalNoteFolder[]
-  createdTeamNotes         TeamNote[]            @relation("TeamNoteCreator")
-  createdTeamNoteFolders   TeamNoteFolder[]      @relation("TeamNoteFolderCreator")
-  teamNoteMemberships      TeamNoteMembership[]
-  notifications            Notification[]
-  triggeredNotifications   Notification[]        @relation("NotificationTrigger")
-  teamNoteActivity         TeamNoteActivity[]
-  authoredTeamNoteComments TeamNoteComment[]      @relation("TeamNoteCommentAuthor")
-  resolvedTeamNoteComments TeamNoteComment[]      @relation("TeamNoteCommentResolver")
-  googleOAuthToken         GoogleOAuthToken?
+  id                        String               @id @default(uuid())
+  email                     String               @unique // verified @recykal.com address from Google
+  name                      String
+  role                      Role                 @default(USER)
+  active                    Boolean              @default(true) // Super Admin can deactivate an account instead of deleting it
+  // Self-service toggle (see PATCH /api/users/me) — turns off the automatic
+  // emails for mentions/uploads/approval decisions. In-app Notification rows
+  // (the bell) are never gated by this; only the email side effect is.
+  emailNotificationsEnabled Boolean              @default(true)
+  createdAt                 DateTime             @default(now())
+  documents                 Document[]           @relation("UploadedBy")
+  auditLogs                 AuditLog[]
+  adminScopes               AdminScope[]
+  pinnedDocs                PinnedDocument[]
+  personalNotes             PersonalNote[]
+  personalNoteFolders       PersonalNoteFolder[]
+  createdTeamNotes          TeamNote[]           @relation("TeamNoteCreator")
+  createdTeamNoteFolders    TeamNoteFolder[]     @relation("TeamNoteFolderCreator")
+  teamNoteMemberships       TeamNoteMembership[]
+  notifications             Notification[]
+  triggeredNotifications    Notification[]       @relation("NotificationTrigger")
+  teamNoteActivity          TeamNoteActivity[]
+  authoredTeamNoteComments  TeamNoteComment[]    @relation("TeamNoteCommentAuthor")
+  resolvedTeamNoteComments  TeamNoteComment[]    @relation("TeamNoteCommentResolver")
+  googleOAuthToken          GoogleOAuthToken?
 }
 
 // This user's Google OAuth grant for the drive.readonly scope (see auth.ts's
@@ -120,23 +124,23 @@ model Category {
 }
 
 model Document {
-  id                    String             @id @default(uuid())
-  title                 String
-  status                DocStatus          @default(PENDING)
-  rejectionNote         String?
+  id                        String             @id @default(uuid())
+  title                     String
+  status                    DocStatus          @default(PENDING)
+  rejectionNote             String?
   // Timestamp of the most recent PENDING -> PUBLISHED transition (approval or
   // auto-publish) — separate from `updatedAt`, which also moves on unrelated
   // edits like retagging. Drives the "just approved" green status dot; null
   // once that hasn't happened yet, or for docs published before this field existed.
-  publishedAt           DateTime?
+  publishedAt               DateTime?
   // Set when any signed-in user requests deletion of a doc they don't have
   // delete rights to outright (admins delete directly, no request needed —
   // see DELETE /:id). Surfaced in the admin Approvals queue alongside
   // pending uploads; cleared on either approve (soft-delete goes through) or
   // reject (doc stays exactly as it was, request just gets dismissed).
-  deletionRequestedAt   DateTime?
-  deletionRequestedById String?
-  deletionRequestNote   String?
+  deletionRequestedAt       DateTime?
+  deletionRequestedById     String?
+  deletionRequestNote       String?
   // Persists past deletionRequestedById being nulled on resolution — set at
   // request time, left untouched by approve/reject-deletion, so the original
   // requester can still be found in GET /mine and /mine/unseen after the
@@ -147,14 +151,14 @@ model Document {
   // Approved deletions don't need a parallel flag — deletedAt already IS
   // that signal.
   deletionDeclinedAt        DateTime?
-  ownerTeamId           String? // optional — a document needs at least one tag (team or product), not necessarily a team
-  ownerTeam             Team?              @relation("OwningTeam", fields: [ownerTeamId], references: [id])
-  uploadedById          String
-  uploadedBy            User               @relation("UploadedBy", fields: [uploadedById], references: [id])
-  currentVersion        Int                @default(1)
-  sourceType            DocSourceType      @default(FILE)
-  s3Key                 String? // current version's storage key — set when sourceType = FILE
-  externalUrl           String? // current version's external link — set when sourceType = LINK
+  ownerTeamId               String? // optional — a document needs at least one tag (team or product), not necessarily a team
+  ownerTeam                 Team?              @relation("OwningTeam", fields: [ownerTeamId], references: [id])
+  uploadedById              String
+  uploadedBy                User               @relation("UploadedBy", fields: [uploadedById], references: [id])
+  currentVersion            Int                @default(1)
+  sourceType                DocSourceType      @default(FILE)
+  s3Key                     String? // current version's storage key — set when sourceType = FILE
+  externalUrl               String? // current version's external link — set when sourceType = LINK
   // Storage key of a server-side-converted PDF standing in for a docx/pptx
   // upload — set only when sourceType = FILE and the original was Word/
   // PowerPoint. Google's own viewer (previously used for these) shows an
@@ -164,15 +168,15 @@ model Document {
   // lib/office-preview.ts) and rendering it through our own pdf.js viewer
   // closes that off entirely; the raw docx/pptx (s3Key) is kept in storage
   // for version history but its signed URL is never issued to a browser.
-  previewS3Key          String?
-  deletedAt             DateTime?
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
-  products              DocumentProduct[]
-  categories            DocumentCategory[]
-  versions              DocumentVersion[]
-  pinnedBy              PinnedDocument[]
-  notifications         Notification[]
+  previewS3Key              String?
+  deletedAt                 DateTime?
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  products                  DocumentProduct[]
+  categories                DocumentCategory[]
+  versions                  DocumentVersion[]
+  pinnedBy                  PinnedDocument[]
+  notifications             Notification[]
 
   @@index([uploadedById])
 }

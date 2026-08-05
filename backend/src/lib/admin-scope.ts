@@ -39,13 +39,17 @@ export interface NotifiableAdmin {
 // "global admin" default loadAdminScope treats as unrestricted), and every
 // active ADMIN whose rows match this teamId or any of these productIds.
 // `active: true` mirrors middleware/auth.ts's own login gate — a
-// deactivated admin shouldn't get emailed either.
+// deactivated admin shouldn't get emailed either. Also filters out anyone
+// who's turned off email notifications (see PATCH /api/users/me) — this
+// helper's result only ever feeds an email send (confirmed: no other
+// caller in the codebase), so it's safe to apply the preference here once
+// rather than at every call site.
 export async function getAdminsForTeamOrProducts(
   teamId: string | null | undefined,
   productIds: string[],
 ): Promise<NotifiableAdmin[]> {
   const admins = await prisma.user.findMany({
-    where: { active: true, role: { in: ["SUPER_ADMIN", "ADMIN"] } },
+    where: { active: true, role: { in: ["SUPER_ADMIN", "ADMIN"] }, emailNotificationsEnabled: true },
     include: { adminScopes: true },
   });
   return admins

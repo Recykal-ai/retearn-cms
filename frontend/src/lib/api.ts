@@ -107,6 +107,7 @@ export interface Me {
   name: string;
   role: Role;
   adminScope: { teamIds: string[]; productIds: string[] } | null;
+  emailNotificationsEnabled: boolean;
 }
 
 export interface AuditLogEntry {
@@ -428,6 +429,13 @@ export function setAdminScope(appToken: string, id: string, teamIds: string[], p
 
 export function getMe(appToken: string) {
   return backendFetch<Me>("/api/auth/me", appToken);
+}
+
+export function updateMyNotificationPreference(appToken: string, emailNotificationsEnabled: boolean) {
+  return backendFetch<{ id: string; emailNotificationsEnabled: boolean }>("/api/users/me", appToken, {
+    method: "PATCH",
+    json: { emailNotificationsEnabled },
+  });
 }
 
 export function getAuditLog(appToken: string, limit = 100) {

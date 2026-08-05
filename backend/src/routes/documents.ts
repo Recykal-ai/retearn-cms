@@ -866,10 +866,19 @@ documentsRouter.patch<{ id: string }>("/:id/approve", requireAuth, requireRole("
       triggeredById: req.user!.userId,
     },
   });
-  await notifyDocumentApproved(
-    { email: updated.uploadedBy.email, name: updated.uploadedBy.name },
-    { id: updated.id, title: updated.title },
-  );
+  // Dedicated lookup (not the shared documentInclude.uploadedBy select)
+  // purely to check the preference — keeps emailNotificationsEnabled out of
+  // the public document-list response shape.
+  const approvedUploader = await prisma.user.findUnique({
+    where: { id: updated.uploadedById },
+    select: { emailNotificationsEnabled: true },
+  });
+  if (approvedUploader?.emailNotificationsEnabled) {
+    await notifyDocumentApproved(
+      { email: updated.uploadedBy.email, name: updated.uploadedBy.name },
+      { id: updated.id, title: updated.title },
+    );
+  }
   res.json(serializeDocument(updated));
 });
 
@@ -905,11 +914,17 @@ documentsRouter.patch<{ id: string }>("/:id/reject", requireAuth, requireRole("A
       triggeredById: req.user!.userId,
     },
   });
-  await notifyDocumentRejected(
-    { email: updated.uploadedBy.email, name: updated.uploadedBy.name },
-    { id: updated.id, title: updated.title },
-    updated.rejectionNote,
-  );
+  const rejectedUploader = await prisma.user.findUnique({
+    where: { id: updated.uploadedById },
+    select: { emailNotificationsEnabled: true },
+  });
+  if (rejectedUploader?.emailNotificationsEnabled) {
+    await notifyDocumentRejected(
+      { email: updated.uploadedBy.email, name: updated.uploadedBy.name },
+      { id: updated.id, title: updated.title },
+      updated.rejectionNote,
+    );
+  }
   res.json(serializeDocument(updated));
 });
 
@@ -1001,8 +1016,11 @@ documentsRouter.patch<{ id: string }>(
           triggeredById: req.user!.userId,
         },
       });
-      const requester = await prisma.user.findUnique({ where: { id: requesterId }, select: { name: true, email: true } });
-      if (requester) await notifyDeletionApproved(requester, { title: doc.title });
+      const requester = await prisma.user.findUnique({
+        where: { id: requesterId },
+        select: { name: true, email: true, emailNotificationsEnabled: true },
+      });
+      if (requester?.emailNotificationsEnabled) await notifyDeletionApproved(requester, { title: doc.title });
     }
 
     res.status(204).send();
@@ -1057,8 +1075,11 @@ documentsRouter.patch<{ id: string }>(
           triggeredById: req.user!.userId,
         },
       });
-      const requester = await prisma.user.findUnique({ where: { id: requesterId }, select: { name: true, email: true } });
-      if (requester) await notifyDeletionRejected(requester, { id: updated.id, title: updated.title });
+      const requester = await prisma.user.findUnique({
+        where: { id: requesterId },
+        select: { name: true, email: true, emailNotificationsEnabled: true },
+      });
+      if (requester?.emailNotificationsEnabled) await notifyDeletionRejected(requester, { id: updated.id, title: updated.title });
     }
 
     res.json(serializeDocument(updated));

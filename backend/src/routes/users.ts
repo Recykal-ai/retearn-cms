@@ -176,6 +176,26 @@ usersRouter.patch<{ id: string }>("/:id/active", requireAuth, requireRole("SUPER
   res.json({ id: updated.id, email: updated.email, name: updated.name, role: updated.role, active: updated.active });
 });
 
+// PATCH /api/users/me — any authenticated user, self-service only (no role
+// check, no :id param — always operates on req.user's own row). Body:
+// { emailNotificationsEnabled: boolean }. Turns off the automated email side
+// effects for mentions/uploads/approval decisions (see admin-scope.ts and
+// the four document approve/reject/approve-deletion/reject-deletion
+// handlers); the in-app Notification bell is never gated by this.
+usersRouter.patch("/me", requireAuth, async (req, res) => {
+  const { emailNotificationsEnabled } = req.body as { emailNotificationsEnabled?: unknown };
+  if (typeof emailNotificationsEnabled !== "boolean") {
+    return res.status(400).json({ error: "emailNotificationsEnabled must be a boolean" });
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: req.user!.userId },
+    data: { emailNotificationsEnabled },
+  });
+
+  res.json({ id: updated.id, emailNotificationsEnabled: updated.emailNotificationsEnabled });
+});
+
 // POST /api/users — Super Admin only. Pre-provisions an account by email for
 // someone who hasn't signed in yet, with their role (and Admin scope, if any)
 // already set. Their real name is unknown until their first real Google

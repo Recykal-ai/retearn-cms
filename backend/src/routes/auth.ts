@@ -109,5 +109,6 @@ authRouter.get("/me", requireAuth, async (req, res) => {
     role: user.role,
     // null = unrestricted (Super Admin, or an Admin with no scope rows = global admin)
     adminScope: scope ? { teamIds: [...scope.teamIds], productIds: [...scope.productIds] } : null,
+    emailNotificationsEnabled: user.emailNotificationsEnabled,
   });
 });

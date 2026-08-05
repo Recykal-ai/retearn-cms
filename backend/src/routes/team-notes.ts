@@ -305,7 +305,10 @@ teamNotesRouter.put<{ id: string }>("/:id", requireAuth, async (req, res) => {
       data: newlyMentioned.map((userId) => ({ userId, teamNoteId: id, triggeredById: req.user!.userId })),
     });
     const [recipients, mentioner] = await Promise.all([
-      prisma.user.findMany({ where: { id: { in: newlyMentioned } }, select: { email: true, name: true } }),
+      // emailNotificationsEnabled filtered here, not in-app — the
+      // Notification rows above already went out to everyone mentioned,
+      // regardless of this preference; only the email send is gated.
+      prisma.user.findMany({ where: { id: { in: newlyMentioned }, emailNotificationsEnabled: true }, select: { email: true, name: true } }),
       prisma.user.findUnique({ where: { id: req.user!.userId }, select: { name: true } }),
     ]);
     await notifyMentioned(recipients, { name: mentioner?.name ?? "Someone" }, { id, title: updated.title });
@@ -540,7 +543,7 @@ teamNotesRouter.post<{ id: string }>("/:id/comments", requireAuth, async (req, r
         data: uniqueIds.map((userId) => ({ userId, teamNoteId: id, commentId: comment.id, triggeredById: req.user!.userId })),
       });
       const [recipients, note, mentioner] = await Promise.all([
-        prisma.user.findMany({ where: { id: { in: uniqueIds } }, select: { email: true, name: true } }),
+        prisma.user.findMany({ where: { id: { in: uniqueIds }, emailNotificationsEnabled: true }, select: { email: true, name: true } }),
         prisma.teamNote.findUnique({ where: { id }, select: { title: true } }),
         prisma.user.findUnique({ where: { id: req.user!.userId }, select: { name: true } }),
       ]);

@@ -9,6 +9,7 @@ import { FileTypeIcon } from "@/components/dashboard/FileTypeIcon";
 import { fileTypeOf } from "@/lib/file-type";
 import { useDocumentViewer } from "@/components/dashboard/useDocumentViewer";
 import { Icon } from "@/components/dashboard/Icon";
+import { NotificationSettingsModal } from "@/components/dashboard/NotificationSettingsModal";
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/);
@@ -28,6 +29,7 @@ export function SideRail({
 }) {
   const [openMenu, setOpenMenu] = useState<"avatar" | "recents" | null>(null);
   const [recentDocs, setRecentDocs] = useState<DocumentSummary[] | null>(null);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const { view, isOpening, viewerNode } = useDocumentViewer();
   const railRef = useRef<HTMLDivElement>(null);
 
@@ -93,6 +95,16 @@ export function SideRail({
                 Admin dashboard
               </Link>
             )}
+            <button
+              type="button"
+              onClick={() => {
+                setOpenMenu(null);
+                setShowNotificationSettings(true);
+              }}
+              className="block w-full px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+            >
+              Notification settings
+            </button>
             <form action={signOutAction}>
               <button
                 type="submit"
@@ -175,6 +187,7 @@ export function SideRail({
         </Link>
       )}
       {viewerNode}
+      {showNotificationSettings && <NotificationSettingsModal onClose={() => setShowNotificationSettings(false)} />}
     </div>
   );
 }
