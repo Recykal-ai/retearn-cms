@@ -22,7 +22,6 @@ import {
   getTeams,
   getProducts,
   getCategories,
-  getRecentDocuments,
   getPinnedDocuments,
   pinDocument,
   unpinDocument,
@@ -246,11 +245,6 @@ export async function getDocumentVersionsAction(documentId: string) {
 export async function getDocumentAction(documentId: string): Promise<DocumentSummary> {
   const session = await requireSession();
   return getDocument(session.appToken!, documentId);
-}
-
-export async function getRecentDocumentsAction() {
-  const session = await requireSession();
-  return getRecentDocuments(session.appToken!);
 }
 
 export async function getPinnedDocumentsAction() {

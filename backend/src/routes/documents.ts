@@ -219,6 +219,9 @@ documentsRouter.get("/mine", requireAuth, async (req, res) => {
 const RECENT_ACTIONS = ["view", "upload", "upload_version", "revert_version", "update_tags", "approve", "reject"];
 
 documentsRouter.get("/recent", requireAuth, async (req, res) => {
+  // "Recent" means the actual last-touched handful, not the user's entire
+  // viewing history since day one — the frontend always asks for 10; the
+  // cap here just guards against an arbitrarily large ?limit= query value.
   const limit = Math.min(Number(req.query.limit) || 10, 50);
 
   const recentActivity = await prisma.auditLog.findMany({

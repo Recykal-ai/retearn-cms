@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { DocumentSummary, Team, Product } from "@/lib/api";
-import { DocumentsCardGrid } from "@/components/dashboard/DocumentsCardGrid";
+import { SimpleDocumentsTable } from "@/components/dashboard/SimpleDocumentsTable";
 import { FileTypeIcon } from "@/components/dashboard/FileTypeIcon";
 import { fileTypeOf, FILE_TYPE_LABEL, type FileTypeKey } from "@/lib/file-type";
 import { FilterSection } from "@/components/dashboard/FilterSection";
@@ -264,7 +264,7 @@ export function PinnedPageContent({
       {filtered.length === 0 ? (
         <p className="py-16 text-center text-sm text-neutral-400">No pinned documents match these filters.</p>
       ) : (
-        <DocumentsCardGrid documents={filtered} entityName="Pinned" />
+        <SimpleDocumentsTable documents={filtered} entityName="Pinned" />
       )}
     </div>
   );
