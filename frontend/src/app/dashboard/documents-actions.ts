@@ -27,7 +27,6 @@ import {
   pinDocument,
   unpinDocument,
   getDocuments,
-  getMyApprovalsUnseen,
   type Category,
   type DocumentSummary,
 } from "@/lib/api";
@@ -222,14 +221,6 @@ export async function getApprovalsCountAction(): Promise<{ pendingUploads: numbe
     return { pendingUploads: 0, deletionRequests: 0 };
   }
   return getApprovalsCount(session.appToken!);
-}
-
-// Backs the non-admin "Approval" nav badge (ApprovalsNavLink.tsx) — true
-// when one of the caller's own uploads or deletion requests was resolved
-// since they last opened their Approvals tab.
-export async function getMyApprovalsUnseenAction(): Promise<{ hasUnseen: boolean }> {
-  const session = await requireSession();
-  return getMyApprovalsUnseen(session.appToken!);
 }
 
 export async function getViewUrlAction(documentId: string) {

@@ -20,7 +20,7 @@ import {
   updateTeamNoteAction,
   deleteTeamNoteAction,
   getNotificationsAction,
-  markNotificationReadAction,
+  markTeamNoteNotificationsReadAction,
   exportNoteToPortalAction,
 } from "@/app/dashboard/notes-actions";
 import type { PersonalNote, TeamNoteSummary, NotificationEntry, CreatableTeam, TeamNoteFolder, Team, Product, Category } from "@/lib/api";
@@ -139,7 +139,7 @@ export function NotesPageContent({
     const teamNote = searchParams.get("teamNote");
     if (!teamNote) return;
     setMode("team");
-    setSelectedTeamNoteId(teamNote);
+    handleSelectTeamNote(teamNote);
     const comment = searchParams.get("comment");
     if (comment) setDeepLinkCommentId(comment);
 
@@ -151,11 +151,15 @@ export function NotesPageContent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleOpenNotification(n: NotificationEntry) {
-    await markNotificationReadAction(n.id);
-    setNotifications((prev) => prev?.map((x) => (x.id === n.id ? { ...x, read: true } : x)) ?? null);
-    setMode("team");
-    setSelectedTeamNoteId(n.teamNoteId);
+  // Selecting a note (tree click, search result, or the ?teamNote= deep link
+  // from the Notifications bell/a "Copy link") clears its unread-mention dot
+  // immediately, rather than waiting for the next notifications poll.
+  function handleSelectTeamNote(id: string) {
+    setSelectedTeamNoteId(id);
+    const hasUnread = notifications?.some((n) => n.type === "MENTION" && n.teamNoteId === id && !n.read);
+    if (!hasUnread) return;
+    markTeamNoteNotificationsReadAction(id);
+    setNotifications((prev) => prev?.map((n) => (n.teamNoteId === id && n.type === "MENTION" ? { ...n, read: true } : n)) ?? null);
   }
 
   // --- Personal: instant creation, no modal ---
@@ -292,7 +296,11 @@ export function NotesPageContent({
     getTeamNotesListAction().then(setTeamNotes);
   }
 
-  const unreadNotifications = notifications?.filter((n) => !n.read) ?? [];
+  // Only mentions carry a teamNoteId — document-outcome notifications are
+  // irrelevant to the notes tree and never included here.
+  const unreadMentionNoteIds = new Set(
+    (notifications ?? []).filter((n) => n.type === "MENTION" && !n.read && n.teamNoteId).map((n) => n.teamNoteId as string),
+  );
   const selectedPersonal = personalNotes?.find((n) => n.id === selectedPersonalId) ?? null;
   const personalBreadcrumb = selectedPersonal ? buildBreadcrumb(personalFolders ?? [], selectedPersonal.folderId) : [];
   const selectedTeamFolderId = teamNotes?.find((n) => n.id === selectedTeamNoteId)?.folderId ?? null;
@@ -305,6 +313,7 @@ export function NotesPageContent({
     folderId: n.folderId,
     updatedAt: n.updatedAt,
     subtitle: n.team?.name ?? "",
+    hasUnread: false, // mentions only ever happen in team notes
   }));
   const teamTreeNotes: TreeNote[] = (teamNotes ?? []).map((n) => ({
     id: n.id,
@@ -313,6 +322,7 @@ export function NotesPageContent({
     folderId: n.folderId,
     updatedAt: n.updatedAt,
     subtitle: n.teamName,
+    hasUnread: unreadMentionNoteIds.has(n.id),
   }));
 
   // Client-side title search — both note lists are already fully loaded
@@ -361,33 +371,20 @@ export function NotesPageContent({
                 setMode("team");
                 setTeamFilter("");
               }}
-              className="rounded-full px-4 py-1.5 text-center transition-colors"
+              className="relative rounded-full px-4 py-1.5 text-center transition-colors"
               style={mode === "team" ? { background: "white", color: "#171717", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" } : { color: "#737373" }}
             >
               Team
+              {unreadMentionNoteIds.size > 0 && (
+                <span
+                  aria-label="Unread mentions in Team notes"
+                  className="absolute top-1 right-1.5 h-1.5 w-1.5 rounded-full"
+                  style={{ background: "#b3342c" }}
+                />
+              )}
             </button>
           </div>
         </div>
-
-        {unreadNotifications.length > 0 && (
-          <div className="border-b border-neutral-100 bg-neutral-50 p-3">
-            <p className="mb-1.5 text-xs font-semibold tracking-wide text-neutral-400 uppercase">Mentions</p>
-            <ul className="space-y-1">
-              {unreadNotifications.slice(0, 4).map((n) => (
-                <li key={n.id}>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenNotification(n)}
-                    className="block w-full rounded-md px-2 py-1.5 text-left text-xs text-neutral-700 hover:bg-white"
-                  >
-                    <span className="font-medium">{n.triggeredBy.name}</span> mentioned you in{" "}
-                    <span className="font-medium">{n.noteTitle}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {mode === "individual" &&
@@ -428,13 +425,13 @@ export function NotesPageContent({
             (teamNotes === null || teamFolders === null ? (
               <p className="p-4 text-sm text-neutral-400">Loading…</p>
             ) : searchActive ? (
-              <NoteSearchResults notes={teamSearchResults} selectedId={selectedTeamNoteId} onSelect={setSelectedTeamNoteId} query={searchQuery} />
+              <NoteSearchResults notes={teamSearchResults} selectedId={selectedTeamNoteId} onSelect={handleSelectTeamNote} query={searchQuery} />
             ) : (
               <NoteFolderTree
                 folders={teamFolders}
                 notes={teamTreeNotes}
                 selectedNoteId={selectedTeamNoteId}
-                onSelectNote={setSelectedTeamNoteId}
+                onSelectNote={handleSelectTeamNote}
                 canManage={isAdmin}
                 onRenameFolder={handleRenameTeamFolder}
                 onDeleteFolder={handleDeleteTeamFolder}
@@ -842,6 +839,7 @@ function NoteSearchResults({
         >
           <span className="shrink-0 text-neutral-400">{note.icon ? <Icon name={note.icon} size={14} /> : <NoteIcon />}</span>
           <span className="min-w-0 truncate text-sm text-neutral-800">{note.title}</span>
+          {note.hasUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "#b3342c" }} />}
           {note.subtitle && (
             <span className="shrink-0">
               <Tag label={note.subtitle} {...colorForScope(note.subtitle)} />

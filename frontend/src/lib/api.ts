@@ -245,19 +245,6 @@ export function getMyDocuments(appToken: string) {
   return backendFetch<DocumentSummary[]>(`/api/documents/mine`, appToken);
 }
 
-// True when something the caller submitted or asked to delete was resolved
-// more recently than they last opened their Approvals tab — drives the
-// green-tick nav badge for non-admins (see ApprovalsNavLink.tsx).
-export function getMyApprovalsUnseen(appToken: string) {
-  return backendFetch<{ hasUnseen: boolean }>(`/api/documents/mine/unseen`, appToken);
-}
-
-// Marks "now" as the last time the caller opened their own Approvals tab,
-// clearing the green-tick badge above.
-export function markApprovalsSeen(appToken: string) {
-  return backendFetch<void>(`/api/documents/mine/seen`, appToken, { method: "POST" });
-}
-
 export function searchDocuments(appToken: string, q: string) {
   return backendFetch<DocumentSummary[]>(`/api/search?q=${encodeURIComponent(q)}`, appToken);
 }
@@ -755,11 +742,20 @@ export function deleteTeamNoteComment(appToken: string, id: string, commentId: s
   return backendFetch<void>(`/api/team-notes/${id}/comments/${commentId}`, appToken, { method: "DELETE" });
 }
 
+export type NotificationType = "MENTION" | "DOCUMENT_APPROVED" | "DOCUMENT_REJECTED" | "DELETION_APPROVED" | "DELETION_REJECTED";
+
+// Polymorphic — a MENTION row has teamNoteId/noteTitle/teamName (and
+// optionally commentId) set; a document-outcome row has documentId/
+// documentTitle set instead. Exactly one side is non-null per `type`.
 export interface NotificationEntry {
   id: string;
-  teamNoteId: string;
-  noteTitle: string;
-  teamName: string;
+  type: NotificationType;
+  teamNoteId: string | null;
+  noteTitle: string | null;
+  teamName: string | null;
+  commentId: string | null;
+  documentId: string | null;
+  documentTitle: string | null;
   triggeredBy: { id: string; name: string };
   read: boolean;
   createdAt: string;
@@ -775,6 +771,14 @@ export function getUnreadNotificationsCount(appToken: string) {
 
 export function markNotificationRead(appToken: string, id: string) {
   return backendFetch<{ ok: true }>(`/api/notifications/${id}/read`, appToken, { method: "POST" });
+}
+
+export function markAllNotificationsRead(appToken: string) {
+  return backendFetch<{ ok: true }>("/api/notifications/read-all", appToken, { method: "POST" });
+}
+
+export function markTeamNoteNotificationsRead(appToken: string, teamNoteId: string) {
+  return backendFetch<{ ok: true }>(`/api/notifications/team-note/${teamNoteId}/read`, appToken, { method: "POST" });
 }
 
 // Uploading returns only a storage key, never a URL — a signed URL would

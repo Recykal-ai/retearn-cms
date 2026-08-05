@@ -212,35 +212,6 @@ documentsRouter.get("/mine", requireAuth, async (req, res) => {
   res.json(docs.map((d) => serializeDocument(d, pinnedIds)));
 });
 
-// GET /api/documents/mine/unseen — boolean the "Approval" nav badge polls for
-// a plain User: true when something they submitted or asked to delete was
-// resolved more recently than they last opened their Approvals tab (see POST
-// /mine/seen). Deliberately a boolean, not a count — a single "you have
-// news" tick, not a number to track down to zero.
-documentsRouter.get("/mine/unseen", requireAuth, async (req, res) => {
-  const userId = req.user!.userId;
-  const me = await prisma.user.findUnique({ where: { id: userId }, select: { approvalsLastSeenAt: true } });
-  const since = me?.approvalsLastSeenAt ?? new Date(0);
-  const match = await prisma.document.findFirst({
-    where: {
-      updatedAt: { gt: since },
-      OR: [
-        { uploadedById: userId, status: { in: ["PUBLISHED", "REJECTED"] } },
-        { lastDeletionRequestedById: userId, OR: [{ deletedAt: { not: null } }, { deletionDeclinedAt: { not: null } }] },
-      ],
-    },
-    select: { id: true },
-  });
-  res.json({ hasUnseen: Boolean(match) });
-});
-
-// POST /api/documents/mine/seen — marks "now" as the last time the caller
-// looked at their own Approvals tab, clearing the badge above.
-documentsRouter.post("/mine/seen", requireAuth, async (req, res) => {
-  await prisma.user.update({ where: { id: req.user!.userId }, data: { approvalsLastSeenAt: new Date() } });
-  res.status(204).send();
-});
-
 // GET /api/documents/recent?limit= — the current user's own most-recently
 // touched documents (viewed or edited), most recent first, one entry per
 // document. Must come before GET /:id or Express would match "recent" as an
@@ -887,6 +858,14 @@ documentsRouter.patch<{ id: string }>("/:id/approve", requireAuth, requireRole("
   await prisma.auditLog.create({
     data: { userId: req.user!.userId, action: "approve", targetId: doc.id },
   });
+  await prisma.notification.create({
+    data: {
+      userId: updated.uploadedById,
+      type: "DOCUMENT_APPROVED",
+      documentId: updated.id,
+      triggeredById: req.user!.userId,
+    },
+  });
   await notifyDocumentApproved(
     { email: updated.uploadedBy.email, name: updated.uploadedBy.name },
     { id: updated.id, title: updated.title },
@@ -917,6 +896,14 @@ documentsRouter.patch<{ id: string }>("/:id/reject", requireAuth, requireRole("A
   });
   await prisma.auditLog.create({
     data: { userId: req.user!.userId, action: "reject", targetId: doc.id, metadata: { note: note ?? null } },
+  });
+  await prisma.notification.create({
+    data: {
+      userId: updated.uploadedById,
+      type: "DOCUMENT_REJECTED",
+      documentId: updated.id,
+      triggeredById: req.user!.userId,
+    },
   });
   await notifyDocumentRejected(
     { email: updated.uploadedBy.email, name: updated.uploadedBy.name },
@@ -1006,6 +993,14 @@ documentsRouter.patch<{ id: string }>(
     });
 
     if (requesterId) {
+      await prisma.notification.create({
+        data: {
+          userId: requesterId,
+          type: "DELETION_APPROVED",
+          documentId: doc.id,
+          triggeredById: req.user!.userId,
+        },
+      });
       const requester = await prisma.user.findUnique({ where: { id: requesterId }, select: { name: true, email: true } });
       if (requester) await notifyDeletionApproved(requester, { title: doc.title });
     }
@@ -1054,6 +1049,14 @@ documentsRouter.patch<{ id: string }>(
     });
 
     if (requesterId) {
+      await prisma.notification.create({
+        data: {
+          userId: requesterId,
+          type: "DELETION_REJECTED",
+          documentId: updated.id,
+          triggeredById: req.user!.userId,
+        },
+      });
       const requester = await prisma.user.findUnique({ where: { id: requesterId }, select: { name: true, email: true } });
       if (requester) await notifyDeletionRejected(requester, { id: updated.id, title: updated.title });
     }

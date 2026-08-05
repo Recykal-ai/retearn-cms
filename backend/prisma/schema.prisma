@@ -34,10 +34,6 @@ model User {
   role                     Role                  @default(USER)
   active                   Boolean               @default(true) // Super Admin can deactivate an account instead of deleting it
   createdAt                DateTime              @default(now())
-  // Bumped whenever the user opens their own (non-admin) Approvals tab —
-  // GET /api/documents/mine/unseen compares against this to decide whether
-  // to show the green-tick "you have news" badge on the nav link.
-  approvalsLastSeenAt      DateTime?
   documents                Document[]            @relation("UploadedBy")
   auditLogs                AuditLog[]
   adminScopes              AdminScope[]
@@ -176,6 +172,7 @@ model Document {
   categories            DocumentCategory[]
   versions              DocumentVersion[]
   pinnedBy              PinnedDocument[]
+  notifications         Notification[]
 
   @@index([uploadedById])
 }
@@ -345,19 +342,34 @@ model TeamNoteMembership {
   @@id([userId, teamNoteId])
 }
 
-// An in-app notification — currently only produced by @mentioning someone
-// in a team note. Kept generic (teamNoteId + triggeredById) in case other
-// notification sources are added later.
+enum NotificationType {
+  MENTION
+  DOCUMENT_APPROVED
+  DOCUMENT_REJECTED
+  DELETION_APPROVED
+  DELETION_REJECTED
+}
+
+// An in-app notification — either an @mention in a team note (teamNoteId,
+// optionally commentId) or a document approval-flow outcome (documentId).
+// Exactly one of teamNoteId/documentId is set, matching `type`.
 model Notification {
-  id            String   @id @default(uuid())
+  id            String           @id @default(uuid())
   userId        String // recipient
-  user          User     @relation(fields: [userId], references: [id])
-  teamNoteId    String // which team note the mention happened in
-  teamNote      TeamNote @relation(fields: [teamNoteId], references: [id])
+  user          User             @relation(fields: [userId], references: [id])
+  type          NotificationType @default(MENTION)
+  teamNoteId    String? // which team note the mention happened in
+  teamNote      TeamNote?        @relation(fields: [teamNoteId], references: [id])
+  // Bare id, no relation (same convention as deletionRequestedById elsewhere)
+  // — lets a mention notification deep-link to the exact comment, matching
+  // what the email version already does via notifyMentioned's commentId arg.
+  commentId     String?
+  documentId    String?
+  document      Document?        @relation(fields: [documentId], references: [id])
   triggeredById String
-  triggeredBy   User     @relation("NotificationTrigger", fields: [triggeredById], references: [id])
-  read          Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  triggeredBy   User             @relation("NotificationTrigger", fields: [triggeredById], references: [id])
+  read          Boolean          @default(false)
+  createdAt     DateTime         @default(now())
 
   @@index([userId, read])
 }

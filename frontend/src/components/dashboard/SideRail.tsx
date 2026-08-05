@@ -4,14 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { signOutAction } from "@/app/dashboard/actions";
 import { getRecentDocumentsAction } from "@/app/dashboard/documents-actions";
-import { getUnreadNotificationsCountAction } from "@/app/dashboard/notes-actions";
 import type { DocumentSummary } from "@/lib/api";
 import { FileTypeIcon } from "@/components/dashboard/FileTypeIcon";
 import { fileTypeOf } from "@/lib/file-type";
 import { useDocumentViewer } from "@/components/dashboard/useDocumentViewer";
 import { Icon } from "@/components/dashboard/Icon";
-
-const NOTES_POLL_MS = 8000;
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/);
@@ -31,25 +28,8 @@ export function SideRail({
 }) {
   const [openMenu, setOpenMenu] = useState<"avatar" | "recents" | null>(null);
   const [recentDocs, setRecentDocs] = useState<DocumentSummary[] | null>(null);
-  const [unreadNotes, setUnreadNotes] = useState(0);
   const { view, isOpening, viewerNode } = useDocumentViewer();
   const railRef = useRef<HTMLDivElement>(null);
-
-  // Polls regardless of whether the Notes popup is open — anyone could be
-  // @mentioned in a team note at any time, matching ApprovalsNavLink's cadence.
-  useEffect(() => {
-    let cancelled = false;
-    async function poll() {
-      const result = await getUnreadNotificationsCountAction().catch(() => null);
-      if (!cancelled && result) setUnreadNotes(result.count);
-    }
-    poll();
-    const id = setInterval(poll, NOTES_POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, []);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -179,18 +159,9 @@ export function SideRail({
         href="/dashboard/notes"
         title="Notes"
         aria-label="Notes — personal and team"
-        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700"
       >
         <Icon name="File/Note" size={15} />
-        {unreadNotes > 0 && (
-          <span
-            aria-label={`${unreadNotes} unread mention${unreadNotes === 1 ? "" : "s"}`}
-            className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full text-[9px] font-bold text-white"
-            style={{ background: "#b3342c" }}
-          >
-            {unreadNotes > 9 ? "9+" : unreadNotes}
-          </span>
-        )}
       </Link>
 
       {isAdmin && (

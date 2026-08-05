@@ -537,7 +537,7 @@ teamNotesRouter.post<{ id: string }>("/:id/comments", requireAuth, async (req, r
     if (notifyIds.length > 0) {
       const uniqueIds = [...new Set(notifyIds)];
       await prisma.notification.createMany({
-        data: uniqueIds.map((userId) => ({ userId, teamNoteId: id, triggeredById: req.user!.userId })),
+        data: uniqueIds.map((userId) => ({ userId, teamNoteId: id, commentId: comment.id, triggeredById: req.user!.userId })),
       });
       const [recipients, note, mentioner] = await Promise.all([
         prisma.user.findMany({ where: { id: { in: uniqueIds } }, select: { email: true, name: true } }),

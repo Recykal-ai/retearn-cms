@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { getDocuments, getDeletionRequests, getTeams, getProducts, getMyDocuments, markApprovalsSeen } from "@/lib/api";
+import { getDocuments, getDeletionRequests, getTeams, getProducts, getMyDocuments } from "@/lib/api";
 import { withSessionGuard } from "@/lib/session-guard";
 import { ApprovalsAdmin } from "@/components/dashboard/ApprovalsAdmin";
 import { DeletionRequestsAdmin } from "@/components/dashboard/DeletionRequestsAdmin";
@@ -85,12 +85,8 @@ async function AdminQueue({ appToken, activeTab }: { appToken: string; activeTab
 async function UserSubmissions({ appToken }: { appToken: string }) {
   // GET /mine already scopes to "uploaded by me OR I requested its deletion
   // (live or historical)" server-side, including soft-deleted docs — see
-  // documents.ts. markApprovalsSeen fires alongside: opening this tab is
-  // exactly what clears the green-tick nav badge.
-  const mine = await withSessionGuard(async () => {
-    const [docs] = await Promise.all([getMyDocuments(appToken), markApprovalsSeen(appToken)]);
-    return docs;
-  });
+  // documents.ts.
+  const mine = await withSessionGuard(() => getMyDocuments(appToken));
 
   if (mine.length === 0) {
     return <p className="py-16 text-center text-sm text-neutral-400">You haven&apos;t submitted anything yet.</p>;

@@ -85,6 +85,7 @@ export interface TreeNote {
   folderId: string | null;
   updatedAt: string;
   subtitle: string; // team name/label, shown as a small trailing badge
+  hasUnread: boolean; // unread @mention on this note — always false for personal notes
 }
 
 // Confluence/Notion-style nested tree: folders before notes at each level,
@@ -172,6 +173,27 @@ export function NoteFolderTree({
     return map;
   }, [notes]);
 
+  // Bubble-up: a folder shows the unread dot if it (or any nested
+  // subfolder) directly contains an unread note — walked once per unread
+  // note via the parentId chain, same pattern buildBreadcrumb uses above.
+  // Always visible regardless of collapsed state, so an unread mention
+  // buried in a collapsed folder is still discoverable from outside it.
+  const folderHasUnread = useMemo(() => {
+    const parentOf = new Map(folders.map((f) => [f.id, f.parentId]));
+    const result = new Set<string>();
+    for (const n of notes) {
+      if (!n.hasUnread || !n.folderId) continue;
+      let current: string | null = n.folderId;
+      const seen = new Set<string>();
+      while (current && !seen.has(current)) {
+        seen.add(current);
+        result.add(current);
+        current = parentOf.get(current) ?? null;
+      }
+    }
+    return result;
+  }, [folders, notes]);
+
   if (folders.length === 0 && notes.length === 0) {
     return <p className="p-4 text-sm text-neutral-400 italic">{emptyLabel}</p>;
   }
@@ -183,6 +205,7 @@ export function NoteFolderTree({
         depth={0}
         childFoldersOf={childFoldersOf}
         notesOf={notesOf}
+        folderHasUnread={folderHasUnread}
         collapsed={collapsed}
         onToggle={toggle}
         selectedNoteId={selectedNoteId}
@@ -209,6 +232,7 @@ interface LevelProps {
   depth: number;
   childFoldersOf: Map<string | null, TreeFolder[]>;
   notesOf: Map<string | null, TreeNote[]>;
+  folderHasUnread: Set<string>;
   collapsed: Set<string>;
   onToggle: (id: string) => void;
   selectedNoteId: string | null;
@@ -228,7 +252,7 @@ interface LevelProps {
 }
 
 function FolderLevel(props: LevelProps) {
-  const { parentId, depth, childFoldersOf, notesOf, collapsed, onToggle } = props;
+  const { parentId, depth, childFoldersOf, notesOf, folderHasUnread, collapsed, onToggle } = props;
   const childFolders = childFoldersOf.get(parentId) ?? [];
   const childNotes = notesOf.get(parentId) ?? [];
 
@@ -240,6 +264,7 @@ function FolderLevel(props: LevelProps) {
           folder={folder}
           depth={depth}
           isCollapsed={collapsed.has(folder.id)}
+          hasUnread={folderHasUnread.has(folder.id)}
           onToggle={() => onToggle(folder.id)}
           canManage={props.canManage}
           onRename={(name) => props.onRenameFolder(folder, name)}
@@ -275,6 +300,7 @@ function FolderRow({
   folder,
   depth,
   isCollapsed,
+  hasUnread,
   onToggle,
   canManage,
   onRename,
@@ -289,6 +315,7 @@ function FolderRow({
   folder: TreeFolder;
   depth: number;
   isCollapsed: boolean;
+  hasUnread: boolean;
   onToggle: () => void;
   canManage: boolean;
   onRename: (name: string) => void;
@@ -353,6 +380,9 @@ function FolderRow({
           <button type="button" onClick={onToggle} className="min-w-0 flex-1 truncate text-left text-sm text-neutral-700">
             {folder.name}
           </button>
+        )}
+        {hasUnread && !renaming && (
+          <span aria-label="Unread mention inside this folder" className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "#b3342c" }} />
         )}
         {canManage && !renaming && (
           <div className="flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100">
@@ -419,6 +449,9 @@ function NoteRow({
           long title. */}
       <button type="button" onClick={onSelect} className="flex min-w-0 flex-1 items-baseline gap-1.5 text-left">
         <span className="min-w-0 truncate text-sm text-neutral-800">{note.title}</span>
+        {note.hasUnread && (
+          <span aria-label="Unread mention" className="h-1.5 w-1.5 shrink-0 self-center rounded-full" style={{ background: "#b3342c" }} />
+        )}
         {note.subtitle && (
           <span className="shrink-0">
             <Tag label={note.subtitle} {...colorForScope(note.subtitle)} />

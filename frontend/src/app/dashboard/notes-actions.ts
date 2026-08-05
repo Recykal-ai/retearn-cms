@@ -32,6 +32,8 @@ import {
   getNotifications,
   getUnreadNotificationsCount,
   markNotificationRead,
+  markAllNotificationsRead,
+  markTeamNoteNotificationsRead,
   uploadNoteImage,
   getNoteImageViewUrl,
   getTeamNoteActivity,
@@ -295,6 +297,26 @@ export async function markNotificationReadAction(id: string): Promise<{ error?: 
     await markNotificationRead(session.appToken!, id);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to mark as read" };
+  }
+  return {};
+}
+
+export async function markAllNotificationsReadAction(): Promise<{ error?: string }> {
+  const session = await requireSession();
+  try {
+    await markAllNotificationsRead(session.appToken!);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to mark all as read" };
+  }
+  return {};
+}
+
+export async function markTeamNoteNotificationsReadAction(teamNoteId: string): Promise<{ error?: string }> {
+  const session = await requireSession();
+  try {
+    await markTeamNoteNotificationsRead(session.appToken!, teamNoteId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to mark note notifications as read" };
   }
   return {};
 }

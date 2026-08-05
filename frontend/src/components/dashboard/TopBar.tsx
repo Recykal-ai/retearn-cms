@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { SearchBar } from "@/components/dashboard/SearchBar";
+import { NotificationBell } from "@/components/dashboard/NotificationBell";
 
 export function TopBar({ query }: { query?: string }) {
   return (
@@ -26,7 +27,9 @@ export function TopBar({ query }: { query?: string }) {
 
       <SearchBar query={query} />
 
-      <div />
+      <div className="justify-self-end">
+        <NotificationBell />
+      </div>
     </header>
   );
 }
