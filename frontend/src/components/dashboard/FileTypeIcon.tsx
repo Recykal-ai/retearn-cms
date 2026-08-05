@@ -1,24 +1,27 @@
 import type { FileTypeKey } from "@/lib/file-type";
-import { googleLinkKindOf } from "@/lib/file-type";
+import { linkKindOf } from "@/lib/file-type";
 
-// Google's own file-type glyphs (Drive/Docs/Sheets/Slides/PDF/Image),
-// shipped as flat full-color PNGs in public/google-icons — not run through
-// the currentColor-tintable icon pack (components/dashboard/Icon.tsx), since
-// these are brand logos, not single-color glyphs.
-const GOOGLE_ICON_SRC: Record<"docs" | "sheets" | "slides" | "pdf" | "image" | "drive", string> = {
+// File-type brand glyphs, shipped as flat full-color PNGs in
+// public/google-icons (named for its original Google-only contents;
+// Confluence's since joined it rather than warranting a second folder) —
+// not run through the currentColor-tintable icon pack
+// (components/dashboard/Icon.tsx), since these are brand logos, not
+// single-color glyphs.
+const BRAND_ICON_SRC: Record<"docs" | "sheets" | "slides" | "pdf" | "image" | "drive" | "confluence", string> = {
   docs: "/google-icons/docs.png",
   sheets: "/google-icons/sheets.png",
   slides: "/google-icons/slides.png",
   pdf: "/google-icons/pdf.png",
   image: "/google-icons/image.png",
   drive: "/google-icons/drive.png",
+  confluence: "/google-icons/confluence.png",
 };
 
 // Word/Excel/PowerPoint files render with Google's Docs/Sheets/Slides
 // glyphs rather than Microsoft Office ones — this is a Drive-flavored CMS
 // (documents can themselves be Drive links), so the two file "families" read
 // as one consistent icon language instead of two competing brand sets.
-const FILE_TYPE_ICON: Partial<Record<FileTypeKey, keyof typeof GOOGLE_ICON_SRC>> = {
+const FILE_TYPE_ICON: Partial<Record<FileTypeKey, keyof typeof BRAND_ICON_SRC>> = {
   word: "docs",
   excel: "sheets",
   powerpoint: "slides",
@@ -26,9 +29,9 @@ const FILE_TYPE_ICON: Partial<Record<FileTypeKey, keyof typeof GOOGLE_ICON_SRC>>
   image: "image",
 };
 
-function GoogleIcon({ kind, className }: { kind: keyof typeof GOOGLE_ICON_SRC; className?: string }) {
+function BrandIcon({ kind, className }: { kind: keyof typeof BRAND_ICON_SRC; className?: string }) {
   // eslint-disable-next-line @next/next/no-img-element -- fixed-size static asset, not worth next/image's overhead here
-  return <img src={GOOGLE_ICON_SRC[kind]} alt="" width={20} height={20} className={className} draggable={false} />;
+  return <img src={BRAND_ICON_SRC[kind]} alt="" width={20} height={20} className={className} draggable={false} />;
 }
 
 // Small badge pinned to the icon's corner marking "this is a link, not a
@@ -58,19 +61,19 @@ function LinkBadge() {
 }
 
 export function FileTypeIcon({ type, externalUrl }: { type: FileTypeKey; externalUrl?: string | null }) {
-  const googleFileIcon = FILE_TYPE_ICON[type];
-  if (googleFileIcon) {
-    return <GoogleIcon kind={googleFileIcon} />;
+  const brandFileIcon = FILE_TYPE_ICON[type];
+  if (brandFileIcon) {
+    return <BrandIcon kind={brandFileIcon} />;
   }
 
   if (type === "link") {
-    // GoogleLinkKind's members ("docs"/"sheets"/"slides"/"drive") are
-    // themselves valid GOOGLE_ICON_SRC keys, so no separate mapping needed.
-    const linkKind = googleLinkKindOf(externalUrl);
+    // LinkKind's members ("docs"/"sheets"/"slides"/"drive"/"confluence")
+    // are themselves valid BRAND_ICON_SRC keys, so no separate mapping needed.
+    const linkKind = linkKindOf(externalUrl);
     if (linkKind) {
       return (
         <span className="relative inline-flex h-5 w-5">
-          <GoogleIcon kind={linkKind} />
+          <BrandIcon kind={linkKind} />
           <LinkBadge />
         </span>
       );
