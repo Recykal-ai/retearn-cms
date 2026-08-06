@@ -17,16 +17,16 @@ const ACTION_LABEL: Record<string, string> = {
 
 export function AuditLogSection({ entries }: { entries: AuditLogEntry[] }) {
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-5">
-      <h2 className="mb-1 text-sm font-semibold text-neutral-900">Audit log</h2>
-      <p className="mb-4 text-xs text-neutral-400">Most recent {entries.length} events.</p>
+    <div className="rounded-lg border border-neutral-200 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900">
+      <h2 className="mb-1 text-sm font-semibold text-neutral-900 dark:text-neutral-200">Audit log</h2>
+      <p className="mb-4 text-xs text-neutral-400 dark:text-neutral-500">Most recent {entries.length} events.</p>
       {entries.length === 0 ? (
-        <p className="py-8 text-center text-sm text-neutral-400">No activity yet.</p>
+        <p className="py-8 text-center text-sm text-neutral-400 dark:text-neutral-500">No activity yet.</p>
       ) : (
         <div className="max-h-[28rem] overflow-y-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="sticky top-0 border-b border-neutral-100 bg-white text-xs font-semibold text-neutral-500">
+              <tr className="sticky top-0 border-b border-neutral-100 bg-white text-xs font-semibold text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
                 <th className="py-2 font-semibold">Action</th>
                 <th className="py-2 font-semibold">By</th>
                 <th className="py-2 font-semibold">Target</th>
@@ -35,11 +35,11 @@ export function AuditLogSection({ entries }: { entries: AuditLogEntry[] }) {
             </thead>
             <tbody>
               {entries.map((e) => (
-                <tr key={e.id} className="border-b border-neutral-50 last:border-0">
-                  <td className="py-2 text-neutral-700">{ACTION_LABEL[e.action] ?? e.action}</td>
-                  <td className="py-2 text-neutral-500">{e.user.name}</td>
-                  <td className="py-2 font-mono text-xs text-neutral-400">{e.targetId.slice(0, 8)}…</td>
-                  <td className="py-2 text-neutral-500" suppressHydrationWarning>
+                <tr key={e.id} className="border-b border-neutral-50 last:border-0 dark:border-neutral-800">
+                  <td className="py-2 text-neutral-700 dark:text-neutral-300">{ACTION_LABEL[e.action] ?? e.action}</td>
+                  <td className="py-2 text-neutral-500 dark:text-neutral-400">{e.user.name}</td>
+                  <td className="py-2 font-mono text-xs text-neutral-400 dark:text-neutral-500">{e.targetId.slice(0, 8)}…</td>
+                  <td className="py-2 text-neutral-500 dark:text-neutral-400" suppressHydrationWarning>
                     {relativeTime(e.createdAt)}
                   </td>
                 </tr>

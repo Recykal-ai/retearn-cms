@@ -157,14 +157,14 @@ export function DocumentsPanel({
 
   return (
     <div
-      className="flex h-full flex-col rounded-lg border border-neutral-200 bg-white shadow-sm"
+      className="flex h-full flex-col rounded-lg border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
       style={{ fontFamily: "var(--font-ui)" }}
     >
-      <div className="flex items-center justify-between border-b border-neutral-100 px-6 py-4">
+      <div className="flex items-center justify-between border-b border-neutral-100 px-6 py-4 dark:border-neutral-800">
         <div className="flex items-center gap-2">
-          <h1 className="text-lg font-semibold text-neutral-900">
+          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-200">
             {documentsCrumbHref ? (
-              <Link href={documentsCrumbHref} className="hover:text-neutral-600 hover:underline">
+              <Link href={documentsCrumbHref} className="hover:text-neutral-600 hover:underline dark:hover:text-neutral-400">
                 Documents
               </Link>
             ) : (

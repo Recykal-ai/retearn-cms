@@ -10,7 +10,7 @@ export function SubPageTopBar() {
   return (
     <div
       className="flex h-15 flex-shrink-0 items-center justify-between px-6 shadow-sm"
-      style={{ background: "linear-gradient(180deg, var(--brand-purple) 0%, var(--brand-purple-dark) 100%)" }}
+      style={{ background: "linear-gradient(180deg, var(--header-gradient-start) 0%, var(--header-gradient-end) 100%)" }}
     >
       <Link href="/dashboard" aria-label="Go to dashboard home">
         <Image

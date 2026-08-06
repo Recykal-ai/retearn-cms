@@ -2,13 +2,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { SearchBar } from "@/components/dashboard/SearchBar";
 import { NotificationBell } from "@/components/dashboard/NotificationBell";
+import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
 
 export function TopBar({ query }: { query?: string }) {
   return (
     <header
       className="grid h-15 flex-shrink-0 grid-cols-[1fr_auto_1fr] items-center px-6 shadow-sm"
       style={{
-        background: "linear-gradient(180deg, var(--brand-purple) 0%, var(--brand-purple-dark) 100%)",
+        background: "linear-gradient(180deg, var(--header-gradient-start) 0%, var(--header-gradient-end) 100%)",
       }}
     >
       {/* Even on /dashboard itself, this resets away from whatever team/
@@ -27,7 +28,8 @@ export function TopBar({ query }: { query?: string }) {
 
       <SearchBar query={query} />
 
-      <div className="justify-self-end">
+      <div className="flex items-center gap-1 justify-self-end">
+        <ThemeToggle />
         <NotificationBell />
       </div>
     </header>

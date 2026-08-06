@@ -51,12 +51,12 @@ export function UploaderFilterSection({
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search people…"
-        className="mb-2 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-700 outline-none focus:border-neutral-400"
+        className="mb-2 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-700 outline-none focus:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:focus:border-neutral-600"
       />
-      {visible.length === 0 && <p className="py-1 text-xs text-neutral-400">No people match &ldquo;{search}&rdquo;.</p>}
+      {visible.length === 0 && <p className="py-1 text-xs text-neutral-400 dark:text-neutral-500">No people match &ldquo;{search}&rdquo;.</p>}
       <div className="flex max-h-52 flex-col gap-1.5 overflow-y-auto">
         {visible.map((u) => (
-          <label key={u.id} className="flex items-center justify-between gap-2 text-sm text-neutral-700">
+          <label key={u.id} className="flex items-center justify-between gap-2 text-sm text-neutral-700 dark:text-neutral-300">
             <span className="flex min-w-0 items-center gap-2">
               <input type="checkbox" checked={selected.includes(u.id)} onChange={() => onToggle(u.id)} />
               <span
@@ -68,12 +68,12 @@ export function UploaderFilterSection({
               </span>
               <span className="truncate">{u.name}</span>
             </span>
-            <span className="shrink-0 text-xs text-neutral-400">{u.count}</span>
+            <span className="shrink-0 text-xs text-neutral-400 dark:text-neutral-500">{u.count}</span>
           </label>
         ))}
       </div>
       {!q && uploaders.length > DEFAULT_LIMIT && (
-        <p className="mt-1.5 text-[11px] text-neutral-400">
+        <p className="mt-1.5 text-[11px] text-neutral-400 dark:text-neutral-500">
           Showing top {DEFAULT_LIMIT} of {uploaders.length} — search to find someone else.
         </p>
       )}

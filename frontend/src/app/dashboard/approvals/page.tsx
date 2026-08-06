@@ -33,10 +33,10 @@ export default async function ApprovalsPage({
         <AdminQueue appToken={session.appToken} activeTab={activeTab} />
       ) : (
         <div className="flex-1 overflow-y-auto p-8">
-          <div className="mx-auto max-w-4xl rounded-lg border border-neutral-200 bg-white shadow-sm">
-            <div className="border-b border-neutral-100 px-6 py-4">
-              <h1 className="text-lg font-semibold text-neutral-900">Approvals</h1>
-              <p className="text-sm text-neutral-400">Status of documents you&apos;ve submitted or asked to delete</p>
+          <div className="mx-auto max-w-4xl rounded-lg border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div className="border-b border-neutral-100 px-6 py-4 dark:border-neutral-800">
+              <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-200">Approvals</h1>
+              <p className="text-sm text-neutral-400 dark:text-neutral-500">Status of documents you&apos;ve submitted or asked to delete</p>
             </div>
             <UserSubmissions appToken={session.appToken} />
           </div>
@@ -61,12 +61,12 @@ async function AdminQueue({ appToken, activeTab }: { appToken: string; activeTab
     <div className="flex flex-1 overflow-hidden">
       <ApprovalsNav activeTab={activeTab} pendingCount={pending.length} deletionCount={deletionRequests.length} />
       <main className="flex-1 overflow-y-auto p-8">
-        <div className="rounded-lg border border-neutral-200 bg-white shadow-sm">
-          <div className="border-b border-neutral-100 px-6 py-4">
-            <h1 className="text-lg font-semibold text-neutral-900">
+        <div className="rounded-lg border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="border-b border-neutral-100 px-6 py-4 dark:border-neutral-800">
+            <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-200">
               {activeTab === "approvals" ? "Approval requests" : "Deletion requests"}
             </h1>
-            <p className="text-sm text-neutral-400">
+            <p className="text-sm text-neutral-400 dark:text-neutral-500">
               {activeTab === "approvals" ? "Documents waiting on your review" : "Someone has asked for these to be removed"}
             </p>
           </div>
@@ -89,7 +89,7 @@ async function UserSubmissions({ appToken }: { appToken: string }) {
   const mine = await withSessionGuard(() => getMyDocuments(appToken));
 
   if (mine.length === 0) {
-    return <p className="py-16 text-center text-sm text-neutral-400">You haven&apos;t submitted anything yet.</p>;
+    return <p className="py-16 text-center text-sm text-neutral-400 dark:text-neutral-500">You haven&apos;t submitted anything yet.</p>;
   }
 
   return <MyUploadsTable documents={mine} />;

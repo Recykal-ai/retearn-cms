@@ -82,36 +82,36 @@ export function DateTimePicker({
       <button
         type="button"
         onClick={() => (open ? setOpen(false) : openPicker())}
-        className="flex w-full items-center justify-between gap-2 rounded-md border border-neutral-200 px-2.5 py-1.5 text-left text-sm focus:border-neutral-400 focus:outline-none"
+        className="flex w-full items-center justify-between gap-2 rounded-md border border-neutral-200 px-2.5 py-1.5 text-left text-sm focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:focus:border-neutral-500"
       >
-        <span className={value ? "text-neutral-800" : "text-neutral-400"}>{value ? displayValue(value) : placeholder}</span>
+        <span className={value ? "text-neutral-800 dark:text-neutral-200" : "text-neutral-400 dark:text-neutral-500"}>{value ? displayValue(value) : placeholder}</span>
         <Icon name="Calendar/Calendar" size={15} style={{ color: "var(--brand-purple)" }} />
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 z-30 mt-1 w-64 rounded-lg border border-neutral-200 bg-white p-3 shadow-lg">
+        <div className="absolute top-full left-0 z-30 mt-1 w-64 rounded-lg border border-neutral-200 bg-white p-3 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
           <div className="mb-2 flex items-center justify-between">
             <button
               type="button"
               onClick={() => setViewMonth(addMonths(viewMonth, -1))}
               aria-label="Previous month"
-              className="flex h-6 w-6 items-center justify-center rounded-md text-sm hover:bg-neutral-100"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-sm hover:bg-neutral-100 dark:hover:bg-neutral-700"
               style={{ color: "var(--brand-purple)" }}
             >
               ‹
             </button>
-            <span className="text-xs font-semibold text-neutral-700">{monthLabel}</span>
+            <span className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">{monthLabel}</span>
             <button
               type="button"
               onClick={() => setViewMonth(addMonths(viewMonth, 1))}
               aria-label="Next month"
-              className="flex h-6 w-6 items-center justify-center rounded-md text-sm hover:bg-neutral-100"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-sm hover:bg-neutral-100 dark:hover:bg-neutral-700"
               style={{ color: "var(--brand-purple)" }}
             >
               ›
             </button>
           </div>
-          <div className="grid grid-cols-7 gap-y-1 text-center text-[10px] font-semibold text-neutral-400">
+          <div className="grid grid-cols-7 gap-y-1 text-center text-[10px] font-semibold text-neutral-400 dark:text-neutral-500">
             {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
               <span key={i}>{d}</span>
             ))}
@@ -125,13 +125,15 @@ export function DateTimePicker({
                   key={date.toISOString()}
                   type="button"
                   onClick={() => pickDay(date)}
-                  className="mx-auto flex h-6 w-6 items-center justify-center rounded-full"
+                  className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full ${
+                    isSelected || isToday ? "" : inMonth ? "text-neutral-700 dark:text-neutral-300" : "text-neutral-300 dark:text-neutral-600"
+                  }`}
                   style={
                     isSelected
                       ? { background: "var(--brand-purple)", color: "white" }
                       : isToday
                         ? { border: "1px solid var(--brand-purple)", color: "var(--brand-purple)" }
-                        : { color: inMonth ? "#404040" : "#d4d4d4" }
+                        : undefined
                   }
                 >
                   {date.getDate()}
@@ -140,9 +142,9 @@ export function DateTimePicker({
             })}
           </div>
 
-          <div className="mt-3 flex items-center justify-center gap-3 border-t border-neutral-100 pt-3">
+          <div className="mt-3 flex items-center justify-center gap-3 border-t border-neutral-100 pt-3 dark:border-neutral-800">
             <TimeStepper label="Hour" value={pad(pendingHour)} onUp={() => stepHour(1)} onDown={() => stepHour(-1)} />
-            <span className="pb-0.5 text-lg font-semibold text-neutral-400">:</span>
+            <span className="pb-0.5 text-lg font-semibold text-neutral-400 dark:text-neutral-500">:</span>
             <TimeStepper label="Min" value={pad(pendingMinute)} onUp={() => stepMinute(5)} onDown={() => stepMinute(-5)} />
           </div>
 
@@ -151,7 +153,7 @@ export function DateTimePicker({
               type="button"
               onClick={clear}
               aria-label="Clear date"
-              className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-white text-xs text-neutral-400 shadow hover:text-neutral-600"
+              className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-white text-xs text-neutral-400 shadow hover:text-neutral-600 dark:bg-neutral-900 dark:text-neutral-500 dark:hover:text-neutral-300"
             >
               ×
             </button>
@@ -179,7 +181,7 @@ function TimeStepper({
         type="button"
         onClick={onUp}
         aria-label={`Increase ${label.toLowerCase()}`}
-        className="flex h-5 w-8 items-center justify-center rounded hover:bg-neutral-100"
+        className="flex h-5 w-8 items-center justify-center rounded hover:bg-neutral-100 dark:hover:bg-neutral-700"
         style={{ color: "var(--brand-purple)" }}
       >
         <Icon name="Arrow/Chevron_Up" size={12} />
@@ -194,7 +196,7 @@ function TimeStepper({
         type="button"
         onClick={onDown}
         aria-label={`Decrease ${label.toLowerCase()}`}
-        className="flex h-5 w-8 items-center justify-center rounded hover:bg-neutral-100"
+        className="flex h-5 w-8 items-center justify-center rounded hover:bg-neutral-100 dark:hover:bg-neutral-700"
         style={{ color: "var(--brand-purple)" }}
       >
         <Icon name="Arrow/Chevron_Down" size={12} />

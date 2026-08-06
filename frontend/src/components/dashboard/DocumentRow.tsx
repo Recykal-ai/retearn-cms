@@ -19,10 +19,10 @@ const STATUS_STYLE: Record<DocumentSummary["status"], { bg: string; fg: string; 
 // Deletion is orthogonal to `status` (a PUBLISHED doc's status field doesn't
 // change when it's soft-deleted), so this is a separate override rather than
 // a fifth STATUS_STYLE entry — checked first wherever a status pill renders.
-const DELETED_PILL = { bg: "#f5f5f5", fg: "#737373", label: "Deleted" };
+const DELETED_PILL = { bg: "var(--chip-neutral-bg)", fg: "var(--chip-neutral-fg)", label: "Deleted" };
 // Distinct from the live purple "Deletion requested" badge above — this is
 // the *resolved* outcome (an Admin declined the request, doc stays as-is).
-const DECLINED_BADGE = { bg: "#f5f5f5", fg: "#737373", label: "Deletion declined" };
+const DECLINED_BADGE = { bg: "var(--chip-neutral-bg)", fg: "var(--chip-neutral-fg)", label: "Deletion declined" };
 
 const MAX_VISIBLE_TAGS = 4;
 
@@ -111,7 +111,7 @@ export function DocumentRow({
   const hiddenTags = allTags.slice(MAX_VISIBLE_TAGS);
 
   return (
-    <tr className="border-b border-neutral-50 text-sm last:border-0 hover:bg-neutral-50/60">
+    <tr className="border-b border-neutral-50 text-sm last:border-0 hover:bg-neutral-50/60 dark:border-neutral-800 dark:hover:bg-neutral-800/60">
       <td className="py-3 pr-4">
         <div className="flex items-center gap-2">
           {doc.status === "PUBLISHED" && !isDeleted && <PinButton documentId={doc.id} pinned={doc.pinned} />}
@@ -121,7 +121,7 @@ export function DocumentRow({
             onClick={() => !isBlocked && onView(doc)}
             disabled={opening || isBlocked}
             title={isBlocked ? blockedReason(doc) : undefined}
-            className={`text-left font-medium text-neutral-800 disabled:opacity-60 ${isBlocked ? "cursor-default" : "hover:underline"}`}
+            className={`text-left font-medium text-neutral-800 disabled:opacity-60 dark:text-neutral-200 ${isBlocked ? "cursor-default" : "hover:underline"}`}
             style={{
               color: isDeleted || doc.status === "PENDING" || doc.status === "REJECTED" || opening ? "#a3a3a3" : undefined,
               textDecoration: isDeleted ? "line-through" : undefined,
@@ -148,10 +148,10 @@ export function DocumentRow({
           ))}
           {hiddenTags.length > 0 && (
             <details className="relative inline-block">
-              <summary className="cursor-pointer list-none rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500 hover:bg-neutral-200">
+              <summary className="cursor-pointer list-none rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-700">
                 +{hiddenTags.length} more
               </summary>
-              <div className="absolute top-full left-0 z-20 mt-1 flex w-48 flex-wrap gap-1.5 rounded-md border border-neutral-200 bg-white p-2 shadow-lg">
+              <div className="absolute top-full left-0 z-20 mt-1 flex w-48 flex-wrap gap-1.5 rounded-md border border-neutral-200 bg-white p-2 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
                 {hiddenTags.map((t) => (
                   <Tag key={t.key} label={t.label} bg={t.bg} fg={t.fg} href={t.href} />
                 ))}
@@ -160,10 +160,10 @@ export function DocumentRow({
           )}
         </div>
       </td>
-      <td className="w-36 py-3 text-neutral-500" suppressHydrationWarning>
+      <td className="w-36 py-3 text-neutral-500 dark:text-neutral-400" suppressHydrationWarning>
         {relativeTime(doc.updatedAt)}
       </td>
-      <td className="w-40 py-3 text-neutral-500">{doc.uploadedBy.name}</td>
+      <td className="w-40 py-3 text-neutral-500 dark:text-neutral-400">{doc.uploadedBy.name}</td>
       <td className="w-28 py-3">
         {showStatus ? (
           <div className="flex flex-col items-start gap-1">

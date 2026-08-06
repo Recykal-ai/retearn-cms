@@ -11,7 +11,7 @@ export function AdminNav({
 }) {
   return (
     <nav
-      className="w-56 flex-shrink-0 overflow-y-auto border-r border-neutral-200 bg-white px-3 py-5"
+      className="w-56 flex-shrink-0 overflow-y-auto border-r border-neutral-200 bg-white px-3 py-5 dark:border-neutral-700 dark:bg-neutral-900"
       style={{ fontFamily: "var(--font-ui)" }}
     >
       <div className="space-y-0.5">
@@ -35,12 +35,8 @@ function NavItem({ href, active, children }: { href: string; active: boolean; ch
   return (
     <Link
       href={href}
-      className="block rounded-md px-2 py-1.5 text-sm font-medium transition-colors"
-      style={
-        active
-          ? { background: "var(--brand-purple-tint)", color: "var(--brand-purple)" }
-          : { color: "#525252" }
-      }
+      className={`block rounded-md px-2 py-1.5 text-sm font-medium transition-colors ${active ? "" : "text-neutral-600 dark:text-neutral-400"}`}
+      style={active ? { background: "var(--brand-purple-tint)", color: "var(--brand-purple)" } : undefined}
     >
       {children}
     </Link>

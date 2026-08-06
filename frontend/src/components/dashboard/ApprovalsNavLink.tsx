@@ -36,9 +36,9 @@ export function ApprovalsNavLink({ isAdmin }: { isAdmin: boolean }) {
   return (
     <Link
       href="/dashboard/approvals"
-      className="relative flex items-center gap-1.5 text-sm font-semibold text-neutral-700 transition-colors hover:text-neutral-900"
+      className="relative flex items-center gap-1.5 text-sm font-semibold text-neutral-700 transition-colors hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100"
     >
-      <Icon name="Interface/Check_Big" size={14} className="text-neutral-500" />
+      <Icon name="Interface/Check_Big" size={14} className="text-neutral-500 dark:text-neutral-400" />
       Approval
       {count > 0 && (
         <span

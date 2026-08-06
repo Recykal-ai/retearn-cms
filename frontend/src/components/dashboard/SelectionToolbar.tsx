@@ -80,7 +80,7 @@ export function SelectionToolbar({
 
   return (
     <div
-      className="w-64 rounded-lg border border-neutral-200 bg-white py-1.5 shadow-lg"
+      className="w-64 rounded-lg border border-neutral-200 bg-white py-1.5 shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
       style={{ fontFamily: "var(--font-ui)" }}
     >
       {linkInputOpen ? (
@@ -94,7 +94,7 @@ export function SelectionToolbar({
               if (e.key === "Escape") setLinkInputOpen(false);
             }}
             placeholder="Paste a link…"
-            className="w-full rounded-md border border-neutral-200 px-2 py-1 text-xs focus:border-neutral-400 focus:outline-none"
+            className="w-full rounded-md border border-neutral-200 px-2 py-1 text-xs focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:focus:border-neutral-500"
           />
           <button
             type="button"
@@ -111,16 +111,16 @@ export function SelectionToolbar({
             <button
               type="button"
               onClick={() => setBlockMenuOpen((v) => !v)}
-              className="flex w-full items-center justify-between px-3 py-1.5 text-sm hover:bg-neutral-50"
+              className="flex w-full items-center justify-between px-3 py-1.5 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800"
             >
-              <span className="flex items-center gap-2 text-neutral-700">
+              <span className="flex items-center gap-2 text-neutral-700 dark:text-neutral-300">
                 <TextGlyph>T</TextGlyph>
                 {currentBlockLabel(editor)}
               </span>
-              <span className="text-neutral-400">{blockMenuOpen ? "▾" : "▸"}</span>
+              <span className="text-neutral-400 dark:text-neutral-500">{blockMenuOpen ? "▾" : "▸"}</span>
             </button>
             {blockMenuOpen && (
-              <div className="border-t border-neutral-100 py-1">
+              <div className="border-t border-neutral-100 py-1 dark:border-neutral-800">
                 <BlockItem onClick={() => setBlockType(() => editor.chain().focus().setParagraph().run())}>
                   Text
                 </BlockItem>
@@ -150,7 +150,7 @@ export function SelectionToolbar({
 
           {!blockMenuOpen && (
             <>
-              <div className="my-1 border-t border-neutral-100" />
+              <div className="my-1 border-t border-neutral-100 dark:border-neutral-800" />
               <div className="flex flex-nowrap items-center justify-between px-2 py-1">
                 <IconButton active={editor.isActive("bold")} label="Bold" onClick={() => toggle(() => editor.chain().focus().toggleBold().run())}>
                   <TextGlyph style={{ fontWeight: 800 }}>B</TextGlyph>
@@ -200,7 +200,7 @@ export function SelectionToolbar({
 
 function TextGlyph({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <span className="text-sm text-neutral-700" style={style}>
+    <span className="text-sm text-neutral-700 dark:text-neutral-300" style={style}>
       {children}
     </span>
   );
@@ -208,7 +208,7 @@ function TextGlyph({ children, style }: { children: React.ReactNode; style?: Rea
 
 function BlockItem({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="block w-full px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50">
+    <button type="button" onClick={onClick} className="block w-full px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800">
       {children}
     </button>
   );
@@ -231,7 +231,7 @@ function IconButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-neutral-100"
+      className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700"
       style={active ? { background: "var(--brand-purple-tint)", color: "var(--brand-purple)" } : undefined}
     >
       {children}

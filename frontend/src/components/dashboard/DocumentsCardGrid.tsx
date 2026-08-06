@@ -57,13 +57,13 @@ export function DocumentsCardGrid({
         <Icon
           name="Interface/Search_Magnifying_Glass"
           size={13}
-          className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400"
+          className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400 dark:text-neutral-500"
         />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={`Find in ${entityName ?? "this list"}…`}
-          className="w-full rounded-md border border-neutral-200 bg-white py-1.5 pr-3 pl-8 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
+          className="w-full rounded-md border border-neutral-200 bg-white py-1.5 pr-3 pl-8 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:placeholder:text-neutral-500 dark:focus:border-neutral-600"
         />
       </div>
 
@@ -71,7 +71,7 @@ export function DocumentsCardGrid({
         <div className="flex flex-col items-center gap-3 py-16 text-center">
           <Icon name="File/Files" size={36} style={{ color: "#c9c2ce" }} />
           <div>
-            <p className="text-sm font-medium text-neutral-600">
+            <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
               {query ? `No matches for "${query}"` : `No documents in ${entityName ?? "this view"} yet`}
             </p>
           </div>
@@ -128,7 +128,7 @@ function DocumentCard({
       }}
       aria-disabled={disabled}
       title={isBlocked ? blockedReason(doc) : undefined}
-      className="flex cursor-pointer flex-col items-start rounded-lg border border-neutral-200 p-4 text-left transition-colors hover:border-neutral-300 hover:shadow-sm aria-disabled:cursor-default aria-disabled:opacity-60"
+      className="flex cursor-pointer flex-col items-start rounded-lg border border-neutral-200 p-4 text-left transition-colors hover:border-neutral-300 hover:shadow-sm aria-disabled:cursor-default aria-disabled:opacity-60 dark:border-neutral-700 dark:hover:border-neutral-600"
     >
       <div className="mb-2 flex w-full items-center justify-between">
         <div className="flex items-center gap-1.5">
@@ -157,9 +157,9 @@ function DocumentCard({
         </div>
       </div>
       <p
-        className="mb-1.5 line-clamp-2 text-sm font-medium"
+        className={`mb-1.5 line-clamp-2 text-sm font-medium ${isDeleted || doc.status === "PENDING" || doc.status === "REJECTED" ? "" : "text-neutral-800 dark:text-neutral-200"}`}
         style={{
-          color: isDeleted || doc.status === "PENDING" || doc.status === "REJECTED" ? "#a3a3a3" : "#262626",
+          color: isDeleted || doc.status === "PENDING" || doc.status === "REJECTED" ? "#a3a3a3" : undefined,
           textDecoration: isDeleted ? "line-through" : undefined,
         }}
       >
@@ -185,7 +185,7 @@ function DocumentCard({
               {hidden.length > 0 && (
                 <span
                   title={hidden.map((t) => t.label).join(", ")}
-                  className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500"
+                  className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
                 >
                   +{hidden.length} more
                 </span>
@@ -194,7 +194,7 @@ function DocumentCard({
           );
         })()}
       </div>
-      <p className="text-xs text-neutral-400">
+      <p className="text-xs text-neutral-400 dark:text-neutral-500">
         <span suppressHydrationWarning>{relativeTime(doc.updatedAt)}</span> · {doc.uploadedBy.name}
       </p>
     </div>

@@ -17,17 +17,17 @@ export function GlobalCategoriesSection({
   const [pendingDelete, setPendingDelete] = useState<GlobalCategorySummary | null>(null);
 
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-5">
-      <h2 className="mb-1 text-sm font-semibold text-neutral-900">Global categories</h2>
-      <p className="mb-4 text-xs text-neutral-400">
+    <div className="rounded-lg border border-neutral-200 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900">
+      <h2 className="mb-1 text-sm font-semibold text-neutral-900 dark:text-neutral-200">Global categories</h2>
+      <p className="mb-4 text-xs text-neutral-400 dark:text-neutral-500">
         Tags that span every team and product at once — shown in this reserved gold color everywhere they appear.
         {!isSuperAdmin && " Only a Super Admin can create or remove one."}
       </p>
 
       {categories.length === 0 ? (
-        <p className="border-t border-neutral-100 pt-4 text-sm text-neutral-400">No global tags yet.</p>
+        <p className="border-t border-neutral-100 pt-4 text-sm text-neutral-400 dark:border-neutral-800 dark:text-neutral-500">No global tags yet.</p>
       ) : (
-        <div className="flex flex-wrap gap-1.5 border-t border-neutral-100 pt-4">
+        <div className="flex flex-wrap gap-1.5 border-t border-neutral-100 pt-4 dark:border-neutral-800">
           {categories.map((c) => (
             <span
               key={c.name}

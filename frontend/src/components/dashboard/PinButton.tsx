@@ -27,7 +27,7 @@ export function PinButton({ documentId, pinned, size = 15 }: { documentId: strin
       title={optimistic ? "Unpin" : "Pin"}
       aria-label={optimistic ? "Unpin this document" : "Pin this document"}
       aria-pressed={optimistic}
-      className="shrink-0 text-neutral-300 hover:text-amber-500 disabled:opacity-60"
+      className="shrink-0 text-neutral-300 hover:text-amber-500 disabled:opacity-60 dark:text-neutral-600 dark:hover:text-amber-400"
       style={optimistic ? { color: "#e0a419" } : undefined}
     >
       {/* The icon pack ships outline-only (fill="none") — `[&>svg]:fill-current`

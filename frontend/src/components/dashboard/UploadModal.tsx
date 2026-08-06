@@ -168,9 +168,9 @@ export function UploadModal({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex items-center gap-1.5 text-sm font-semibold text-neutral-700 transition-colors hover:text-neutral-900"
+          className="flex items-center gap-1.5 text-sm font-semibold text-neutral-700 transition-colors hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-200"
         >
-          <span aria-hidden className="text-base leading-none text-neutral-500">
+          <span aria-hidden className="text-base leading-none text-neutral-500 dark:text-neutral-400">
             +
           </span>
           Upload
@@ -186,24 +186,24 @@ export function UploadModal({
           <form
             action={action}
             onSubmit={handleSubmit}
-            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900"
           >
             <div className="mb-5 flex items-center justify-between">
-              <h1 className="text-lg font-semibold text-neutral-900">
+              <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-200">
                 {sourceNote ? "Upload note to portal" : "Upload a document"}
               </h1>
               <button
                 type="button"
                 onClick={close}
                 aria-label="Close"
-                className="text-xl leading-none text-neutral-400 hover:text-neutral-600"
+                className="text-xl leading-none text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
               >
                 ×
               </button>
             </div>
 
             <div className="mb-5">
-              <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Team</label>
+              <label className="mb-1.5 block text-xs font-semibold text-neutral-600 dark:text-neutral-400">Team</label>
               <div className="flex flex-wrap gap-2">
                 {teams.map((t) => {
                   const selected = ownerTeamId === t.id;
@@ -229,7 +229,7 @@ export function UploadModal({
 
             {products.length > 0 && (
               <div className="mb-5">
-                <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Product</label>
+                <label className="mb-1.5 block text-xs font-semibold text-neutral-600 dark:text-neutral-400">Product</label>
                 <div className="flex flex-wrap gap-2">
                   {products.map((p) => {
                     const selected = productIds.includes(p.id);
@@ -255,9 +255,9 @@ export function UploadModal({
             )}
 
             <div className="mb-5">
-              <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Tags</label>
+              <label className="mb-1.5 block text-xs font-semibold text-neutral-600 dark:text-neutral-400">Tags</label>
               {availableCategories.length === 0 ? (
-                <p className="text-xs text-neutral-400">
+                <p className="text-xs text-neutral-400 dark:text-neutral-500">
                   {ownerTeamId || productIds.length > 0
                     ? 'No tags set up here yet — this will be filed under "Others".'
                     : "Pick a team or product above to see its tags."}
@@ -269,20 +269,20 @@ export function UploadModal({
                       <Icon
                         name="Interface/Search_Magnifying_Glass"
                         size={13}
-                        className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400"
+                        className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400 dark:text-neutral-500"
                       />
                       <input
                         type="text"
                         value={tagQuery}
                         onChange={(e) => setTagQuery(e.target.value)}
                         placeholder="Find a tag"
-                        className="w-full rounded-md border border-neutral-200 py-1.5 pr-3 pl-8 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
+                        className="w-full rounded-md border border-neutral-200 py-1.5 pr-3 pl-8 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none dark:border-neutral-700 dark:text-neutral-300 dark:placeholder:text-neutral-500 dark:focus:border-neutral-600"
                       />
                     </div>
                   )}
                   <div className="flex max-h-36 flex-wrap gap-2 overflow-y-auto">
                     {filteredCategories.length === 0 && (
-                      <p className="text-xs text-neutral-400 italic">No matching tags</p>
+                      <p className="text-xs text-neutral-400 italic dark:text-neutral-500">No matching tags</p>
                     )}
                     {filteredCategories.map((c) => {
                       const selected = c.memberIds.some((id) => selectedCategoryIds.includes(id));
@@ -316,14 +316,14 @@ export function UploadModal({
                 <input type="hidden" name="sourceNoteId" value={sourceNote.id} />
                 <input type="hidden" name="sourceNoteType" value={sourceNote.kind} />
                 <input type="hidden" name="sourceNoteTitle" value={sourceNote.title} />
-                <div className="mb-5 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm text-neutral-600">
-                  Exporting note: <span className="font-semibold text-neutral-900">{sourceNote.title}</span>
+                <div className="mb-5 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm text-neutral-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                  Exporting note: <span className="font-semibold text-neutral-900 dark:text-neutral-200">{sourceNote.title}</span>
                 </div>
               </>
             ) : (
               <>
                 <div className="mb-4">
-                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-neutral-600">
+                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-neutral-600 dark:text-neutral-400">
                     <Icon name="File/Folder" size={14} style={{ color: "#8a8a8a" }} />
                     Upload a file
                   </label>
@@ -332,18 +332,18 @@ export function UploadModal({
                     type="file"
                     name="file"
                     onChange={onFileChange}
-                    className="w-full rounded-md border border-dashed border-neutral-300 px-3 py-4 text-sm text-neutral-600"
+                    className="w-full rounded-md border border-dashed border-neutral-300 px-3 py-4 text-sm text-neutral-600 dark:border-neutral-600 dark:text-neutral-400"
                   />
                 </div>
 
-                <div className="mb-2 flex items-center gap-3 text-xs font-medium text-neutral-400">
-                  <div className="h-px flex-1 bg-neutral-200" />
+                <div className="mb-2 flex items-center gap-3 text-xs font-medium text-neutral-400 dark:text-neutral-500">
+                  <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
                   or
-                  <div className="h-px flex-1 bg-neutral-200" />
+                  <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
                 </div>
 
                 <div className="mb-5">
-                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-neutral-600">
+                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-neutral-600 dark:text-neutral-400">
                     <Icon name="Interface/Link" size={14} style={{ color: "#8a8a8a" }} />
                     Link an existing doc
                   </label>
@@ -352,7 +352,7 @@ export function UploadModal({
                     name="title"
                     placeholder="Title"
                     onChange={onLinkChange}
-                    className="mb-2 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
+                    className="mb-2 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none dark:border-neutral-600 dark:focus:border-neutral-500"
                   />
                   <input
                     ref={linkUrlRef}
@@ -360,9 +360,9 @@ export function UploadModal({
                     name="externalUrl"
                     placeholder="https://docs.google.com/document/d/…"
                     onChange={onLinkChange}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
+                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none dark:border-neutral-600 dark:focus:border-neutral-500"
                   />
-                  <p className="mt-1.5 text-xs text-neutral-400">
+                  <p className="mt-1.5 text-xs text-neutral-400 dark:text-neutral-500">
                     Set the Drive share to viewer-only so it stays view-only once linked here.
                   </p>
                 </div>

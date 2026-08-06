@@ -207,18 +207,18 @@ export function DeletionRequestsAdmin({
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-3 border-b border-neutral-100 px-6 py-3">
+      <div className="flex items-center justify-between gap-3 border-b border-neutral-100 px-6 py-3 dark:border-neutral-800">
         <div className="relative max-w-xs flex-1">
           <Icon
             name="Interface/Search_Magnifying_Glass"
             size={13}
-            className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400"
+            className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400 dark:text-neutral-500"
           />
           <input
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
             placeholder="Find in Deletion requests…"
-            className="w-full rounded-md border border-neutral-200 bg-white py-1.5 pr-3 pl-8 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
+            className="w-full rounded-md border border-neutral-200 bg-white py-1.5 pr-3 pl-8 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:placeholder:text-neutral-500"
           />
         </div>
         <FilterTriggerButton activeCount={activeFilterCount} onClick={() => setOpen(true)} />
@@ -252,7 +252,7 @@ export function DeletionRequestsAdmin({
             <FilterSection title={`Team${selectedTeams.length ? ` (${selectedTeams.length})` : ""}`}>
               <div className="flex flex-col gap-1.5">
                 {availableTeams.map((t) => (
-                  <label key={t.id} className="flex items-center gap-2 text-sm text-neutral-700">
+                  <label key={t.id} className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
                     <input
                       type="checkbox"
                       checked={selectedTeams.includes(t.id)}
@@ -269,7 +269,7 @@ export function DeletionRequestsAdmin({
             <FilterSection title={`Product${selectedProducts.length ? ` (${selectedProducts.length})` : ""}`}>
               <div className="flex flex-col gap-1.5">
                 {availableProducts.map((p) => (
-                  <label key={p.id} className="flex items-center gap-2 text-sm text-neutral-700">
+                  <label key={p.id} className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
                     <input
                       type="checkbox"
                       checked={selectedProducts.includes(p.id)}
@@ -296,7 +296,7 @@ export function DeletionRequestsAdmin({
       </FilterDrawer>
 
       {filtered.length === 0 ? (
-        <p className="py-16 text-center text-sm text-neutral-400">
+        <p className="py-16 text-center text-sm text-neutral-400 dark:text-neutral-500">
           {documents.length === 0
             ? "No deletion requests waiting on review."
             : query
@@ -308,8 +308,8 @@ export function DeletionRequestsAdmin({
           {/* Always mounted (visibility toggled via `invisible`), same as
               ApprovalsAdmin.tsx, so checking the first box doesn't shift the
               table below it. */}
-          <div className="flex items-center justify-between border-b border-neutral-100 px-6 py-3">
-            <label className="flex items-center gap-2 text-xs font-medium text-neutral-500">
+          <div className="flex items-center justify-between border-b border-neutral-100 px-6 py-3 dark:border-neutral-800">
+            <label className="flex items-center gap-2 text-xs font-medium text-neutral-500 dark:text-neutral-400">
               <input
                 type="checkbox"
                 checked={selected.size > 0 && selected.size === paged.length}
@@ -324,7 +324,7 @@ export function DeletionRequestsAdmin({
                 type="button"
                 onClick={handleReject}
                 disabled={isPending}
-                className="rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-60"
+                className="rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-60 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
               >
                 Keep
               </button>
@@ -343,7 +343,7 @@ export function DeletionRequestsAdmin({
           <div className="px-6">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-neutral-100 text-xs font-semibold text-neutral-500">
+                <tr className="border-b border-neutral-100 text-xs font-semibold text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
                   <th className="w-8 py-3" />
                   <th className="py-3 whitespace-nowrap">Name</th>
                   <th className="min-w-[16rem] py-3">Tags</th>
@@ -355,7 +355,7 @@ export function DeletionRequestsAdmin({
               </thead>
               <tbody>
                 {paged.map((doc) => (
-                  <tr key={doc.id} className="border-b border-neutral-50 last:border-0 hover:bg-neutral-50/60">
+                  <tr key={doc.id} className="border-b border-neutral-50 last:border-0 hover:bg-neutral-50/60 dark:border-neutral-800 dark:hover:bg-neutral-800/60">
                     <td className="py-3">
                       <input
                         type="checkbox"
@@ -364,7 +364,7 @@ export function DeletionRequestsAdmin({
                         className="rounded border-neutral-300"
                       />
                     </td>
-                    <td className="py-3 pr-4 font-medium whitespace-nowrap text-neutral-800">{doc.title}</td>
+                    <td className="py-3 pr-4 font-medium whitespace-nowrap text-neutral-800 dark:text-neutral-200">{doc.title}</td>
                     <td className="py-3 pr-4">
                       <div className="flex flex-wrap gap-1.5">
                         {doc.ownerTeam && <Tag label={doc.ownerTeam.name} bg={TEAM_TAG_COLOR.bg} fg={TEAM_TAG_COLOR.fg} />}
@@ -377,17 +377,17 @@ export function DeletionRequestsAdmin({
                         })}
                       </div>
                     </td>
-                    <td className="py-3 text-neutral-500 whitespace-nowrap" suppressHydrationWarning>
+                    <td className="py-3 text-neutral-500 whitespace-nowrap dark:text-neutral-400" suppressHydrationWarning>
                       {doc.deletionRequestedAt ? relativeTime(doc.deletionRequestedAt) : "—"}
                     </td>
-                    <td className="py-3 pr-4 text-neutral-500 whitespace-nowrap">{doc.deletionRequestedBy?.name ?? "—"}</td>
-                    <td className="py-3 pr-4 text-neutral-500">
+                    <td className="py-3 pr-4 text-neutral-500 whitespace-nowrap dark:text-neutral-400">{doc.deletionRequestedBy?.name ?? "—"}</td>
+                    <td className="py-3 pr-4 text-neutral-500 dark:text-neutral-400">
                       {doc.deletionRequestNote ? (
                         <span className="block max-w-[13rem] truncate italic" title={doc.deletionRequestNote}>
                           &ldquo;{doc.deletionRequestNote}&rdquo;
                         </span>
                       ) : (
-                        <span className="block max-w-[13rem] truncate text-neutral-300">No reason given</span>
+                        <span className="block max-w-[13rem] truncate text-neutral-300 dark:text-neutral-600">No reason given</span>
                       )}
                     </td>
                     <td className="py-3">

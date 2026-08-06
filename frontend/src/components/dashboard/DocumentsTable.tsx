@@ -71,13 +71,13 @@ export function DocumentsTable({
     <table className="w-full text-left text-sm">
       <thead>
         <tr className="text-xs font-semibold text-neutral-500">
-          <th className="sticky top-0 z-10 border-b border-neutral-100 bg-white py-3 font-semibold">
+          <th className="sticky top-0 z-10 border-b border-neutral-100 bg-white py-3 font-semibold dark:border-neutral-800 dark:bg-neutral-900">
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => setSearchOpen((v) => !v)}
                 title="Find in this list"
-                className="text-neutral-400 hover:text-neutral-600"
+                className="text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
               >
                 <Icon name="Interface/Search_Magnifying_Glass" size={13} />
               </button>
@@ -92,8 +92,8 @@ export function DocumentsTable({
               />
             </div>
           </th>
-          <th className="sticky top-0 z-10 border-b border-neutral-100 bg-white py-3 font-semibold">Tags</th>
-          <th className="sticky top-0 z-10 w-36 border-b border-neutral-100 bg-white py-3 font-semibold">
+          <th className="sticky top-0 z-10 border-b border-neutral-100 bg-white py-3 font-semibold dark:border-neutral-800 dark:bg-neutral-900">Tags</th>
+          <th className="sticky top-0 z-10 w-36 border-b border-neutral-100 bg-white py-3 font-semibold dark:border-neutral-800 dark:bg-neutral-900">
             <SortableHeader
               label="Modified"
               ascHref={modifiedAscHref}
@@ -104,18 +104,18 @@ export function DocumentsTable({
               dir={dir ?? "desc"}
             />
           </th>
-          <th className="sticky top-0 z-10 w-40 border-b border-neutral-100 bg-white py-3 font-semibold">Modified by</th>
-          <th className="sticky top-0 z-10 w-28 border-b border-neutral-100 bg-white py-3 font-normal" />
+          <th className="sticky top-0 z-10 w-40 border-b border-neutral-100 bg-white py-3 font-semibold dark:border-neutral-800 dark:bg-neutral-900">Modified by</th>
+          <th className="sticky top-0 z-10 w-28 border-b border-neutral-100 bg-white py-3 font-normal dark:border-neutral-800 dark:bg-neutral-900" />
         </tr>
         {searchOpen && (
           <tr>
-            <td colSpan={5} className="bg-neutral-50 px-2 py-2">
+            <td colSpan={5} className="bg-neutral-50 px-2 py-2 dark:bg-neutral-800">
               <input
                 autoFocus
                 value={query}
                 onChange={(e) => onQueryChange(e.target.value)}
                 placeholder={`Find in ${entityName ?? "this list"}…`}
-                className="w-full max-w-xs rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
+                className="w-full max-w-xs rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:placeholder:text-neutral-500 dark:focus:border-neutral-600"
               />
             </td>
           </tr>
@@ -128,11 +128,11 @@ export function DocumentsTable({
               <div className="flex flex-col items-center gap-3 text-center">
                 <Icon name="File/Files" size={36} style={{ color: "#c9c2ce" }} />
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">
+                  <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
                     {query ? `No matches for "${query}"` : `No documents in ${entityName ?? "this view"} yet`}
                   </p>
                   {!query && (
-                    <p className="mt-1 text-xs text-neutral-400">
+                    <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500">
                       Files uploaded here will show up in this list once approved.
                     </p>
                   )}
@@ -188,8 +188,7 @@ function SortableHeader({
   return (
     <details ref={detailsRef} className="relative inline-block">
       <summary
-        className="inline-flex cursor-pointer list-none items-center gap-1 hover:text-neutral-700"
-        style={{ color: active ? "#404040" : undefined }}
+        className={`inline-flex cursor-pointer list-none items-center gap-1 hover:text-neutral-700 dark:hover:text-neutral-300 ${active ? "text-neutral-700 dark:text-neutral-300" : ""}`}
       >
         {label}
         <svg
@@ -198,8 +197,8 @@ function SortableHeader({
           viewBox="0 0 24 24"
           fill="none"
           aria-hidden
+          className={active ? "text-neutral-600 dark:text-neutral-400" : "text-neutral-400 dark:text-neutral-500"}
           style={{
-            color: active ? "#525252" : "#a3a3a3",
             transform: active && dir === "asc" ? "rotate(180deg)" : undefined,
             transition: "transform 0.15s",
           }}
@@ -207,18 +206,18 @@ function SortableHeader({
           <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </summary>
-      <div className="absolute top-full left-0 z-10 mt-1 w-36 rounded-md border border-neutral-200 bg-white py-1 text-xs font-normal text-neutral-700 shadow-lg">
+      <div className="absolute top-full left-0 z-10 mt-1 w-36 rounded-md border border-neutral-200 bg-white py-1 text-xs font-normal text-neutral-700 shadow-lg dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
         <Link
           href={ascHref}
           onClick={() => detailsRef.current && (detailsRef.current.open = false)}
-          className={`block px-3 py-1.5 hover:bg-neutral-50 ${active && dir === "asc" ? "font-semibold text-neutral-900" : ""}`}
+          className={`block px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800 ${active && dir === "asc" ? "font-semibold text-neutral-900 dark:text-neutral-200" : ""}`}
         >
           {ascLabel}
         </Link>
         <Link
           href={descHref}
           onClick={() => detailsRef.current && (detailsRef.current.open = false)}
-          className={`block px-3 py-1.5 hover:bg-neutral-50 ${active && dir !== "asc" ? "font-semibold text-neutral-900" : ""}`}
+          className={`block px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800 ${active && dir !== "asc" ? "font-semibold text-neutral-900 dark:text-neutral-200" : ""}`}
         >
           {descLabel}
         </Link>

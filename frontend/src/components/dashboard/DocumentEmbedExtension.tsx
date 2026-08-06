@@ -44,7 +44,7 @@ function DocumentEmbedView({ node }: ReactNodeViewProps<HTMLElement>) {
   if (failed) {
     return (
       <NodeViewWrapper as="span" className="inline-block align-middle" data-id={documentId} contentEditable={false}>
-        <span className="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-400">
+        <span className="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-400 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-500">
           Document unavailable
         </span>
       </NodeViewWrapper>
@@ -54,7 +54,7 @@ function DocumentEmbedView({ node }: ReactNodeViewProps<HTMLElement>) {
   if (!doc) {
     return (
       <NodeViewWrapper as="span" className="inline-block align-middle" data-id={documentId} contentEditable={false}>
-        <span className="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-400">
+        <span className="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-400 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-500">
           Loading document…
         </span>
       </NodeViewWrapper>
@@ -66,7 +66,7 @@ function DocumentEmbedView({ node }: ReactNodeViewProps<HTMLElement>) {
       <button
         type="button"
         onClick={() => router.push(`${pathname}?doc=${doc.id}`)}
-        className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 shadow-sm hover:border-neutral-300 hover:bg-neutral-50"
+        className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 shadow-sm hover:border-neutral-300 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
       >
         <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} externalUrl={doc.externalUrl} />
         <span className="truncate">{doc.title}</span>

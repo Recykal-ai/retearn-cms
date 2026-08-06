@@ -99,33 +99,33 @@ export function CreateTeamNoteModal({
       style={{ fontFamily: "var(--font-ui)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-neutral-900">New team note</h1>
+          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-200">New team note</h1>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="text-xl leading-none text-neutral-400 hover:text-neutral-600"
+            className="text-xl leading-none text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
           >
             ×
           </button>
         </div>
 
         {lockedTeamId ? (
-          <p className="mb-4 text-sm text-neutral-500">
-            Creating in <span className="font-medium text-neutral-700">{lockedTeamName}</span>
+          <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-400">
+            Creating in <span className="font-medium text-neutral-700 dark:text-neutral-300">{lockedTeamName}</span>
           </p>
         ) : (
           <div className="mb-4">
-            <label className="mb-1 block text-xs font-semibold text-neutral-500">Team</label>
+            <label className="mb-1 block text-xs font-semibold text-neutral-500 dark:text-neutral-400">Team</label>
             <select
               value={teamId}
               onChange={(e) => {
                 setTeamId(e.target.value);
                 setSelectedIds(new Set());
               }}
-              className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
+              className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:focus:border-neutral-500"
             >
               {teams === null && <option>Loading…</option>}
               {teams?.length === 0 && <option>No teams you manage</option>}
@@ -139,33 +139,33 @@ export function CreateTeamNoteModal({
         )}
 
         <div className="mb-4">
-          <label className="mb-1 block text-xs font-semibold text-neutral-500">Title</label>
+          <label className="mb-1 block text-xs font-semibold text-neutral-500 dark:text-neutral-400">Title</label>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Sprint Planning"
             autoFocus
-            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
+            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:focus:border-neutral-500"
           />
         </div>
 
         <div className="mb-4">
-          <label className="mb-1 block text-xs font-semibold text-neutral-500">Date/time</label>
+          <label className="mb-1 block text-xs font-semibold text-neutral-500 dark:text-neutral-400">Date/time</label>
           <DateTimePicker value={meetingAt} onChange={setMeetingAt} />
         </div>
 
         <div className="mb-5">
-          <label className="mb-1.5 block text-xs font-semibold text-neutral-500">Add people</label>
+          <label className="mb-1.5 block text-xs font-semibold text-neutral-500 dark:text-neutral-400">Add people</label>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search people…"
-            className="mb-2 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
+            className="mb-2 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:focus:border-neutral-500"
           />
-          <ul className="max-h-48 space-y-0.5 overflow-y-auto rounded-md border border-neutral-100 p-1">
+          <ul className="max-h-48 space-y-0.5 overflow-y-auto rounded-md border border-neutral-100 p-1 dark:border-neutral-800">
             {candidates.map((c) => (
               <li key={c.id}>
-                <label className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50">
+                <label className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800">
                   <span className="truncate">{c.name}</span>
                   <input
                     type="checkbox"
@@ -176,7 +176,7 @@ export function CreateTeamNoteModal({
                 </label>
               </li>
             ))}
-            {candidates.length === 0 && <li className="px-2 py-1.5 text-xs text-neutral-400">No matches.</li>}
+            {candidates.length === 0 && <li className="px-2 py-1.5 text-xs text-neutral-400 dark:text-neutral-500">No matches.</li>}
           </ul>
         </div>
 
@@ -184,7 +184,7 @@ export function CreateTeamNoteModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+            className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
           >
             Cancel
           </button>

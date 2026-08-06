@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Redeclares Tailwind v4's `dark:` variant to key off an explicit
+   [data-theme="dark"] attribute on <html> instead of its default
+   prefers-color-scheme media query — the toggle button (see ThemeToggle.tsx)
+   sets this attribute directly, so the variant needs to follow user choice
+   rather than OS setting. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -18,6 +25,72 @@
   /* System UI stack — same fonts SharePoint/Confluence render with natively,
      used for dense dashboard chrome instead of the marketing (Poppins) font. */
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* Neutral "no real color" chip (AppliedFilters' status/date/type/uploader
+     chips, DocumentRow's Deleted/Declined pills) — a pale near-white bg with
+     dark-gray text. Unlike a status/tag chip's own saturated hue, this pair
+     reads as a stark white smudge against a dark canvas if left as a bare
+     light-mode hex literal, so it's a CSS variable (like --canvas) rather
+     than a "leave the accent color alone" case. */
+  --chip-neutral-bg: #f5f5f5;
+  --chip-neutral-fg: #525252;
+
+  /* Purple header-strip fill (TopBar/SubPageTopBar/loading skeletons/
+     StubPage) — its own pair rather than reusing --brand-purple/
+     --brand-purple-dark directly, because dark mode needs a very different
+     value for "text/icon color on the dark canvas" (lightened, see below)
+     vs. "the header's own fill" (should stay a rich, flat dark purple) —
+     one variable can't serve both jobs. */
+  --header-gradient-start: var(--brand-purple);
+  --header-gradient-end: var(--brand-purple-dark);
+}
+
+/* Dark-mode overrides for the same tokens — every component that already
+   reads var(--canvas)/var(--brand-purple)/etc via inline style picks these
+   up automatically with zero per-component changes. Components styled with
+   plain Tailwind utility classes (bg-white, text-neutral-800, ...) instead
+   need an explicit dark: variant alongside each one; those are covered file
+   by file since Tailwind classes aren't affected by a CSS variable swap. */
+[data-theme="dark"] {
+  /* Notion-style dark palette — a warm near-black rather than a cold,
+     high-contrast black/white pair. Primary text sits around 83% white
+     (not pure #fff) and surfaces are a small step apart from each other,
+     the same "quiet" relationship Notion/Linear use so nothing in the
+     chrome fights with actual document content for attention. */
+  --background: #202020;
+  --foreground: #d4d4d4;
+
+  /* Lightened from the light-mode brand purple — the base #6a398c reads
+     fine as a *fill* (buttons) in either theme, but as *text/icon color* on
+     a near-black canvas it fails contrast; this is the same hue pushed
+     lighter so link/accent text stays legible. Kept a little dimmer than
+     the light-mode version's equivalent jump to match the softer overall
+     palette. */
+  --brand-purple: #a688bd;
+  --brand-purple-light: #c9a4dc;
+  --brand-purple-dark: #522c6d;
+  --brand-purple-tint: #2c2433;
+
+  --canvas: #262626;
+  --canvas-border: #3a3a3a;
+
+  /* Flat, not a light-to-dark gradient — the header used to reuse
+     --brand-purple (lightened above for on-canvas text/icons) as its own
+     fill, which banded badly since that's now a much lighter shade than
+     --brand-purple-dark. A single rich, muted tone here reads calm instead. */
+  --header-gradient-start: #3a2a4a;
+  --header-gradient-end: #3a2a4a;
+
+  --jump-flash-bg: #2a3a52;
+  --jump-flash-outline: #5b7fc4;
+
+  --chip-neutral-bg: #2f2f2f;
+  --chip-neutral-fg: #a8a8a8;
+}
+
+:root {
+  --jump-flash-bg: #cfe0fb;
+  --jump-flash-outline: #6b93e0;
 }
 
 @theme inline {
@@ -429,15 +502,37 @@ button:not(:disabled) {
 }
 @keyframes note-jump-flash {
   0% {
-    background-color: #cfe0fb;
-    outline-color: #6b93e0;
+    background-color: var(--jump-flash-bg);
+    outline-color: var(--jump-flash-outline);
   }
   70% {
-    background-color: #cfe0fb;
-    outline-color: #6b93e0;
+    background-color: var(--jump-flash-bg);
+    outline-color: var(--jump-flash-outline);
   }
   100% {
     background-color: transparent;
     outline-color: transparent;
   }
+}
+
+/* Dark-mode overrides for the ProseMirror rules above that use a literal
+   hex color instead of a CSS variable (mostly light-mode-only highlight/
+   placeholder tints that would be illegible or glaringly bright on a dark
+   canvas) — grouped here rather than inline so the base rules above stay
+   theme-agnostic reading. */
+[data-theme="dark"] .ProseMirror p.is-editor-empty:first-child::before {
+  color: #71717a;
+}
+[data-theme="dark"] .ProseMirror blockquote {
+  color: #a1a1aa;
+}
+[data-theme="dark"] .ProseMirror mark {
+  background: #7a6a1f;
+  color: #f5f0d8;
+}
+[data-theme="dark"] .ProseMirror .note-comment-mark {
+  background: #5a4a1a;
+}
+[data-theme="dark"] .ProseMirror .note-comment-mark .resolved {
+  border-bottom-color: #52525b;
 }

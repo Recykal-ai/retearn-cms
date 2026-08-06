@@ -249,16 +249,16 @@ export const AtMentionMenu = forwardRef<
   }));
 
   if (rows.length === 0) {
-    return <div className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-400 shadow-lg">No matches</div>;
+    return <div className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-400 shadow-lg dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-500">No matches</div>;
   }
 
   return (
-    <div className="max-h-80 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
+    <div className="max-h-80 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
       {sections.map(
         (section, si) =>
           section.rows.length > 0 && (
-            <div key={section.heading} className={si > 0 ? "mt-1 border-t border-neutral-100 pt-1" : undefined}>
-              <p className="px-3 pt-1 pb-0.5 text-[10px] font-semibold tracking-wide text-neutral-400 uppercase">{section.heading}</p>
+            <div key={section.heading} className={si > 0 ? "mt-1 border-t border-neutral-100 pt-1 dark:border-neutral-800" : undefined}>
+              <p className="px-3 pt-1 pb-0.5 text-[10px] font-semibold tracking-wide text-neutral-400 uppercase dark:text-neutral-500">{section.heading}</p>
               {section.rows.map((row) => (
                 <button
                   key={row.key}
@@ -282,7 +282,7 @@ export const AtMentionMenu = forwardRef<
 // read as an actual person named "All".
 function PersonRow({ name, isAll }: { name: string; isAll?: boolean }) {
   return (
-    <span className="flex items-center gap-2 text-sm text-neutral-700">
+    <span className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
       <span
         className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white"
         style={{ background: "var(--brand-purple)" }}
@@ -296,7 +296,7 @@ function PersonRow({ name, isAll }: { name: string; isAll?: boolean }) {
 
 function ActionRow({ label }: { label: string }) {
   return (
-    <span className="flex items-center justify-between text-sm text-neutral-700">
+    <span className="flex items-center justify-between text-sm text-neutral-700 dark:text-neutral-300">
       {label}
       <Icon name="Arrow/Chevron_Right" size={12} className="shrink-0" />
     </span>
@@ -305,9 +305,9 @@ function ActionRow({ label }: { label: string }) {
 
 function EntityRow({ name, count }: { name: string; count: number }) {
   return (
-    <span className="flex items-center justify-between text-sm text-neutral-700">
+    <span className="flex items-center justify-between text-sm text-neutral-700 dark:text-neutral-300">
       <span className="truncate">{name}</span>
-      <span className="ml-2 flex shrink-0 items-center gap-1 text-xs text-neutral-400">
+      <span className="ml-2 flex shrink-0 items-center gap-1 text-xs text-neutral-400 dark:text-neutral-500">
         {count}
         <Icon name="Arrow/Chevron_Right" size={12} className="shrink-0" />
       </span>
@@ -316,12 +316,12 @@ function EntityRow({ name, count }: { name: string; count: number }) {
 }
 
 function MutedRow({ label }: { label: string }) {
-  return <span className="text-sm text-neutral-400 italic">{label}</span>;
+  return <span className="text-sm text-neutral-400 italic dark:text-neutral-500">{label}</span>;
 }
 
 function BackRow() {
   return (
-    <span className="flex items-center gap-1.5 text-sm font-medium text-neutral-500">
+    <span className="flex items-center gap-1.5 text-sm font-medium text-neutral-500 dark:text-neutral-400">
       <Icon name="Arrow/Chevron_Left" size={12} className="shrink-0" />
       Back
     </span>
@@ -333,7 +333,7 @@ function DocRow({ doc }: { doc: DocumentSummary }) {
     <span className="flex items-center gap-2">
       <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} externalUrl={doc.externalUrl} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm text-neutral-700">{doc.title}</span>
+        <span className="block truncate text-sm text-neutral-700 dark:text-neutral-300">{doc.title}</span>
         {(doc.ownerTeam || doc.products.length > 0 || doc.categories.length > 0) && (
           <span className="mt-0.5 flex flex-wrap gap-1">
             {doc.ownerTeam && <Tag label={doc.ownerTeam.name} bg={TEAM_TAG_COLOR.bg} fg={TEAM_TAG_COLOR.fg} />}

@@ -329,7 +329,7 @@ export function TeamNoteEditor({
   }
 
   if (!detail) {
-    return <p className="flex h-full items-center justify-center text-sm text-neutral-400">Loading…</p>;
+    return <p className="flex h-full items-center justify-center text-sm text-neutral-400 dark:text-neutral-500">Loading…</p>;
   }
 
   // "id: all" is a reserved sentinel, not a real user — recognized specially
@@ -375,7 +375,7 @@ export function TeamNoteEditor({
           title, which is what made this drift so far from the title once
           the content column got wide. */}
       <div className="absolute top-6 right-6 z-30 flex items-center gap-2">
-        <span className="shrink-0 text-xs text-neutral-400">
+        <span className="shrink-0 text-xs text-neutral-400 dark:text-neutral-500">
           {saveState === "pending" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
         </span>
         <div ref={menuRef} className="relative shrink-0">
@@ -387,33 +387,33 @@ export function TeamNoteEditor({
               setMenuOpen((v) => !v);
             }}
             aria-label="Note options"
-            className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:text-neutral-500 dark:hover:bg-neutral-700 dark:hover:text-neutral-300"
           >
             <MoreVerticalIcon />
           </button>
           {menuOpen && (
-              <div className="absolute top-full right-0 z-20 mt-1 w-44 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg">
+              <div className="absolute top-full right-0 z-20 mt-1 w-44 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
                 <button
                   type="button"
                   onClick={() => {
                     setMenuOpen(false);
                     setMetaOpen(true);
                   }}
-                  className="block w-full px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                  className="block w-full px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
                 >
                   Edit details
                 </button>
                 <button
                   type="button"
                   onClick={openMembers}
-                  className="block w-full px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                  className="block w-full px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
                 >
                   Manage members
                 </button>
                 <button
                   type="button"
                   onClick={openHistory}
-                  className="block w-full px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                  className="block w-full px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
                 >
                   Update history
                 </button>
@@ -425,7 +425,7 @@ export function TeamNoteEditor({
                       handleDelete();
                     }}
                     disabled={deleting}
-                    className="block w-full px-3 py-1.5 text-left text-sm text-red-600 hover:bg-neutral-50 disabled:opacity-60"
+                    className="block w-full px-3 py-1.5 text-left text-sm text-red-600 hover:bg-neutral-50 disabled:opacity-60 dark:hover:bg-neutral-800"
                   >
                     {deleting ? "Deleting…" : "Delete"}
                   </button>
@@ -436,8 +436,8 @@ export function TeamNoteEditor({
               <NoteHistoryPanel entries={activity ?? []} loading={activity === null} onJump={handleJump} />
             )}
             {membersOpen && (
-              <div className="absolute top-full right-0 z-20 mt-1 w-64 rounded-lg border border-neutral-200 bg-white p-3 shadow-lg">
-                <p className="mb-2 text-xs font-semibold tracking-wide text-neutral-400 uppercase">Members</p>
+              <div className="absolute top-full right-0 z-20 mt-1 w-64 rounded-lg border border-neutral-200 bg-white p-3 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+                <p className="mb-2 text-xs font-semibold tracking-wide text-neutral-400 uppercase dark:text-neutral-500">Members</p>
                 <ul className="mb-3 max-h-40 space-y-1 overflow-y-auto">
                   {/* Creator pinned to the top regardless of membership-row
                       order (addedAt can tie across everyone added in the
@@ -449,9 +449,9 @@ export function TeamNoteEditor({
                     return (
                       <li key={m.id} className="group flex items-center justify-between gap-1">
                         <span className="flex min-w-0 items-baseline gap-1.5">
-                          <span className="truncate text-sm text-neutral-700">{m.name}</span>
+                          <span className="truncate text-sm text-neutral-700 dark:text-neutral-300">{m.name}</span>
                           {isCreator && (
-                            <span className="shrink-0 rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">
+                            <span className="shrink-0 rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
                               Creator
                             </span>
                           )}
@@ -463,7 +463,7 @@ export function TeamNoteEditor({
                             type="button"
                             onClick={() => handleRemoveMember(m.id)}
                             aria-label={`Remove ${m.name}`}
-                            className="shrink-0 text-xs text-neutral-400 opacity-0 hover:text-red-600 group-hover:opacity-100"
+                            className="shrink-0 text-xs text-neutral-400 opacity-0 hover:text-red-600 group-hover:opacity-100 dark:text-neutral-500"
                           >
                             ✕
                           </button>
@@ -478,7 +478,7 @@ export function TeamNoteEditor({
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       placeholder="Add someone…"
-                      className="mb-1.5 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs focus:border-neutral-400 focus:outline-none"
+                      className="mb-1.5 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:focus:border-neutral-500"
                     />
                     <ul className="max-h-32 space-y-0.5 overflow-y-auto">
                       {candidates.map((c) => (
@@ -486,7 +486,7 @@ export function TeamNoteEditor({
                           <button
                             type="button"
                             onClick={() => handleAddMember(c.id)}
-                            className="block w-full truncate rounded-md px-2 py-1 text-left text-xs text-neutral-700 hover:bg-neutral-50"
+                            className="block w-full truncate rounded-md px-2 py-1 text-left text-xs text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
                           >
                             {c.name}
                           </button>
@@ -528,7 +528,7 @@ export function TeamNoteEditor({
               <button
                 type="button"
                 onClick={() => setBioComposerOpen(true)}
-                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-neutral-500 opacity-0 transition-opacity hover:bg-neutral-100 hover:text-neutral-700 group-hover:opacity-100"
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-neutral-500 opacity-0 transition-opacity hover:bg-neutral-100 hover:text-neutral-700 group-hover:opacity-100 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
               >
                 <Icon name="Communication/Chat" size={14} />
                 Add comment
@@ -542,7 +542,7 @@ export function TeamNoteEditor({
               setTitle(e.target.value);
               scheduleSave();
             }}
-            className="mb-1 w-full text-3xl font-bold text-neutral-900 focus:outline-none"
+            className="mb-1 w-full text-3xl font-bold text-neutral-900 focus:outline-none dark:text-neutral-200"
             placeholder="Note title"
           />
         </div>
@@ -551,7 +551,7 @@ export function TeamNoteEditor({
           <button
             type="button"
             onClick={() => setMetaOpen((v) => !v)}
-            className="text-sm text-neutral-400 hover:text-neutral-600 hover:underline"
+            className="text-sm text-neutral-400 hover:text-neutral-600 hover:underline dark:text-neutral-500 dark:hover:text-neutral-300"
           >
             {[detail.teamName, meetingAt ? formatMetaDate(meetingAt) : null, `Created by: ${detail.createdBy.name}`]
               .filter(Boolean)
@@ -559,8 +559,8 @@ export function TeamNoteEditor({
           </button>
 
           {metaOpen && (
-            <div className="absolute top-full left-0 z-20 mt-2 w-64 rounded-lg border border-neutral-200 bg-white p-3 shadow-lg">
-              <label className="mb-1 block text-xs font-semibold text-neutral-500">Meeting date/time</label>
+            <div className="absolute top-full left-0 z-20 mt-2 w-64 rounded-lg border border-neutral-200 bg-white p-3 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+              <label className="mb-1 block text-xs font-semibold text-neutral-500 dark:text-neutral-400">Meeting date/time</label>
               <DateTimePicker
                 value={meetingAt}
                 onChange={(v) => {
@@ -626,7 +626,7 @@ export function TeamNoteEditor({
 
 function TitleIconPlaceholder() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden className="text-neutral-300">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden className="text-neutral-300 dark:text-neutral-600">
       <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
       <path d="M9 10h.01M15 10h.01M8.5 14.5c.9 1 2.1 1.5 3.5 1.5s2.6-.5 3.5-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>

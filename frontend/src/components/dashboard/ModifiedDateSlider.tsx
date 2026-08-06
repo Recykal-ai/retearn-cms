@@ -42,7 +42,7 @@ export function ModifiedDateSlider({ value, onChange }: { value: string; onChang
 
   return (
     <div>
-      <p className="mb-2 text-sm text-neutral-700">{STEPS[dragIndex].label}</p>
+      <p className="mb-2 text-sm text-neutral-700 dark:text-neutral-300">{STEPS[dragIndex].label}</p>
       <input
         type="range"
         min={0}
@@ -55,7 +55,7 @@ export function ModifiedDateSlider({ value, onChange }: { value: string; onChang
         onKeyUp={(e) => commit(Number(e.currentTarget.value))}
         className="w-full accent-[var(--brand-purple)]"
       />
-      <div className="mt-1 flex justify-between text-[10px] text-neutral-400">
+      <div className="mt-1 flex justify-between text-[10px] text-neutral-400 dark:text-neutral-500">
         <span>{STEPS[0].label}</span>
         <span>{STEPS[STEPS.length - 1].label}</span>
       </div>

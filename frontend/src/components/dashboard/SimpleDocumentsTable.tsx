@@ -50,34 +50,34 @@ export function SimpleDocumentsTable({
       <div className="flex-1">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="text-xs font-semibold text-neutral-500">
-              <th className="sticky top-0 z-10 border-b border-neutral-100 bg-white py-3 font-semibold">
+            <tr className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">
+              <th className="sticky top-0 z-10 border-b border-neutral-100 bg-white py-3 font-semibold dark:border-neutral-800 dark:bg-neutral-900">
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => setSearchOpen((v) => !v)}
                     title="Find in this list"
-                    className="text-neutral-400 hover:text-neutral-600"
+                    className="text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
                   >
                     <Icon name="Interface/Search_Magnifying_Glass" size={13} />
                   </button>
                   Name
                 </div>
               </th>
-              <th className="sticky top-0 z-10 border-b border-neutral-100 bg-white py-3 font-semibold">Tags</th>
-              <th className="sticky top-0 z-10 w-36 border-b border-neutral-100 bg-white py-3 font-semibold">Modified</th>
-              <th className="sticky top-0 z-10 w-40 border-b border-neutral-100 bg-white py-3 font-semibold">Modified by</th>
-              <th className="sticky top-0 z-10 w-28 border-b border-neutral-100 bg-white py-3 font-normal" />
+              <th className="sticky top-0 z-10 border-b border-neutral-100 bg-white py-3 font-semibold dark:border-neutral-800 dark:bg-neutral-900">Tags</th>
+              <th className="sticky top-0 z-10 w-36 border-b border-neutral-100 bg-white py-3 font-semibold dark:border-neutral-800 dark:bg-neutral-900">Modified</th>
+              <th className="sticky top-0 z-10 w-40 border-b border-neutral-100 bg-white py-3 font-semibold dark:border-neutral-800 dark:bg-neutral-900">Modified by</th>
+              <th className="sticky top-0 z-10 w-28 border-b border-neutral-100 bg-white py-3 font-normal dark:border-neutral-800 dark:bg-neutral-900" />
             </tr>
             {searchOpen && (
               <tr>
-                <td colSpan={5} className="bg-neutral-50 px-2 py-2">
+                <td colSpan={5} className="bg-neutral-50 px-2 py-2 dark:bg-neutral-800">
                   <input
                     autoFocus
                     value={query}
                     onChange={(e) => onQueryChange(e.target.value)}
                     placeholder={`Find in ${entityName ?? "this list"}…`}
-                    className="w-full max-w-xs rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
+                    className="w-full max-w-xs rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:placeholder:text-neutral-500 dark:focus:border-neutral-600"
                   />
                 </td>
               </tr>
@@ -89,7 +89,7 @@ export function SimpleDocumentsTable({
                 <td colSpan={5} className="py-16">
                   <div className="flex flex-col items-center gap-3 text-center">
                     <Icon name="File/Files" size={36} style={{ color: "#c9c2ce" }} />
-                    <p className="text-sm font-medium text-neutral-600">
+                    <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
                       {query ? `No matches for "${query}"` : `Nothing in ${entityName ?? "this view"} yet`}
                     </p>
                   </div>

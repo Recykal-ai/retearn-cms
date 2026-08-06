@@ -42,14 +42,14 @@ export function EntityPanel({
   }
 
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-5">
-      <h2 className="mb-3 text-sm font-semibold text-neutral-900">{title}</h2>
+    <div className="rounded-lg border border-neutral-200 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900">
+      <h2 className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-200">{title}</h2>
       <div className="mb-4 flex flex-wrap gap-1.5">
         {items.map((it) => (
           <span
             key={it.id}
             title={`${it.documentCount} doc${it.documentCount === 1 ? "" : "s"}`}
-            className="group relative flex items-center gap-1 rounded-full bg-neutral-100 py-1 pr-1.5 pl-2.5 text-xs text-neutral-600"
+            className="group relative flex items-center gap-1 rounded-full bg-neutral-100 py-1 pr-1.5 pl-2.5 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
           >
             {it.name}
             {canCreate && it.name !== "Others" && (
@@ -57,14 +57,14 @@ export function EntityPanel({
                 type="button"
                 onClick={() => setPendingDelete(it)}
                 aria-label={`Remove ${it.name}`}
-                className="flex h-3.5 w-3.5 items-center justify-center rounded-full text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-neutral-300 hover:text-neutral-700"
+                className="flex h-3.5 w-3.5 items-center justify-center rounded-full text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-neutral-300 hover:text-neutral-700 dark:text-neutral-500 dark:hover:bg-neutral-600 dark:hover:text-neutral-200"
               >
                 <Icon name="Menu/Close_SM" size={9} />
               </button>
             )}
           </span>
         ))}
-        {items.length === 0 && <span className="text-xs text-neutral-400">None yet.</span>}
+        {items.length === 0 && <span className="text-xs text-neutral-400 dark:text-neutral-500">None yet.</span>}
       </div>
       {canCreate ? (
         <form ref={formRef} onSubmit={handleSubmit} className="flex gap-2">
@@ -73,7 +73,7 @@ export function EntityPanel({
             placeholder={placeholder}
             required
             disabled={isPending}
-            className="flex-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-400 focus:outline-none disabled:opacity-60"
+            className="flex-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-400 focus:outline-none disabled:opacity-60 dark:border-neutral-600 dark:focus:border-neutral-500"
           />
           <button
             type="submit"
@@ -85,7 +85,7 @@ export function EntityPanel({
           </button>
         </form>
       ) : (
-        <p className="text-xs text-neutral-400">Only a global Admin or Super Admin can create new {title.toLowerCase()}.</p>
+        <p className="text-xs text-neutral-400 dark:text-neutral-500">Only a global Admin or Super Admin can create new {title.toLowerCase()}.</p>
       )}
 
       {pendingDelete && (

@@ -22,7 +22,7 @@ export interface SlashCommandItem {
 function Badge({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <span
-      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-neutral-200 bg-neutral-50 text-xs font-semibold text-neutral-500"
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-neutral-200 bg-neutral-50 text-xs font-semibold text-neutral-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
       style={style}
     >
       {children}
@@ -162,7 +162,7 @@ const SlashCommandList = forwardRef<
   if (items.length === 0) {
     return (
       <div
-        className="w-56 rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-400 shadow-lg"
+        className="w-56 rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-400 shadow-lg dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-500"
         style={{ fontFamily: "var(--font-ui)" }}
       >
         No matching commands
@@ -174,7 +174,7 @@ const SlashCommandList = forwardRef<
 
   return (
     <div
-      className="max-h-80 w-56 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1.5 shadow-lg"
+      className="max-h-80 w-56 overflow-y-auto rounded-md border border-neutral-200 bg-white py-1.5 shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
       style={{ fontFamily: "var(--font-ui)" }}
     >
       {items.map((item, i) => {
@@ -183,7 +183,7 @@ const SlashCommandList = forwardRef<
         return (
           <div key={item.label}>
             {showHeader && (
-              <p className="mt-1.5 mb-1 px-3 text-[10px] font-semibold tracking-wide text-neutral-400 uppercase first:mt-0">
+              <p className="mt-1.5 mb-1 px-3 text-[10px] font-semibold tracking-wide text-neutral-400 uppercase first:mt-0 dark:text-neutral-500">
                 {item.section}
               </p>
             )}
@@ -194,7 +194,7 @@ const SlashCommandList = forwardRef<
               style={i === selectedIndex ? { background: "var(--brand-purple-tint)" } : undefined}
             >
               {item.icon}
-              <span className="text-neutral-700">{item.label}</span>
+              <span className="text-neutral-700 dark:text-neutral-300">{item.label}</span>
             </button>
           </div>
         );

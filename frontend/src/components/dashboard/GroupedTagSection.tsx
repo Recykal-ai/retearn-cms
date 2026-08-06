@@ -53,13 +53,13 @@ export function GroupedTagSection({
     const color = colorForCategory(c);
     const count = counts?.[c.id] ?? 0;
     return (
-      <label key={c.id} className="flex items-center justify-between gap-2 text-sm text-neutral-700">
+      <label key={c.id} className="flex items-center justify-between gap-2 text-sm text-neutral-700 dark:text-neutral-300">
         <span className="flex min-w-0 items-center gap-2">
           <input type="checkbox" checked={selected.includes(c.id)} onChange={() => onToggle(c.id)} />
           <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color.fg }} aria-hidden />
           <span className="truncate">{c.name}</span>
         </span>
-        <span className="shrink-0 text-xs text-neutral-400">{count}</span>
+        <span className="shrink-0 text-xs text-neutral-400 dark:text-neutral-500">{count}</span>
       </label>
     );
   };
@@ -68,7 +68,7 @@ export function GroupedTagSection({
     const hasChecked = g.categories.some((c) => selected.includes(c.id));
     return (
       <details key={g.key} open={hasChecked}>
-        <summary className="cursor-pointer text-xs font-semibold text-neutral-500 select-none">{g.label}</summary>
+        <summary className="cursor-pointer text-xs font-semibold text-neutral-500 select-none dark:text-neutral-400">{g.label}</summary>
         <div className="mt-1.5 flex flex-col gap-1.5 pl-2">{g.categories.map(checkbox)}</div>
       </details>
     );
@@ -81,7 +81,7 @@ export function GroupedTagSection({
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search tags…"
-        className="mb-2 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-700 outline-none focus:border-neutral-400"
+        className="mb-2 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-700 outline-none focus:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:focus:border-neutral-600"
       />
 
       {q ? (
@@ -90,7 +90,7 @@ export function GroupedTagSection({
             (c) => c.name.toLowerCase().includes(q),
           );
           return flat.length === 0 ? (
-            <p className="py-1 text-xs text-neutral-400">No tags match &ldquo;{search}&rdquo;.</p>
+            <p className="py-1 text-xs text-neutral-400 dark:text-neutral-500">No tags match &ldquo;{search}&rdquo;.</p>
           ) : (
             <div className="flex flex-col gap-1.5">{flat.map(checkbox)}</div>
           );
@@ -102,7 +102,7 @@ export function GroupedTagSection({
             const hasChecked = sg.groups.some((g) => g.categories.some((c) => selected.includes(c.id)));
             return (
               <details key={sg.key} open={hasChecked}>
-                <summary className="cursor-pointer text-xs font-semibold text-neutral-700 select-none">{sg.label}</summary>
+                <summary className="cursor-pointer text-xs font-semibold text-neutral-700 select-none dark:text-neutral-300">{sg.label}</summary>
                 <div className="mt-1.5 flex flex-col gap-2 pl-2">{sg.groups.map(subGroup)}</div>
               </details>
             );

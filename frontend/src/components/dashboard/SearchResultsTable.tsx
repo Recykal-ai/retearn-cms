@@ -19,7 +19,7 @@ export function SearchResultsTable({
     <div className="px-6">
       <table className="w-full text-left text-sm">
         <thead>
-          <tr className="border-b border-neutral-100 text-xs font-semibold text-neutral-500">
+          <tr className="border-b border-neutral-100 text-xs font-semibold text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
             <th className="py-3">Name</th>
             <th className="py-3">Tags</th>
             <th className="w-36 py-3">Modified</th>

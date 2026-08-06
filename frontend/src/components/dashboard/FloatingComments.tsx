@@ -211,17 +211,17 @@ export function FloatingComments({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.97 }}
               transition={{ type: "spring", stiffness: 500, damping: 40 }}
-              className="pointer-events-auto absolute rounded-lg border bg-white p-2.5 shadow-lg"
+              className="pointer-events-auto absolute rounded-lg border bg-white p-2.5 shadow-lg dark:bg-neutral-900"
               style={{ top: finalTops.__draft__ ?? rawTops.__draft__, left: cardLeft, width: CARD_WIDTH, borderColor: "var(--brand-purple)" }}
             >
-              <p className="mb-1.5 truncate text-[11px] text-neutral-400 italic">"{draft.quotedText}"</p>
+              <p className="mb-1.5 truncate text-[11px] text-neutral-400 italic dark:text-neutral-500">"{draft.quotedText}"</p>
               <div className="flex items-start gap-1.5">
                 <Avatar name={currentUserName} />
                 <div className="min-w-0 flex-1">
                   <MentionInput members={members} onSubmit={onSubmitDraft} placeholder="Add a comment…" autoFocus />
                 </div>
               </div>
-              <button type="button" onClick={onCancelDraft} className="mt-1 text-[11px] text-neutral-400 hover:text-neutral-600">
+              <button type="button" onClick={onCancelDraft} className="mt-1 text-[11px] text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300">
                 Cancel
               </button>
             </motion.div>
@@ -272,12 +272,12 @@ export function FloatingComments({
                     <div className="flex items-start gap-1.5">
                       <Avatar name={root.author.name} />
                       <div className="min-w-0 flex-1">
-                        <span className="truncate text-xs font-semibold text-neutral-700">
-                          {root.author.name} <span className="ml-1 font-normal text-neutral-400">{relativeTime(root.createdAt)}</span>
+                        <span className="truncate text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+                          {root.author.name} <span className="ml-1 font-normal text-neutral-400 dark:text-neutral-500">{relativeTime(root.createdAt)}</span>
                         </span>
-                        <p className="line-clamp-2 text-sm text-neutral-700">{root.body}</p>
+                        <p className="line-clamp-2 text-sm text-neutral-700 dark:text-neutral-300">{root.body}</p>
                         {root.resolved && (
-                          <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-green-700">
+                          <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-green-700 dark:text-green-400">
                             <span aria-hidden>✓</span> Resolved
                           </p>
                         )}
@@ -384,13 +384,13 @@ function ThreadCardExpanded({
         type="button"
         onClick={onQuotedTextClick}
         title="Collapse, and highlight this text in the note"
-        className="mb-1.5 block w-full truncate text-left text-[11px] text-neutral-400 italic hover:underline"
+        className="mb-1.5 block w-full truncate text-left text-[11px] text-neutral-400 italic hover:underline dark:text-neutral-500"
       >
         "{root.quotedText}"
       </button>
 
       {root.resolved && (
-        <p className="mb-1.5 flex items-center gap-1 text-[11px] font-medium text-green-700">
+        <p className="mb-1.5 flex items-center gap-1 text-[11px] font-medium text-green-700 dark:text-green-400">
           <span aria-hidden>✓</span> Resolved by {root.resolvedBy?.name ?? "someone"}
         </p>
       )}
@@ -413,7 +413,7 @@ function ThreadCardExpanded({
       </Message>
 
       {replies.map((r) => (
-        <div key={r.id} className="mt-1.5 border-t border-neutral-100 pt-1.5">
+        <div key={r.id} className="mt-1.5 border-t border-neutral-100 pt-1.5 dark:border-neutral-800">
           <Message comment={r} teamNoteId={teamNoteId} currentUserId={currentUserId} onDelete={() => handleDelete(r.id)} onChanged={onChanged} />
         </div>
       ))}
@@ -466,8 +466,8 @@ export function Message({
       <Avatar name={comment.author.name} />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="truncate text-xs font-semibold text-neutral-700">
-            {comment.author.name} <span className="ml-1 font-normal text-neutral-400">{relativeTime(comment.createdAt)}</span>
+          <span className="truncate text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+            {comment.author.name} <span className="ml-1 font-normal text-neutral-400 dark:text-neutral-500">{relativeTime(comment.createdAt)}</span>
           </span>
         </div>
         {editing ? (
@@ -480,14 +480,14 @@ export function Message({
                 if (e.key === "Enter") saveEdit();
                 if (e.key === "Escape") setEditing(false);
               }}
-              className="w-full rounded-md border border-neutral-200 px-2 py-1 text-xs focus:border-neutral-400 focus:outline-none"
+              className="w-full rounded-md border border-neutral-200 px-2 py-1 text-xs focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:focus:border-neutral-500"
             />
             <button type="button" onClick={saveEdit} className="shrink-0 text-xs font-medium" style={{ color: "var(--brand-purple)" }}>
               Save
             </button>
           </div>
         ) : (
-          <p className="text-sm whitespace-pre-wrap text-neutral-700">{comment.body}</p>
+          <p className="text-sm whitespace-pre-wrap text-neutral-700 dark:text-neutral-300">{comment.body}</p>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100">
@@ -530,12 +530,12 @@ function MessageMenu({
           setOpen((v) => !v);
         }}
         aria-label="More options"
-        className="flex h-5 w-5 items-center justify-center rounded text-neutral-400 hover:bg-neutral-100"
+        className="flex h-5 w-5 items-center justify-center rounded text-neutral-400 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:bg-neutral-700"
       >
         ⋯
       </button>
       {open && (
-        <div className="absolute top-full right-0 z-10 mt-1 w-32 rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
+        <div className="absolute top-full right-0 z-10 mt-1 w-32 rounded-md border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
           {onCopyLink && (
             <button
               type="button"
@@ -544,7 +544,7 @@ function MessageMenu({
                 setOpen(false);
                 onCopyLink();
               }}
-              className="block w-full px-2.5 py-1 text-left text-xs text-neutral-700 hover:bg-neutral-50"
+              className="block w-full px-2.5 py-1 text-left text-xs text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
             >
               Copy link
             </button>
@@ -557,7 +557,7 @@ function MessageMenu({
                 setOpen(false);
                 onEdit();
               }}
-              className="block w-full px-2.5 py-1 text-left text-xs text-neutral-700 hover:bg-neutral-50"
+              className="block w-full px-2.5 py-1 text-left text-xs text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
             >
               Edit
             </button>
@@ -570,7 +570,7 @@ function MessageMenu({
                 setOpen(false);
                 onDelete();
               }}
-              className="block w-full px-2.5 py-1 text-left text-xs text-red-600 hover:bg-neutral-50"
+              className="block w-full px-2.5 py-1 text-left text-xs text-red-600 hover:bg-neutral-50 dark:text-red-400 dark:hover:bg-neutral-800"
             >
               Delete
             </button>

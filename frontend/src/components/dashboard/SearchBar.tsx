@@ -79,13 +79,13 @@ export function SearchBar({ query }: { query?: string }) {
 
       {open && (
         <div
-          className="absolute top-full left-0 z-30 mt-1.5 w-full overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-xl"
+          className="absolute top-full left-0 z-30 mt-1.5 w-full overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-xl dark:border-neutral-700 dark:bg-neutral-900"
           style={{ fontFamily: "var(--font-ui)" }}
         >
           {isPending ? (
-            <p className="px-4 py-3 text-sm text-neutral-400">Searching…</p>
+            <p className="px-4 py-3 text-sm text-neutral-400 dark:text-neutral-500">Searching…</p>
           ) : results.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-neutral-400">No matches for &ldquo;{value}&rdquo;</p>
+            <p className="px-4 py-3 text-sm text-neutral-400 dark:text-neutral-500">No matches for &ldquo;{value}&rdquo;</p>
           ) : (
             <ul className="max-h-96 overflow-y-auto py-1">
               {results.map((doc) => (
@@ -94,10 +94,10 @@ export function SearchBar({ query }: { query?: string }) {
                     type="button"
                     onClick={() => handleSelect(doc)}
                     disabled={isOpening(doc.id)}
-                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left hover:bg-neutral-50 disabled:opacity-60"
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left hover:bg-neutral-50 disabled:opacity-60 dark:hover:bg-neutral-800"
                   >
                     <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} externalUrl={doc.externalUrl} />
-                    <p className="min-w-0 shrink-0 truncate text-sm font-medium text-neutral-800" style={{ maxWidth: "45%" }}>
+                    <p className="min-w-0 shrink-0 truncate text-sm font-medium text-neutral-800 dark:text-neutral-200" style={{ maxWidth: "45%" }}>
                       {isOpening(doc.id) ? "Opening…" : doc.title}
                     </p>
                     <div className="flex min-w-0 flex-1 flex-wrap justify-end gap-1">
@@ -120,7 +120,7 @@ export function SearchBar({ query }: { query?: string }) {
           <Link
             href={`/dashboard/search?q=${encodeURIComponent(value)}`}
             onClick={() => setOpen(false)}
-            className="block border-t border-neutral-100 px-4 py-2.5 text-center text-xs font-semibold hover:bg-neutral-50"
+            className="block border-t border-neutral-100 px-4 py-2.5 text-center text-xs font-semibold hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-800"
             style={{ color: "var(--brand-purple)" }}
           >
             See all results for &ldquo;{value}&rdquo;

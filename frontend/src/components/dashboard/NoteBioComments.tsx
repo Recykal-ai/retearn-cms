@@ -58,7 +58,7 @@ export function NoteBioComments({
   }
 
   return (
-    <div className="my-4 space-y-3 border-t border-b border-neutral-100 py-3">
+    <div className="my-4 space-y-3 border-t border-b border-neutral-100 py-3 dark:border-neutral-800">
       {roots.map((root) => (
         <BioThread key={root.id} root={root} replies={comments.filter((c) => c.parentId === root.id)} teamNoteId={teamNoteId} currentUserId={currentUserId} onDelete={handleDelete} onChanged={onChanged} />
       ))}
@@ -91,7 +91,7 @@ function BioThread({
     <div>
       <Message comment={root} teamNoteId={teamNoteId} currentUserId={currentUserId} onDelete={() => onDelete(root.id)} onChanged={onChanged} />
       {replies.map((r) => (
-        <div key={r.id} className="mt-1.5 ml-7 border-l border-neutral-100 pl-2.5">
+        <div key={r.id} className="mt-1.5 ml-7 border-l border-neutral-100 pl-2.5 dark:border-neutral-800">
           <Message comment={r} teamNoteId={teamNoteId} currentUserId={currentUserId} onDelete={() => onDelete(r.id)} onChanged={onChanged} />
         </div>
       ))}

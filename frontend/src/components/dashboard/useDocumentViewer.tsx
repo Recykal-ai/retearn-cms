@@ -75,9 +75,9 @@ function ExternalOpenPrompt({
       style={{ fontFamily: "var(--font-ui)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-sm rounded-lg bg-white p-6 text-center shadow-xl">
-        <p className="mb-1 truncate text-sm font-semibold text-neutral-900">{title}</p>
-        <p className="mb-5 text-xs text-neutral-500">Shared from Retearn CMS — click below to view this document.</p>
+      <div className="w-full max-w-sm rounded-lg bg-white p-6 text-center shadow-xl dark:bg-neutral-900">
+        <p className="mb-1 truncate text-sm font-semibold text-neutral-900 dark:text-neutral-200">{title}</p>
+        <p className="mb-5 text-xs text-neutral-500 dark:text-neutral-400">Shared from Retearn CMS — click below to view this document.</p>
         <button
           type="button"
           onClick={handleClick}
@@ -90,7 +90,7 @@ function ExternalOpenPrompt({
         <button
           type="button"
           onClick={onClose}
-          className="mt-3 text-xs font-medium text-neutral-400 hover:text-neutral-600"
+          className="mt-3 text-xs font-medium text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
         >
           Cancel
         </button>

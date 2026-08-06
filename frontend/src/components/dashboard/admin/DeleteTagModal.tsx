@@ -33,9 +33,9 @@ export function DeleteTagModal({
       style={{ fontFamily: "var(--font-ui)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
-        <h1 className="mb-2 text-lg font-semibold text-neutral-900">Remove &ldquo;{label}&rdquo;?</h1>
-        <p className="mb-5 text-sm text-neutral-500">
+      <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
+        <h1 className="mb-2 text-lg font-semibold text-neutral-900 dark:text-neutral-200">Remove &ldquo;{label}&rdquo;?</h1>
+        <p className="mb-5 text-sm text-neutral-500 dark:text-neutral-400">
           {documentCount === 0
             ? "No documents are tagged with this right now."
             : `${documentCount} document${documentCount === 1 ? "" : "s"} ${
@@ -47,7 +47,7 @@ export function DeleteTagModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+            className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700"
           >
             Cancel
           </button>

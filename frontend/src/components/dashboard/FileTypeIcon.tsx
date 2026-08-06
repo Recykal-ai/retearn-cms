@@ -46,8 +46,8 @@ function LinkBadge() {
       viewBox="0 0 24 24"
       fill="none"
       aria-hidden
-      className="absolute -right-1 -bottom-1 rounded-full bg-white text-neutral-500"
-      style={{ boxShadow: "0 0 0 1px white" }}
+      className="absolute -right-1 -bottom-1 rounded-full bg-white text-neutral-500 dark:bg-neutral-900 dark:text-neutral-400"
+      style={{ boxShadow: "0 0 0 1px var(--background)" }}
     >
       <path
         d="M9.5 14.5 14.5 9.5M11 7l1.5-1.5a3.5 3.5 0 0 1 5 5L16 12M13 17l-1.5 1.5a3.5 3.5 0 0 1-5-5L8 12"

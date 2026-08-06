@@ -351,17 +351,16 @@ export function NotesPageContent({
 
   return (
     <div className="flex h-full" style={{ fontFamily: "var(--font-ui)" }}>
-      <div className="flex w-64 shrink-0 flex-col border-r border-neutral-200 bg-white">
-        <div className="flex justify-center border-b border-neutral-100 p-3">
-          <div className="inline-flex rounded-full bg-neutral-100 p-0.5 text-sm font-medium">
+      <div className="flex w-64 shrink-0 flex-col border-r border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="flex justify-center border-b border-neutral-100 p-3 dark:border-neutral-800">
+          <div className="inline-flex rounded-full bg-neutral-100 p-0.5 text-sm font-medium dark:bg-neutral-800">
             <button
               type="button"
               onClick={() => {
                 setMode("individual");
                 setTeamFilter("");
               }}
-              className="rounded-full px-4 py-1.5 text-center transition-colors"
-              style={mode === "individual" ? { background: "white", color: "#171717", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" } : { color: "#737373" }}
+              className={`rounded-full px-4 py-1.5 text-center transition-colors ${mode === "individual" ? "bg-white text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-neutral-700 dark:text-neutral-200" : "text-neutral-500 dark:text-neutral-400"}`}
             >
               Individual
             </button>
@@ -371,8 +370,7 @@ export function NotesPageContent({
                 setMode("team");
                 setTeamFilter("");
               }}
-              className="relative rounded-full px-4 py-1.5 text-center transition-colors"
-              style={mode === "team" ? { background: "white", color: "#171717", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" } : { color: "#737373" }}
+              className={`relative rounded-full px-4 py-1.5 text-center transition-colors ${mode === "team" ? "bg-white text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-neutral-700 dark:text-neutral-200" : "text-neutral-500 dark:text-neutral-400"}`}
             >
               Team
               {unreadMentionNoteIds.size > 0 && (
@@ -389,7 +387,7 @@ export function NotesPageContent({
         <div className="min-h-0 flex-1 overflow-y-auto">
           {mode === "individual" &&
             (personalNotes === null || personalFolders === null ? (
-              <p className="p-4 text-sm text-neutral-400">Loading…</p>
+              <p className="p-4 text-sm text-neutral-400 dark:text-neutral-500">Loading…</p>
             ) : searchActive ? (
               <NoteSearchResults notes={personalSearchResults} selectedId={selectedPersonalId} onSelect={setSelectedPersonalId} query={searchQuery} />
             ) : (
@@ -423,7 +421,7 @@ export function NotesPageContent({
 
           {mode === "team" &&
             (teamNotes === null || teamFolders === null ? (
-              <p className="p-4 text-sm text-neutral-400">Loading…</p>
+              <p className="p-4 text-sm text-neutral-400 dark:text-neutral-500">Loading…</p>
             ) : searchActive ? (
               <NoteSearchResults notes={teamSearchResults} selectedId={selectedTeamNoteId} onSelect={handleSelectTeamNote} query={searchQuery} />
             ) : (
@@ -481,7 +479,7 @@ export function NotesPageContent({
         />
       </div>
 
-      <div className="min-w-0 flex-1 bg-white">
+      <div className="min-w-0 flex-1 bg-white dark:bg-neutral-900">
         {mode === "individual" &&
           (selectedPersonal ? (
             <PersonalNoteEditor
@@ -649,12 +647,12 @@ function BottomBar({
   }
 
   return (
-    <div className="flex items-center gap-1.5 border-t border-neutral-100 p-2.5">
+    <div className="flex items-center gap-1.5 border-t border-neutral-100 p-2.5 dark:border-neutral-800">
       <div className="relative min-w-0 flex-1">
         <Icon
           name="Interface/Search_Magnifying_Glass"
           size={14}
-          className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400"
+          className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400 dark:text-neutral-500"
         />
         <input
           value={searchQuery}
@@ -668,7 +666,7 @@ function BottomBar({
             }
           }}
           placeholder="Search"
-          className="w-full rounded-full border border-neutral-200 bg-neutral-50 py-1.5 pr-3 pl-8 text-sm focus:border-neutral-300 focus:bg-white focus:outline-none"
+          className="w-full rounded-full border border-neutral-200 bg-neutral-50 py-1.5 pr-3 pl-8 text-sm focus:border-neutral-300 focus:bg-white focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:focus:border-neutral-600 dark:focus:bg-neutral-900"
         />
       </div>
 
@@ -682,14 +680,14 @@ function BottomBar({
             }}
             aria-label="Filter by team"
             title="Filter by team"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-neutral-200 hover:bg-neutral-50"
-            style={teamFilter ? { background: "var(--brand-purple-tint)", borderColor: "var(--brand-purple)", color: "var(--brand-purple)" } : { color: "#737373" }}
+            className={`flex h-8 w-8 items-center justify-center rounded-full border border-neutral-200 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800 ${teamFilter ? "" : "text-neutral-500 dark:text-neutral-400"}`}
+            style={teamFilter ? { background: "var(--brand-purple-tint)", borderColor: "var(--brand-purple)", color: "var(--brand-purple)" } : undefined}
           >
             <Icon name="Interface/Filter" size={14} />
           </button>
           {filterOpen && (
-            <div className="absolute bottom-full right-0 z-20 mb-1.5 w-48 rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
-              <p className="px-3 pt-1 pb-0.5 text-[10px] font-semibold tracking-wide text-neutral-400 uppercase">Filter by team</p>
+            <div className="absolute bottom-full right-0 z-20 mb-1.5 w-48 rounded-md border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+              <p className="px-3 pt-1 pb-0.5 text-[10px] font-semibold tracking-wide text-neutral-400 uppercase dark:text-neutral-500">Filter by team</p>
               {/* Only worth the extra chrome once there's enough teams that
                   scanning the plain list stops being instant — with a
                   handful, the search box would just be dead space above an
@@ -701,7 +699,7 @@ function BottomBar({
                     value={filterQuery}
                     onChange={(e) => setFilterQuery(e.target.value)}
                     placeholder="Search teams…"
-                    className="w-full rounded-md border border-neutral-200 px-2 py-1 text-xs focus:border-neutral-400 focus:outline-none"
+                    className="w-full rounded-md border border-neutral-200 px-2 py-1 text-xs focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:focus:border-neutral-500"
                   />
                 </div>
               )}
@@ -712,8 +710,8 @@ function BottomBar({
                     onTeamFilterChange("");
                     setFilterOpen(false);
                   }}
-                  className="block w-full px-3 py-1.5 text-left text-sm hover:bg-neutral-50"
-                  style={{ color: teamFilter === "" ? "var(--brand-purple)" : "#404040", fontWeight: teamFilter === "" ? 600 : 400 }}
+                  className={`block w-full px-3 py-1.5 text-left text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800 ${teamFilter === "" ? "" : "text-neutral-700 dark:text-neutral-300"}`}
+                  style={{ color: teamFilter === "" ? "var(--brand-purple)" : undefined, fontWeight: teamFilter === "" ? 600 : 400 }}
                 >
                   All teams
                 </button>
@@ -725,14 +723,14 @@ function BottomBar({
                       onTeamFilterChange(team);
                       setFilterOpen(false);
                     }}
-                    className="block w-full truncate px-3 py-1.5 text-left text-sm hover:bg-neutral-50"
-                    style={{ color: teamFilter === team ? "var(--brand-purple)" : "#404040", fontWeight: teamFilter === team ? 600 : 400 }}
+                    className={`block w-full truncate px-3 py-1.5 text-left text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800 ${teamFilter === team ? "" : "text-neutral-700 dark:text-neutral-300"}`}
+                    style={{ color: teamFilter === team ? "var(--brand-purple)" : undefined, fontWeight: teamFilter === team ? 600 : 400 }}
                   >
                     {team}
                   </button>
                 ))}
                 {visibleTeamFilters.length === 0 && (
-                  <p className="px-3 py-2 text-xs text-neutral-400">No teams match &ldquo;{filterQuery}&rdquo;.</p>
+                  <p className="px-3 py-2 text-xs text-neutral-400 dark:text-neutral-500">No teams match &ldquo;{filterQuery}&rdquo;.</p>
                 )}
               </div>
             </div>
@@ -753,7 +751,7 @@ function BottomBar({
             <Icon name="Edit/Add_Plus" size={16} />
           </button>
           {menuOpen && (
-            <div className="absolute bottom-full right-0 z-20 mb-1.5 w-40 rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
+            <div className="absolute bottom-full right-0 z-20 mb-1.5 w-40 rounded-md border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
               {menuOpen === "root" ? (
                 <>
                   <button
@@ -762,7 +760,7 @@ function BottomBar({
                       onCreateNote();
                       setMenuOpen(null);
                     }}
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
                   >
                     <NoteIcon />
                     New note
@@ -770,7 +768,7 @@ function BottomBar({
                   <button
                     type="button"
                     onClick={handleFolderClick}
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
                   >
                     <FolderIcon />
                     New folder
@@ -778,7 +776,7 @@ function BottomBar({
                 </>
               ) : (
                 <>
-                  <p className="px-3 pt-1 pb-0.5 text-[10px] font-semibold tracking-wide text-neutral-400 uppercase">Team</p>
+                  <p className="px-3 pt-1 pb-0.5 text-[10px] font-semibold tracking-wide text-neutral-400 uppercase dark:text-neutral-500">Team</p>
                   {creatableTeams.map((t) => (
                     <button
                       key={t.id}
@@ -787,7 +785,7 @@ function BottomBar({
                         onCreateFolder(t.id);
                         setMenuOpen(null);
                       }}
-                      className="block w-full px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                      className="block w-full px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
                     >
                       {t.name}
                     </button>
@@ -805,7 +803,7 @@ function BottomBar({
 function EmptyState({ label }: { label: string }) {
   return (
     <div className="flex h-full items-center justify-center">
-      <p className="text-sm text-neutral-400">{label}</p>
+      <p className="text-sm text-neutral-400 dark:text-neutral-500">{label}</p>
     </div>
   );
 }
@@ -825,7 +823,7 @@ function NoteSearchResults({
   query: string;
 }) {
   if (notes.length === 0) {
-    return <p className="p-4 text-sm text-neutral-400 italic">No notes match &ldquo;{query.trim()}&rdquo;.</p>;
+    return <p className="p-4 text-sm text-neutral-400 italic dark:text-neutral-500">No notes match &ldquo;{query.trim()}&rdquo;.</p>;
   }
   return (
     <div className="py-1">
@@ -834,11 +832,11 @@ function NoteSearchResults({
           key={note.id}
           type="button"
           onClick={() => onSelect(note.id)}
-          className="flex w-full items-center gap-1.5 px-3 py-1.5 text-left hover:bg-neutral-50"
+          className="flex w-full items-center gap-1.5 px-3 py-1.5 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800"
           style={note.id === selectedId ? { background: "var(--brand-purple-tint)" } : undefined}
         >
-          <span className="shrink-0 text-neutral-400">{note.icon ? <Icon name={note.icon} size={14} /> : <NoteIcon />}</span>
-          <span className="min-w-0 truncate text-sm text-neutral-800">{note.title}</span>
+          <span className="shrink-0 text-neutral-400 dark:text-neutral-500">{note.icon ? <Icon name={note.icon} size={14} /> : <NoteIcon />}</span>
+          <span className="min-w-0 truncate text-sm text-neutral-800 dark:text-neutral-200">{note.title}</span>
           {note.hasUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "#b3342c" }} />}
           {note.subtitle && (
             <span className="shrink-0">

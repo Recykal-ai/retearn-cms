@@ -36,7 +36,7 @@ export function FolderGrid({
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
         <FolderIcon size={36} color="#c9c2ce" />
-        <p className="text-sm font-medium text-neutral-600">No category folders here yet</p>
+        <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">No category folders here yet</p>
       </div>
     );
   }
@@ -47,20 +47,20 @@ export function FolderGrid({
         <Icon
           name="Interface/Search_Magnifying_Glass"
           size={13}
-          className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400"
+          className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400 dark:text-neutral-500"
         />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Find a folder…"
-          className="w-full rounded-md border border-neutral-200 bg-white py-1.5 pr-3 pl-8 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
+          className="w-full rounded-md border border-neutral-200 bg-white py-1.5 pr-3 pl-8 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:placeholder:text-neutral-500 dark:focus:border-neutral-600"
         />
       </div>
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
           <FolderIcon size={36} color="#c9c2ce" />
-          <p className="text-sm font-medium text-neutral-600">No matches for &ldquo;{query}&rdquo;</p>
+          <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">No matches for &ldquo;{query}&rdquo;</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -70,12 +70,12 @@ export function FolderGrid({
               <Link
                 key={c.id}
                 href={`${baseHref}&category=${c.id}`}
-                className="flex flex-col items-start gap-2 rounded-lg border border-neutral-200 p-4 transition-colors hover:border-neutral-300 hover:shadow-sm"
+                className="flex flex-col items-start gap-2 rounded-lg border border-neutral-200 p-4 transition-colors hover:border-neutral-300 hover:shadow-sm dark:border-neutral-700 dark:hover:border-neutral-600"
               >
                 <FolderIcon size={28} color={color.fg} />
                 <div>
-                  <p className="text-sm font-medium text-neutral-800">{c.name}</p>
-                  <p className="text-xs text-neutral-400">{count} document{count === 1 ? "" : "s"}</p>
+                  <p className="text-sm font-medium text-neutral-800 dark:text-neutral-200">{c.name}</p>
+                  <p className="text-xs text-neutral-400 dark:text-neutral-500">{count} document{count === 1 ? "" : "s"}</p>
                 </div>
               </Link>
             );

@@ -7,7 +7,7 @@ export function Breadcrumbs({
 }) {
   return (
     <nav
-      className="flex items-center gap-1.5 px-6 py-2 text-xs text-neutral-500"
+      className="flex items-center gap-1.5 px-6 py-2 text-xs text-neutral-500 dark:text-neutral-400"
       style={{ fontFamily: "var(--font-ui)" }}
       aria-label="Breadcrumb"
     >
@@ -15,13 +15,13 @@ export function Breadcrumbs({
         const isLast = i === items.length - 1;
         return (
           <span key={i} className="flex items-center gap-1.5">
-            {i > 0 && <span className="text-neutral-300">/</span>}
+            {i > 0 && <span className="text-neutral-300 dark:text-neutral-600">/</span>}
             {item.href && !isLast ? (
-              <Link href={item.href} className="hover:text-neutral-700 hover:underline">
+              <Link href={item.href} className="hover:text-neutral-700 hover:underline dark:hover:text-neutral-200">
                 {item.label}
               </Link>
             ) : (
-              <span className={isLast ? "font-medium text-neutral-700" : ""}>{item.label}</span>
+              <span className={isLast ? "font-medium text-neutral-700 dark:text-neutral-300" : ""}>{item.label}</span>
             )}
           </span>
         );

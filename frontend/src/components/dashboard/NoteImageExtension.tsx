@@ -247,7 +247,7 @@ function NoteImageView({ node, updateAttributes, deleteNode, editor, getPos }: R
     return (
       <NodeViewWrapper as="div" className="my-2" data-image-key={imageKey} contentEditable={false}>
         <div
-          className="group relative flex h-32 items-center justify-center rounded-md border border-neutral-200 bg-neutral-50 text-xs text-neutral-400"
+          className="group relative flex h-32 items-center justify-center rounded-md border border-neutral-200 bg-neutral-50 text-xs text-neutral-400 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-500"
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
         >
@@ -262,7 +262,7 @@ function NoteImageView({ node, updateAttributes, deleteNode, editor, getPos }: R
     return (
       <NodeViewWrapper as="div" className="my-2" data-image-key={imageKey} contentEditable={false}>
         <div
-          className="group relative flex h-32 items-center justify-center rounded-md border border-neutral-200 bg-neutral-50 text-xs text-neutral-400"
+          className="group relative flex h-32 items-center justify-center rounded-md border border-neutral-200 bg-neutral-50 text-xs text-neutral-400 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-500"
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
         >
@@ -316,7 +316,7 @@ function NoteImageView({ node, updateAttributes, deleteNode, editor, getPos }: R
           // stretched instead of proportionally scaled. Same reasoning as
           // max-w-full's own conditional a few lines up — once the user
           // has explicitly sized the image, nothing should override that.
-          className={`rounded-md border border-neutral-200 ${width ? "" : "max-h-96 max-w-full"}`}
+          className={`rounded-md border border-neutral-200 dark:border-neutral-700 ${width ? "" : "max-h-96 max-w-full"}`}
           draggable={false}
         />
         {hovered && (
@@ -327,7 +327,7 @@ function NoteImageView({ node, updateAttributes, deleteNode, editor, getPos }: R
               role="presentation"
               aria-hidden
               title="Resize"
-              className="absolute right-1 bottom-1 h-3 w-3 rounded-sm bg-neutral-300 transition-colors hover:bg-neutral-500"
+              className="absolute right-1 bottom-1 h-3 w-3 rounded-sm bg-neutral-300 transition-colors hover:bg-neutral-500 dark:bg-neutral-600 dark:hover:bg-neutral-400"
               style={{ cursor: "nwse-resize", touchAction: "none" }}
             />
           </>
@@ -343,7 +343,7 @@ function RemoveButton({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       title="Remove image"
-      className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-md bg-white/90 text-neutral-500 shadow-sm hover:bg-white hover:text-red-600"
+      className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-md bg-white/90 text-neutral-500 shadow-sm hover:bg-white hover:text-red-600 dark:bg-neutral-900/90 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-red-500"
     >
       <Icon name="Interface/Trash_Empty" size={13} />
     </button>

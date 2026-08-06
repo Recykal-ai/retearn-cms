@@ -181,7 +181,7 @@ export function PersonalNoteEditor({
   return (
     <div className="relative h-full overflow-y-auto" data-notes-scroll-container>
       <div className="absolute top-6 right-6 z-30 flex items-center gap-2">
-        <span className="shrink-0 text-xs text-neutral-400">
+        <span className="shrink-0 text-xs text-neutral-400 dark:text-neutral-500">
           {saveState === "pending" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
         </span>
         <button
@@ -226,7 +226,7 @@ export function PersonalNoteEditor({
               setTitle(e.target.value);
               scheduleSave();
             }}
-            className="mb-1 w-full text-3xl font-bold text-neutral-900 focus:outline-none"
+            className="mb-1 w-full text-3xl font-bold text-neutral-900 focus:outline-none dark:text-neutral-200"
             placeholder="Note title"
           />
         </div>
@@ -235,15 +235,15 @@ export function PersonalNoteEditor({
           <button
             type="button"
             onClick={() => setMetaOpen((v) => !v)}
-            className="text-sm text-neutral-400 hover:text-neutral-600 hover:underline"
+            className="text-sm text-neutral-400 hover:text-neutral-600 hover:underline dark:text-neutral-500 dark:hover:text-neutral-300"
           >
             {metaLabel || "Add date or team…"}
           </button>
 
           {metaOpen && (
-            <div className="absolute top-full left-0 z-20 mt-2 flex w-80 gap-3 rounded-lg border border-neutral-200 bg-white p-3 shadow-lg">
+            <div className="absolute top-full left-0 z-20 mt-2 flex w-80 gap-3 rounded-lg border border-neutral-200 bg-white p-3 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
               <div className="flex-1">
-                <label className="mb-1 block text-xs font-semibold text-neutral-500">Meeting date/time</label>
+                <label className="mb-1 block text-xs font-semibold text-neutral-500 dark:text-neutral-400">Meeting date/time</label>
                 <DateTimePicker
                   value={meetingAt}
                   onChange={(v) => {
@@ -253,14 +253,14 @@ export function PersonalNoteEditor({
                 />
               </div>
               <div className="flex-1">
-                <label className="mb-1 block text-xs font-semibold text-neutral-500">Team</label>
+                <label className="mb-1 block text-xs font-semibold text-neutral-500 dark:text-neutral-400">Team</label>
                 <select
                   value={teamId}
                   onChange={(e) => {
                     setTeamId(e.target.value);
                     scheduleSave();
                   }}
-                  className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
+                  className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:focus:border-neutral-500"
                 >
                   <option value="">None</option>
                   {teams?.map((t) => (
@@ -289,7 +289,7 @@ export function PersonalNoteEditor({
 
 function TitleIconPlaceholder() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden className="text-neutral-300">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden className="text-neutral-300 dark:text-neutral-600">
       <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
       <path d="M9 10h.01M15 10h.01M8.5 14.5c.9 1 2.1 1.5 3.5 1.5s2.6-.5 3.5-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>

@@ -195,7 +195,7 @@ export function NoteFolderTree({
   }, [folders, notes]);
 
   if (folders.length === 0 && notes.length === 0) {
-    return <p className="p-4 text-sm text-neutral-400 italic">{emptyLabel}</p>;
+    return <p className="p-4 text-sm text-neutral-400 italic dark:text-neutral-500">{emptyLabel}</p>;
   }
 
   return (
@@ -341,12 +341,12 @@ function FolderRow({
 
   return (
     <div>
-      <div className="group flex items-center gap-1 py-1 pr-1.5 hover:bg-neutral-50" style={{ paddingLeft: 8 + depth * 14 }}>
+      <div className="group flex items-center gap-1 py-1 pr-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800" style={{ paddingLeft: 8 + depth * 14 }}>
         <button
           type="button"
           onClick={onToggle}
           aria-label={isCollapsed ? "Expand folder" : "Collapse folder"}
-          className="flex h-4 w-4 shrink-0 items-center justify-center text-neutral-400"
+          className="flex h-4 w-4 shrink-0 items-center justify-center text-neutral-400 dark:text-neutral-500"
         >
           <ChevronIcon collapsed={isCollapsed} />
         </button>
@@ -374,10 +374,10 @@ function FolderRow({
                 setRenaming(false);
               }
             }}
-            className="min-w-0 flex-1 rounded border border-neutral-300 px-1 py-0.5 text-sm focus:outline-none"
+            className="min-w-0 flex-1 rounded border border-neutral-300 px-1 py-0.5 text-sm focus:outline-none dark:border-neutral-600"
           />
         ) : (
-          <button type="button" onClick={onToggle} className="min-w-0 flex-1 truncate text-left text-sm text-neutral-700">
+          <button type="button" onClick={onToggle} className="min-w-0 flex-1 truncate text-left text-sm text-neutral-700 dark:text-neutral-300">
             {folder.name}
           </button>
         )}
@@ -437,7 +437,7 @@ function NoteRow({
   const [menuOpen, setMenuOpen] = useState(false);
   return (
     <div
-      className="group flex items-center gap-1 py-1 pr-1.5 hover:bg-neutral-50"
+      className="group flex items-center gap-1 py-1 pr-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800"
       style={{ paddingLeft: 8 + depth * 14 + 18, background: selected ? "var(--brand-purple-tint)" : undefined }}
     >
       <IconPickerButton icon={note.icon} fallback={<NoteIcon />} onSelect={onSetIcon} onClear={() => onSetIcon(null)} size="sm" />
@@ -448,7 +448,7 @@ function NoteRow({
           right edge, leaving a wide dead gap in between for anything but a
           long title. */}
       <button type="button" onClick={onSelect} className="flex min-w-0 flex-1 items-baseline gap-1.5 text-left">
-        <span className="min-w-0 truncate text-sm text-neutral-800">{note.title}</span>
+        <span className="min-w-0 truncate text-sm text-neutral-800 dark:text-neutral-200">{note.title}</span>
         {note.hasUnread && (
           <span aria-label="Unread mention" className="h-1.5 w-1.5 shrink-0 self-center rounded-full" style={{ background: "#b3342c" }} />
         )}
@@ -503,14 +503,14 @@ function RowMenu({
         }}
         aria-label={ariaLabel}
         title={ariaLabel}
-        className="flex h-5 w-5 items-center justify-center rounded text-neutral-400 hover:bg-neutral-100"
+        className="flex h-5 w-5 items-center justify-center rounded text-neutral-400 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:bg-neutral-700"
       >
         {trigger ?? <MoreVerticalIcon />}
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => onOpenChange(false)} />
-          <div className="absolute top-full right-0 z-20 mt-1 w-40 rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
+          <div className="absolute top-full right-0 z-20 mt-1 w-40 rounded-md border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
             {items.map((item) => (
               <button
                 key={item.label}
@@ -520,8 +520,8 @@ function RowMenu({
                   onOpenChange(false);
                   item.onClick();
                 }}
-                className={`flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-neutral-50 ${
-                  item.danger ? "text-red-600" : "text-neutral-700"
+                className={`flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-neutral-50 dark:hover:bg-neutral-800 ${
+                  item.danger ? "text-red-600" : "text-neutral-700 dark:text-neutral-300"
                 }`}
               >
                 {item.icon}
@@ -552,11 +552,11 @@ function PlusIcon() {
 }
 
 export function FolderIcon() {
-  return <Icon name="File/Folder" size={14} className="shrink-0 text-neutral-400" />;
+  return <Icon name="File/Folder" size={14} className="shrink-0 text-neutral-400 dark:text-neutral-500" />;
 }
 
 export function NoteIcon() {
-  return <Icon name="File/Note" size={14} className="shrink-0 text-neutral-400" />;
+  return <Icon name="File/Note" size={14} className="shrink-0 text-neutral-400 dark:text-neutral-500" />;
 }
 
 // Rendered above a note's title in both editors when it lives inside a
@@ -565,10 +565,10 @@ export function NoteIcon() {
 export function NoteBreadcrumb({ path }: { path: string[] }) {
   if (path.length === 0) return null;
   return (
-    <div className="mb-2 flex min-w-0 flex-wrap items-center gap-1 text-xs text-neutral-400">
+    <div className="mb-2 flex min-w-0 flex-wrap items-center gap-1 text-xs text-neutral-400 dark:text-neutral-500">
       {path.map((name, i) => (
         <span key={i} className="flex min-w-0 items-center gap-1">
-          {i > 0 && <Icon name="Arrow/Chevron_Right" size={9} className="shrink-0 text-neutral-300" />}
+          {i > 0 && <Icon name="Arrow/Chevron_Right" size={9} className="shrink-0 text-neutral-300 dark:text-neutral-600" />}
           <span className="truncate">{name}</span>
         </span>
       ))}

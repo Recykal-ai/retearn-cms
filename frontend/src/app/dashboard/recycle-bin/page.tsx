@@ -32,10 +32,10 @@ export default async function RecycleBinPage() {
       <SubPageTopBar />
 
       <div className="flex-1 overflow-y-auto p-8">
-        <div className="mx-auto max-w-4xl rounded-lg border border-neutral-200 bg-white shadow-sm">
-          <div className="border-b border-neutral-100 px-6 py-4">
-            <h1 className="text-lg font-semibold text-neutral-900">Recycle Bin</h1>
-            <p className="text-sm text-neutral-400">Deleted documents can be recovered here.</p>
+        <div className="mx-auto max-w-4xl rounded-lg border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="border-b border-neutral-100 px-6 py-4 dark:border-neutral-800">
+            <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-200">Recycle Bin</h1>
+            <p className="text-sm text-neutral-400 dark:text-neutral-500">Deleted documents can be recovered here.</p>
           </div>
           <RecycleBinList documents={deletedDocs} teams={teams} products={products} />
         </div>

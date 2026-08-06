@@ -147,19 +147,19 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute top-11 right-0 z-30 w-80 rounded-md border border-neutral-200 bg-white shadow-lg" style={{ fontFamily: "var(--font-ui)" }}>
-          <div className="flex items-center justify-between border-b border-neutral-100 px-3 py-2">
-            <p className="text-xs font-semibold tracking-wide text-neutral-400 uppercase">Notifications</p>
+        <div className="absolute top-11 right-0 z-30 w-80 rounded-md border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900" style={{ fontFamily: "var(--font-ui)" }}>
+          <div className="flex items-center justify-between border-b border-neutral-100 px-3 py-2 dark:border-neutral-800">
+            <p className="text-xs font-semibold tracking-wide text-neutral-400 uppercase dark:text-neutral-500">Notifications</p>
             {notifications !== null && notifications.length > 0 && (
-              <button type="button" onClick={handleMarkAllRead} className="text-xs font-medium text-neutral-500 hover:text-neutral-800">
+              <button type="button" onClick={handleMarkAllRead} className="text-xs font-medium text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-100">
                 Mark all read
               </button>
             )}
           </div>
           {notifications === null ? (
-            <p className="px-3 py-6 text-center text-sm text-neutral-400">Loading…</p>
+            <p className="px-3 py-6 text-center text-sm text-neutral-400 dark:text-neutral-500">Loading…</p>
           ) : notifications.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-neutral-400 italic">You&apos;re all caught up</p>
+            <p className="px-3 py-6 text-center text-sm text-neutral-400 italic dark:text-neutral-500">You&apos;re all caught up</p>
           ) : (
             <ul className="max-h-96 overflow-y-auto">
               {notifications.map((n) => {
@@ -169,7 +169,7 @@ export function NotificationBell() {
                     <button
                       type="button"
                       onClick={() => handleOpenNotification(n)}
-                      className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left hover:bg-neutral-50"
+                      className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800"
                       style={{ background: "var(--brand-purple-tint)" }}
                     >
                       <span
@@ -179,8 +179,8 @@ export function NotificationBell() {
                         <Icon name={style.icon} size={12} />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-xs text-neutral-800">{renderDescription(n)}</span>
-                        <span className="mt-0.5 block text-[11px] text-neutral-400" suppressHydrationWarning>
+                        <span className="block text-xs text-neutral-800 dark:text-neutral-200">{renderDescription(n)}</span>
+                        <span className="mt-0.5 block text-[11px] text-neutral-400 dark:text-neutral-500" suppressHydrationWarning>
                           {relativeTime(n.createdAt)}
                         </span>
                       </span>

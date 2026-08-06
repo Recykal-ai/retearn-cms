@@ -46,25 +46,25 @@ export function MoveToFolderModal({
       style={{ fontFamily: "var(--font-ui)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+      <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-neutral-900">{title}</h1>
+          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-200">{title}</h1>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="text-xl leading-none text-neutral-400 hover:text-neutral-600"
+            className="text-xl leading-none text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
           >
             ×
           </button>
         </div>
 
         <div className="mb-5">
-          <label className="mb-1 block text-xs font-semibold text-neutral-500">Destination</label>
+          <label className="mb-1 block text-xs font-semibold text-neutral-500 dark:text-neutral-400">Destination</label>
           <select
             value={targetId}
             onChange={(e) => setTargetId(e.target.value)}
-            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none"
+            className="w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:focus:border-neutral-600"
           >
             <option value="">Root</option>
             {options.map((o) => (
@@ -79,7 +79,7 @@ export function MoveToFolderModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+            className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700"
           >
             Cancel
           </button>

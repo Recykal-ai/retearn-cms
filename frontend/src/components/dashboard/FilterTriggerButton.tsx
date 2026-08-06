@@ -8,11 +8,13 @@ export function FilterTriggerButton({ activeCount, onClick }: { activeCount: num
       type="button"
       onClick={onClick}
       aria-label={`Filters${activeCount > 0 ? ` (${activeCount} active)` : ""}`}
-      className="relative flex shrink-0 items-center justify-center rounded-md border p-1.5 transition-colors"
+      className={`relative flex shrink-0 items-center justify-center rounded-md border p-1.5 transition-colors ${
+        activeCount > 0 ? "" : "border-neutral-200 text-neutral-600 dark:border-neutral-700 dark:text-neutral-400"
+      }`}
       style={
         activeCount > 0
           ? { borderColor: "var(--brand-purple)", color: "var(--brand-purple)", background: "var(--brand-purple-tint)" }
-          : { borderColor: "#e5e5e5", color: "#525252" }
+          : undefined
       }
     >
       <Icon name="Interface/Filter" size={15} style={{ color: "currentColor" }} />

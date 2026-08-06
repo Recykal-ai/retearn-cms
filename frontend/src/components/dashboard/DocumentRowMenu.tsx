@@ -61,13 +61,13 @@ export function DocumentRowMenu({
         // Deliberately always visible, not opacity-0-until-hover — touch
         // devices have no real hover state, so a hover-only reveal meant
         // this was undiscoverable without first tapping the row by accident.
-        className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+        className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
       >
         <Icon name="Menu/More_Vertical" size={16} />
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 z-20 mt-1 w-48 rounded-md border border-neutral-200 bg-white py-1 text-sm shadow-lg">
+        <div className="absolute top-full right-0 z-20 mt-1 w-48 rounded-md border border-neutral-200 bg-white py-1 text-sm shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
           {canEdit && (
             <MenuItem
               icon={<Icon name="Edit/Edit_Pencil_01" size={14} />}
@@ -170,11 +170,11 @@ function DeleteOrRequestModal({
       style={{ fontFamily: "var(--font-ui)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+      <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
         {isAdmin ? (
           <>
-            <h1 className="mb-2 text-lg font-semibold text-neutral-900">Delete document?</h1>
-            <p className="mb-5 text-sm text-neutral-500">
+            <h1 className="mb-2 text-lg font-semibold text-neutral-900 dark:text-neutral-200">Delete document?</h1>
+            <p className="mb-5 text-sm text-neutral-500 dark:text-neutral-400">
               &ldquo;{doc.title}&rdquo; will be removed from all lists. Deleted documents can be recovered by
               Admins and Super Admins from the Recycle Bin.
             </p>
@@ -182,7 +182,7 @@ function DeleteOrRequestModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+                className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
               >
                 Cancel
               </button>
@@ -199,8 +199,8 @@ function DeleteOrRequestModal({
           </>
         ) : done ? (
           <>
-            <h1 className="mb-2 text-lg font-semibold text-neutral-900">Deletion requested</h1>
-            <p className="mb-5 text-sm text-neutral-500">An admin will review and confirm removal.</p>
+            <h1 className="mb-2 text-lg font-semibold text-neutral-900 dark:text-neutral-200">Deletion requested</h1>
+            <p className="mb-5 text-sm text-neutral-500 dark:text-neutral-400">An admin will review and confirm removal.</p>
             <div className="flex justify-end">
               <button
                 type="button"
@@ -214,8 +214,8 @@ function DeleteOrRequestModal({
           </>
         ) : (
           <>
-            <h1 className="mb-2 text-lg font-semibold text-neutral-900">Request deletion</h1>
-            <p className="mb-3 text-sm text-neutral-500">
+            <h1 className="mb-2 text-lg font-semibold text-neutral-900 dark:text-neutral-200">Request deletion</h1>
+            <p className="mb-3 text-sm text-neutral-500 dark:text-neutral-400">
               &ldquo;{doc.title}&rdquo; won&apos;t be removed immediately — an admin will review your request.
             </p>
             <textarea
@@ -223,13 +223,13 @@ function DeleteOrRequestModal({
               onChange={(e) => setNote(e.target.value)}
               placeholder="Why should this be removed? (optional)"
               rows={3}
-              className="mb-5 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
+              className="mb-5 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:focus:border-neutral-500"
             />
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+                className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
               >
                 Cancel
               </button>
@@ -265,10 +265,10 @@ function MenuItem({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left hover:bg-neutral-50"
-      style={{ color: danger ? "#b3342c" : "#404040" }}
+      className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 ${danger ? "" : "text-neutral-700 dark:text-neutral-300"}`}
+      style={danger ? { color: "#b3342c" } : undefined}
     >
-      <span className="shrink-0" style={{ color: danger ? "#b3342c" : "#8a8a8a" }} aria-hidden>
+      <span className={`shrink-0 ${danger ? "" : "text-neutral-500 dark:text-neutral-400"}`} style={danger ? { color: "#b3342c" } : undefined} aria-hidden>
         {icon}
       </span>
       {children}

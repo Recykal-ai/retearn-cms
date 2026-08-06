@@ -35,14 +35,14 @@ export function ViewSwitcher({ baseHref, view }: { baseHref: string; view: ViewM
     <details ref={detailsRef} className="group relative">
       <summary
         title={`View: ${current.label}`}
-        className="flex cursor-pointer list-none items-center gap-0.5 rounded-md border border-neutral-200 px-1.5 py-1 text-neutral-600 hover:bg-neutral-50"
+        className="flex cursor-pointer list-none items-center gap-0.5 rounded-md border border-neutral-200 px-1.5 py-1 text-neutral-600 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
         style={{ fontFamily: "var(--font-ui)" }}
       >
         <ViewIcon view={current.value} />
         <Icon name="Arrow/Chevron_Down" size={10} />
       </summary>
       <div
-        className="absolute top-8 left-0 z-20 w-32 rounded-md border border-neutral-200 bg-white py-1 shadow-lg"
+        className="absolute top-8 left-0 z-20 w-32 rounded-md border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
         style={{ fontFamily: "var(--font-ui)" }}
       >
         {VIEWS.map((v) => (
@@ -52,7 +52,7 @@ export function ViewSwitcher({ baseHref, view }: { baseHref: string; view: ViewM
             onClick={() => {
               if (detailsRef.current) detailsRef.current.open = false;
             }}
-            className="flex items-center gap-2 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50"
+            className="flex items-center gap-2 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
             style={v.value === view ? { color: "var(--brand-purple)", fontWeight: 600 } : undefined}
           >
             <ViewIcon view={v.value} />

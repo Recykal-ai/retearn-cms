@@ -14,7 +14,7 @@ import {
 const ROLE_STYLE: Record<AppUser["role"], { bg: string; fg: string }> = {
   SUPER_ADMIN: { bg: "var(--brand-purple-tint)", fg: "var(--brand-purple)" },
   ADMIN: { bg: "#eaf6ec", fg: "#2e7d3f" },
-  USER: { bg: "#f5f5f5", fg: "#525252" },
+  USER: { bg: "var(--chip-neutral-bg)", fg: "var(--chip-neutral-fg)" },
 };
 
 const ROLE_LABEL: Record<Role, string> = {
@@ -50,9 +50,9 @@ export function UsersSection({
     RECYKAL_EMAIL_RE.test(trimmed) && !users.some((u) => u.email.toLowerCase() === trimmed.toLowerCase());
 
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-5">
-      <h2 className="mb-1 text-sm font-semibold text-neutral-900">Access</h2>
-      <p className="mb-4 text-xs text-neutral-400">
+    <div className="rounded-lg border border-neutral-200 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900">
+      <h2 className="mb-1 text-sm font-semibold text-neutral-900 dark:text-neutral-200">Access</h2>
+      <p className="mb-4 text-xs text-neutral-400 dark:text-neutral-500">
         Anyone who has signed in shows up here automatically. Search by name or email — or type someone&apos;s
         full @recykal.com address to grant them access before they&apos;ve ever signed in.
       </p>
@@ -61,19 +61,19 @@ export function UsersSection({
         <Icon
           name="Interface/Search_Magnifying_Glass"
           size={13}
-          className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400"
+          className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400 dark:text-neutral-500"
         />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search people, or type an email…"
-          className="w-full rounded-md border border-neutral-200 py-1.5 pr-3 pl-8 text-sm text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
+          className="w-full rounded-md border border-neutral-200 py-1.5 pr-3 pl-8 text-sm text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none dark:border-neutral-700 dark:text-neutral-300 dark:placeholder:text-neutral-500 dark:focus:border-neutral-600"
         />
       </div>
 
       <table className="w-full text-left text-sm">
         <thead>
-          <tr className="border-b border-neutral-100 text-xs font-semibold text-neutral-500">
+          <tr className="border-b border-neutral-100 text-xs font-semibold text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
             <th className="min-w-40 py-2.5 pr-4 font-semibold">Name</th>
             <th className="py-2.5 pr-4 font-semibold">Email</th>
             <th className="w-36 py-2.5 pr-4 font-semibold">Role</th>
@@ -86,9 +86,9 @@ export function UsersSection({
           {filtered.map((u) => {
             const style = ROLE_STYLE[u.role];
             return (
-              <tr key={u.id} className="border-b border-neutral-50 last:border-0">
-                <td className="min-w-40 py-2.5 pr-4 font-medium text-neutral-800 whitespace-nowrap">{u.name}</td>
-                <td className="py-2.5 pr-4 text-neutral-500">{u.email}</td>
+              <tr key={u.id} className="border-b border-neutral-50 last:border-0 dark:border-neutral-800">
+                <td className="min-w-40 py-2.5 pr-4 font-medium text-neutral-800 whitespace-nowrap dark:text-neutral-200">{u.name}</td>
+                <td className="py-2.5 pr-4 text-neutral-500 dark:text-neutral-400">{u.email}</td>
                 <td className="w-36 py-2.5 pr-4">
                   <span
                     className="inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium"
@@ -99,9 +99,9 @@ export function UsersSection({
                 </td>
                 <td className="w-48 py-2.5 pr-4">
                   {u.role === "ADMIN" && <ScopeSummary user={u} />}
-                  {u.role !== "ADMIN" && <span className="text-xs text-neutral-300">—</span>}
+                  {u.role !== "ADMIN" && <span className="text-xs text-neutral-300 dark:text-neutral-600">—</span>}
                 </td>
-                <td className="w-24 py-2.5 pr-4 text-neutral-500" suppressHydrationWarning>
+                <td className="w-24 py-2.5 pr-4 text-neutral-500 dark:text-neutral-400" suppressHydrationWarning>
                   {relativeTime(u.createdAt)}
                 </td>
                 <td className="w-64 py-2.5">
@@ -121,7 +121,7 @@ export function UsersSection({
           })}
           {filtered.length === 0 && !looksLikeNewInvite && (
             <tr>
-              <td colSpan={6} className="py-6 text-center text-sm text-neutral-400">
+              <td colSpan={6} className="py-6 text-center text-sm text-neutral-400 dark:text-neutral-500">
                 No matches for &ldquo;{query}&rdquo;.
               </td>
             </tr>
@@ -130,10 +130,10 @@ export function UsersSection({
       </table>
 
       {looksLikeNewInvite && (
-        <div className="mt-3 flex items-center justify-between rounded-md border border-dashed border-neutral-300 px-4 py-3">
+        <div className="mt-3 flex items-center justify-between rounded-md border border-dashed border-neutral-300 px-4 py-3 dark:border-neutral-600">
           <div>
-            <p className="text-sm font-medium text-neutral-700">{trimmed}</p>
-            <p className="text-xs text-neutral-400">Hasn&apos;t signed in yet — grant them access now.</p>
+            <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{trimmed}</p>
+            <p className="text-xs text-neutral-400 dark:text-neutral-500">Hasn&apos;t signed in yet — grant them access now.</p>
           </div>
           <button
             type="button"
@@ -161,14 +161,14 @@ export function UsersSection({
 function ScopeSummary({ user }: { user: AppUser }) {
   if (!user.adminScope) {
     return (
-      <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-600">Global</span>
+      <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">Global</span>
     );
   }
   const names = user.adminScope.map((s) => s.teamName ?? s.productName).filter(Boolean);
   return (
     <div className="flex flex-wrap gap-1">
       {names.map((n) => (
-        <span key={n} className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
+        <span key={n} className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
           {n}
         </span>
       ))}
@@ -222,7 +222,7 @@ function RoleSelect({
         value={currentRole}
         onChange={handleChange}
         disabled={isPending}
-        className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-60"
+        className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800"
       >
         <option value="SUPER_ADMIN">Super Admin</option>
         <option value="ADMIN">Admin</option>
@@ -260,11 +260,11 @@ function RoleChangeConfirm({
       style={{ fontFamily: "var(--font-ui)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
-        <h1 className="mb-2 text-lg font-semibold text-neutral-900">
+      <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
+        <h1 className="mb-2 text-lg font-semibold text-neutral-900 dark:text-neutral-200">
           Change {userName}&apos;s role to {ROLE_LABEL[toRole]}?
         </h1>
-        <p className="mb-5 text-sm text-neutral-500">
+        <p className="mb-5 text-sm text-neutral-500 dark:text-neutral-400">
           {toRole === "SUPER_ADMIN"
             ? "Super Admin has unrestricted access to everything — every team, product, and Admin's permissions."
             : `This removes ${userName}'s Super Admin access. If they're the only Super Admin, there will be no one left who can grant it back through this app — recovering it would need a direct database change.`}
@@ -273,7 +273,7 @@ function RoleChangeConfirm({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+            className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700"
           >
             Cancel
           </button>
@@ -307,7 +307,7 @@ function RemoveUserButton({ userId, userName }: { userId: string; userName: stri
         type="button"
         disabled={isPending}
         onClick={() => setConfirming(true)}
-        className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
+        className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-60 dark:border-neutral-700 dark:hover:bg-red-950"
       >
         Remove
       </button>
@@ -317,9 +317,9 @@ function RemoveUserButton({ userId, userName }: { userId: string; userName: stri
           style={{ fontFamily: "var(--font-ui)" }}
           onClick={(e) => e.target === e.currentTarget && setConfirming(false)}
         >
-          <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
-            <h1 className="mb-2 text-lg font-semibold text-neutral-900">Remove {userName}?</h1>
-            <p className="mb-5 text-sm text-neutral-500">
+          <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
+            <h1 className="mb-2 text-lg font-semibold text-neutral-900 dark:text-neutral-200">Remove {userName}?</h1>
+            <p className="mb-5 text-sm text-neutral-500 dark:text-neutral-400">
               They&apos;ll be signed out and disappear from this list. Signing back in with Google restores
               their access immediately — there&apos;s no restriction on that.
             </p>
@@ -327,7 +327,7 @@ function RemoveUserButton({ userId, userName }: { userId: string; userName: stri
               <button
                 type="button"
                 onClick={() => setConfirming(false)}
-                className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+                className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700"
               >
                 Cancel
               </button>
@@ -357,7 +357,7 @@ function ScopeButton({ user, teams, products }: { user: AppUser; teams: Team[]; 
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+        className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
       >
         Manage access
       </button>
@@ -408,19 +408,19 @@ function ScopeModal({
       style={{ fontFamily: "var(--font-ui)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+      <div className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
         <div className="mb-1 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-neutral-900">Manage access</h1>
+          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-200">Manage access</h1>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="text-xl leading-none text-neutral-400 hover:text-neutral-600"
+            className="text-xl leading-none text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
           >
             ×
           </button>
         </div>
-        <p className="mb-5 text-xs text-neutral-400">{user.name}</p>
+        <p className="mb-5 text-xs text-neutral-400 dark:text-neutral-500">{user.name}</p>
 
         <ScopePicker
           isGlobal={isGlobal}
@@ -439,7 +439,7 @@ function ScopeModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+            className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700"
           >
             Cancel
           </button>
@@ -482,25 +482,25 @@ function ScopePicker({
   return (
     <>
       <div className="mb-4 space-y-2">
-        <label className="flex items-center gap-2 text-sm text-neutral-700">
+        <label className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
           <input type="radio" checked={isGlobal} onChange={() => setIsGlobal(true)} />
           Global — manages every team and product
         </label>
-        <label className="flex items-center gap-2 text-sm text-neutral-700">
+        <label className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
           <input type="radio" checked={!isGlobal} onChange={() => setIsGlobal(false)} />
           Scoped — restrict to specific teams/products
         </label>
       </div>
 
       {!isGlobal && (
-        <div className="mb-5 space-y-4 border-t border-neutral-100 pt-4">
+        <div className="mb-5 space-y-4 border-t border-neutral-100 pt-4 dark:border-neutral-800">
           <div>
-            <p className="mb-1.5 text-xs font-semibold text-neutral-600">Teams</p>
+            <p className="mb-1.5 text-xs font-semibold text-neutral-600 dark:text-neutral-400">Teams</p>
             <div className="flex flex-wrap gap-1.5">
               {teams.map((t) => (
                 <label
                   key={t.id}
-                  className="flex items-center gap-1.5 rounded-full border border-neutral-200 px-2.5 py-1 text-xs text-neutral-600"
+                  className="flex items-center gap-1.5 rounded-full border border-neutral-200 px-2.5 py-1 text-xs text-neutral-600 dark:border-neutral-700 dark:text-neutral-400"
                 >
                   <input type="checkbox" checked={teamIds.includes(t.id)} onChange={() => toggleTeam(t.id)} />
                   {t.name}
@@ -510,12 +510,12 @@ function ScopePicker({
           </div>
           {products.length > 0 && (
             <div>
-              <p className="mb-1.5 text-xs font-semibold text-neutral-600">Products</p>
+              <p className="mb-1.5 text-xs font-semibold text-neutral-600 dark:text-neutral-400">Products</p>
               <div className="flex flex-wrap gap-1.5">
                 {products.map((p) => (
                   <label
                     key={p.id}
-                    className="flex items-center gap-1.5 rounded-full border border-neutral-200 px-2.5 py-1 text-xs text-neutral-600"
+                    className="flex items-center gap-1.5 rounded-full border border-neutral-200 px-2.5 py-1 text-xs text-neutral-600 dark:border-neutral-700 dark:text-neutral-400"
                   >
                     <input
                       type="checkbox"
@@ -597,19 +597,19 @@ function GrantAccessModal({
       style={{ fontFamily: "var(--font-ui)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+      <div className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
         <div className="mb-1 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-neutral-900">Make Admin</h1>
+          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-200">Make Admin</h1>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="text-xl leading-none text-neutral-400 hover:text-neutral-600"
+            className="text-xl leading-none text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
           >
             ×
           </button>
         </div>
-        <p className="mb-5 truncate text-xs text-neutral-400">
+        <p className="mb-5 truncate text-xs text-neutral-400 dark:text-neutral-500">
           {name}
           {target.kind === "invite" && " — hasn't signed in yet; this takes effect the moment they do."}
         </p>
@@ -631,7 +631,7 @@ function GrantAccessModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+            className="rounded-md px-3 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700"
           >
             Cancel
           </button>

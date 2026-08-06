@@ -831,7 +831,7 @@ export function TableGripControls({ editor }: { editor: Editor }) {
               setMenu({ kind: "col", index: i, top: r.bottom + 4, left: r.left });
             }}
             title={`Column ${i + 1}`}
-            className={`flex h-full w-full items-center justify-center rounded text-neutral-500 transition-opacity hover:bg-neutral-200 ${
+            className={`flex h-full w-full items-center justify-center rounded text-neutral-500 transition-opacity hover:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-700 ${
               // Every column's grip lights up for the duration of a column
               // drag (not just the one under the cursor) — otherwise a
               // valid drop target could be invisible the whole time. See
@@ -878,7 +878,7 @@ export function TableGripControls({ editor }: { editor: Editor }) {
               setMenu({ kind: "row", index: i, top: r.top, left: r.right + 4 });
             }}
             title={`Row ${i + 1}`}
-            className={`flex h-full w-full items-center justify-center rounded text-neutral-500 transition-opacity hover:bg-neutral-200 ${
+            className={`flex h-full w-full items-center justify-center rounded text-neutral-500 transition-opacity hover:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-700 ${
               hoveredRow === i || drag?.kind === "row" || (menu?.kind === "row" && menu.index === i)
                 ? "opacity-100"
                 : "opacity-0"
@@ -956,7 +956,7 @@ export function TableGripControls({ editor }: { editor: Editor }) {
         onPointerDown={startTableResize}
         role="presentation"
         aria-hidden
-        className="z-40 rounded-sm bg-neutral-300 transition-colors hover:bg-neutral-500"
+        className="z-40 rounded-sm bg-neutral-300 transition-colors hover:bg-neutral-500 dark:bg-neutral-600 dark:hover:bg-neutral-400"
         style={{ position: "fixed", width: 10, height: 10, cursor: "nwse-resize" }}
       />
 
@@ -964,7 +964,7 @@ export function TableGripControls({ editor }: { editor: Editor }) {
         <div
           ref={menuRef}
           onClick={(e) => e.stopPropagation()}
-          className="z-50 w-40 rounded-md border border-neutral-200 bg-white py-1 shadow-lg"
+          className="z-50 w-40 rounded-md border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
           style={{ position: "fixed", top: menu.top, left: menu.left, fontFamily: "var(--font-ui)" }}
         >
           <MenuItem
@@ -977,7 +977,7 @@ export function TableGripControls({ editor }: { editor: Editor }) {
             label={menu.kind === "col" ? "Insert right" : "Insert below"}
             onClick={() => (menu.kind === "col" ? insertColumn(menu.index + 1) : insertRow(menu.index + 1))}
           />
-          <div className="my-1 border-t border-neutral-100" />
+          <div className="my-1 border-t border-neutral-100 dark:border-neutral-800" />
           <MenuItem
             icon="Interface/Trash_Empty"
             label={menu.kind === "col" ? "Delete column" : "Delete row"}
@@ -1007,8 +1007,8 @@ function MenuItem({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-neutral-50 ${
-        danger ? "text-red-600" : "text-neutral-700"
+      className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800 ${
+        danger ? "text-red-600" : "text-neutral-700 dark:text-neutral-300"
       }`}
     >
       <Icon name={icon} size={13} />

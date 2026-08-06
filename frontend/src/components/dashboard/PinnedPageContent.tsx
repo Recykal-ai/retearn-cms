@@ -200,7 +200,7 @@ export function PinnedPageContent({
                 <FilterSection title={`Type${selectedTypes.length ? ` (${selectedTypes.length})` : ""}`}>
                   <div className="flex flex-col gap-1.5">
                     {availableTypes.map((t) => (
-                      <label key={t} className="flex items-center gap-2 text-sm text-neutral-700">
+                      <label key={t} className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
                         <input
                           type="checkbox"
                           checked={selectedTypes.includes(t)}
@@ -218,7 +218,7 @@ export function PinnedPageContent({
                 <FilterSection title={`Team${selectedTeams.length ? ` (${selectedTeams.length})` : ""}`}>
                   <div className="flex flex-col gap-1.5">
                     {availableTeams.map((t) => (
-                      <label key={t.id} className="flex items-center gap-2 text-sm text-neutral-700">
+                      <label key={t.id} className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
                         <input
                           type="checkbox"
                           checked={selectedTeams.includes(t.id)}
@@ -235,7 +235,7 @@ export function PinnedPageContent({
                 <FilterSection title={`Product${selectedProducts.length ? ` (${selectedProducts.length})` : ""}`}>
                   <div className="flex flex-col gap-1.5">
                     {availableProducts.map((p) => (
-                      <label key={p.id} className="flex items-center gap-2 text-sm text-neutral-700">
+                      <label key={p.id} className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
                         <input
                           type="checkbox"
                           checked={selectedProducts.includes(p.id)}
@@ -262,7 +262,7 @@ export function PinnedPageContent({
       </FilterDrawer>
 
       {filtered.length === 0 ? (
-        <p className="py-16 text-center text-sm text-neutral-400">No pinned documents match these filters.</p>
+        <p className="py-16 text-center text-sm text-neutral-400 dark:text-neutral-500">No pinned documents match these filters.</p>
       ) : (
         <SimpleDocumentsTable documents={filtered} entityName="Pinned" />
       )}

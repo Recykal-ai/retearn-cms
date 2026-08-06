@@ -13,7 +13,7 @@ export function StubPage({
       <div
         className="flex h-15 flex-shrink-0 items-center px-6 shadow-sm"
         style={{
-          background: "linear-gradient(180deg, var(--brand-purple) 0%, var(--brand-purple-dark) 100%)",
+          background: "linear-gradient(180deg, var(--header-gradient-start) 0%, var(--header-gradient-end) 100%)",
         }}
       >
         <Link href="/dashboard" aria-label="Go to dashboard home">
@@ -29,9 +29,9 @@ export function StubPage({
         </Link>
       </div>
       <div className="flex flex-1 items-center justify-center p-6">
-        <div className="w-full max-w-lg rounded-lg border border-neutral-200 bg-white p-8 shadow-sm">
-          <h1 className="mb-3 text-lg font-semibold text-neutral-900">{title}</h1>
-          <div className="space-y-2 text-sm leading-relaxed text-neutral-500">{children}</div>
+        <div className="w-full max-w-lg rounded-lg border border-neutral-200 bg-white p-8 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+          <h1 className="mb-3 text-lg font-semibold text-neutral-900 dark:text-neutral-200">{title}</h1>
+          <div className="space-y-2 text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">{children}</div>
           <Link
             href="/dashboard"
             className="mt-6 inline-block text-sm font-medium"

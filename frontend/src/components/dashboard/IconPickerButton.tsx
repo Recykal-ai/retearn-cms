@@ -119,12 +119,12 @@ export function IconPickerButton({
         title={icon ? "Change icon" : "Add icon"}
         className={
           showAsLabel
-            ? "flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
-            : `flex shrink-0 items-center justify-center overflow-hidden rounded-md hover:bg-neutral-100 ${dims}`
+            ? "flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700 dark:hover:text-neutral-200"
+            : `flex shrink-0 items-center justify-center overflow-hidden rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 ${dims}`
         }
       >
         {icon ? (
-          <Icon name={icon} size={glyphSize} className="text-neutral-600" />
+          <Icon name={icon} size={glyphSize} className="text-neutral-600 dark:text-neutral-400" />
         ) : showAsLabel ? (
           <>
             {fallback}
@@ -140,11 +140,11 @@ export function IconPickerButton({
           <div
             ref={popoverRef}
             style={{ position: "fixed", top: coords.top, left: coords.left, width: POPOVER_WIDTH }}
-            className="z-50 rounded-lg border border-neutral-200 bg-white shadow-xl"
+            className="z-50 rounded-lg border border-neutral-200 bg-white shadow-xl dark:border-neutral-700 dark:bg-neutral-900"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="border-b border-neutral-100 p-2">
+            <div className="border-b border-neutral-100 p-2 dark:border-neutral-800">
               <input
                 ref={searchRef}
                 value={query}
@@ -165,7 +165,7 @@ export function IconPickerButton({
                 // producing input that worked (the value/filtering below is
                 // live) but rendered invisible: typed text was there, just
                 // not painted.
-                className="w-full rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-sm text-neutral-900 caret-neutral-900 focus:border-neutral-400 focus:outline-none"
+                className="w-full rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-sm text-neutral-900 caret-neutral-900 focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:caret-neutral-100 dark:focus:border-neutral-500"
               />
             </div>
             <IconGrid
@@ -182,7 +182,7 @@ export function IconPickerButton({
                   onClear();
                   setOpen(false);
                 }}
-                className="block w-full rounded-b-lg border-t border-neutral-200 bg-white px-3 py-2 text-left text-xs font-medium text-neutral-500 hover:bg-neutral-50"
+                className="block w-full rounded-b-lg border-t border-neutral-200 bg-white px-3 py-2 text-left text-xs font-medium text-neutral-500 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800"
               >
                 Remove icon
               </button>
@@ -217,14 +217,14 @@ function IconGrid({ query, onSelect }: { query: string; onSelect: (name: string)
   }, [needle]);
 
   if (grouped.length === 0) {
-    return <p className="p-4 text-center text-xs text-neutral-400">No icons match &ldquo;{query}&rdquo;.</p>;
+    return <p className="p-4 text-center text-xs text-neutral-400 dark:text-neutral-500">No icons match &ldquo;{query}&rdquo;.</p>;
   }
 
   return (
     <div className="max-h-72 overflow-y-auto p-2">
       {grouped.map(([category, ids]) => (
         <div key={category} className="mb-2">
-          <p className="mb-1 px-1 text-[10px] font-semibold tracking-wide text-neutral-400 uppercase">{category}</p>
+          <p className="mb-1 px-1 text-[10px] font-semibold tracking-wide text-neutral-400 uppercase dark:text-neutral-500">{category}</p>
           <div className="grid grid-cols-8 gap-0.5">
             {ids.map((id) => (
               <button
@@ -232,7 +232,7 @@ function IconGrid({ query, onSelect }: { query: string; onSelect: (name: string)
                 type="button"
                 onClick={() => onSelect(id)}
                 title={displayName(id)}
-                className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-600 hover:bg-neutral-100"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700"
               >
                 <Icon name={id} size={18} />
               </button>

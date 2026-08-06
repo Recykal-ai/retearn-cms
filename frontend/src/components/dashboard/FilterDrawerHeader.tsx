@@ -15,8 +15,8 @@ export function FilterDrawerHeader({
   showClear: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4">
-      <h2 className="text-base font-semibold text-neutral-900">Filters</h2>
+    <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-4 dark:border-neutral-800">
+      <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-200">Filters</h2>
       <div className="flex items-center gap-3">
         {showClear && (
           <button
@@ -32,7 +32,7 @@ export function FilterDrawerHeader({
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="flex h-6 w-6 items-center justify-center rounded text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+          className="flex h-6 w-6 items-center justify-center rounded text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
         >
           <span className="text-lg leading-none">×</span>
         </button>

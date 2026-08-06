@@ -84,28 +84,26 @@ export function CategoriesSection({
   }
 
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-5">
-      <h2 className="mb-1 text-sm font-semibold text-neutral-900">Category creation</h2>
-      <p className="mb-4 text-xs text-neutral-400">
+    <div className="rounded-lg border border-neutral-200 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900">
+      <h2 className="mb-1 text-sm font-semibold text-neutral-900 dark:text-neutral-200">Category creation</h2>
+      <p className="mb-4 text-xs text-neutral-400 dark:text-neutral-500">
         Tags are scoped to a single team or product.
         {viewerScope ? " Showing only the teams/products you manage." : ""}
       </p>
 
       <div className="mb-5 flex items-center gap-3">
-        <div className="inline-flex rounded-full bg-neutral-100 p-0.5 text-sm font-medium">
+        <div className="inline-flex rounded-full bg-neutral-100 p-0.5 text-sm font-medium dark:bg-neutral-800">
           <button
             type="button"
             onClick={() => switchMode("team")}
-            className="rounded-full px-3 py-1 transition-colors"
-            style={mode === "team" ? { background: "white", color: "#171717", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" } : { color: "#737373" }}
+            className={`rounded-full px-3 py-1 transition-colors ${mode === "team" ? "bg-white text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-neutral-700 dark:text-neutral-200" : "text-neutral-500 dark:text-neutral-400"}`}
           >
             Team
           </button>
           <button
             type="button"
             onClick={() => switchMode("product")}
-            className="rounded-full px-3 py-1 transition-colors"
-            style={mode === "product" ? { background: "white", color: "#171717", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" } : { color: "#737373" }}
+            className={`rounded-full px-3 py-1 transition-colors ${mode === "product" ? "bg-white text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-neutral-700 dark:text-neutral-200" : "text-neutral-500 dark:text-neutral-400"}`}
           >
             Product
           </button>
@@ -115,20 +113,20 @@ export function CategoriesSection({
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="flex min-w-48 items-center justify-between gap-2 rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:border-neutral-400"
+            className="flex min-w-48 items-center justify-between gap-2 rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:border-neutral-400 dark:border-neutral-600 dark:text-neutral-300 dark:hover:border-neutral-500"
           >
             {isAllSelected ? "All (every team & product)" : selected ? selected.name : `Select a ${mode}…`}
             <Icon name="Arrow/Chevron_Down" size={12} style={{ color: "#a3a3a3" }} />
           </button>
 
           {open && (
-            <div className="absolute top-full left-0 z-20 mt-1 w-64 rounded-md border border-neutral-200 bg-white p-2 shadow-lg">
+            <div className="absolute top-full left-0 z-20 mt-1 w-64 rounded-md border border-neutral-200 bg-white p-2 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
               <input
                 autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={`Search ${mode}s…`}
-                className="mb-2 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
+                className="mb-2 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none dark:border-neutral-700 dark:text-neutral-300 dark:placeholder:text-neutral-500 dark:focus:border-neutral-600"
               />
               <div className="max-h-48 space-y-0.5 overflow-y-auto">
                 {showAllOption && (
@@ -139,7 +137,7 @@ export function CategoriesSection({
                       setOpen(false);
                       setQuery("");
                     }}
-                    className="mb-0.5 block w-full rounded-md border-b border-neutral-100 px-2.5 py-1.5 text-left text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                    className="mb-0.5 block w-full rounded-md border-b border-neutral-100 px-2.5 py-1.5 text-left text-sm font-medium text-neutral-700 hover:bg-neutral-50 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800"
                   >
                     All (every team &amp; product)
                   </button>
@@ -153,12 +151,12 @@ export function CategoriesSection({
                       setOpen(false);
                       setQuery("");
                     }}
-                    className="block w-full rounded-md px-2.5 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                    className="block w-full rounded-md px-2.5 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
                   >
                     {e.name}
                   </button>
                 ))}
-                {filtered.length === 0 && !showAllOption && <p className="px-2.5 py-1.5 text-xs text-neutral-400">No matches.</p>}
+                {filtered.length === 0 && !showAllOption && <p className="px-2.5 py-1.5 text-xs text-neutral-400 dark:text-neutral-500">No matches.</p>}
               </div>
             </div>
           )}
@@ -166,8 +164,8 @@ export function CategoriesSection({
       </div>
 
       {isAllSelected ? (
-        <div className="border-t border-neutral-100 pt-4">
-          <p className="mb-3 text-xs text-neutral-500">
+        <div className="border-t border-neutral-100 pt-4 dark:border-neutral-800">
+          <p className="mb-3 text-xs text-neutral-500 dark:text-neutral-400">
             Creates this tag under every team and product at once (except Others), so it shows up everywhere and
             merges into one filter chip on the dashboard&apos;s All home view. Anywhere it already exists is left as-is.
           </p>
@@ -178,7 +176,7 @@ export function CategoriesSection({
               placeholder="New global tag name"
               required
               disabled={isPending}
-              className="max-w-xs flex-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-400 focus:outline-none disabled:opacity-60"
+              className="max-w-xs flex-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-400 focus:outline-none disabled:opacity-60 dark:border-neutral-600 dark:focus:border-neutral-500"
             />
             <button
               type="submit"
@@ -191,15 +189,15 @@ export function CategoriesSection({
           </form>
         </div>
       ) : selected ? (
-        <div className="border-t border-neutral-100 pt-4">
-          <p className="mb-2 text-xs font-semibold text-neutral-500">
-            {mode === "team" ? "Team" : "Product"}: <span className="text-neutral-700">{selected.name}</span>
+        <div className="border-t border-neutral-100 pt-4 dark:border-neutral-800">
+          <p className="mb-2 text-xs font-semibold text-neutral-500 dark:text-neutral-400">
+            {mode === "team" ? "Team" : "Product"}: <span className="text-neutral-700 dark:text-neutral-300">{selected.name}</span>
           </p>
           <div className="mb-3 flex flex-wrap gap-1.5">
             {cats.map((c) => (
               <span
                 key={c.id}
-                className="group relative flex items-center gap-1 rounded-full bg-neutral-100 py-1 pr-1.5 pl-2.5 text-xs text-neutral-600"
+                className="group relative flex items-center gap-1 rounded-full bg-neutral-100 py-1 pr-1.5 pl-2.5 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
               >
                 {c.name}
                 {c.name !== "Others" && (
@@ -207,14 +205,14 @@ export function CategoriesSection({
                     type="button"
                     onClick={() => setPendingDelete(c)}
                     aria-label={`Remove ${c.name}`}
-                    className="flex h-3.5 w-3.5 items-center justify-center rounded-full text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-neutral-300 hover:text-neutral-700"
+                    className="flex h-3.5 w-3.5 items-center justify-center rounded-full text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-neutral-300 hover:text-neutral-700 dark:text-neutral-500 dark:hover:bg-neutral-600 dark:hover:text-neutral-200"
                   >
                     <Icon name="Menu/Close_SM" size={9} />
                   </button>
                 )}
               </span>
             ))}
-            {cats.length === 0 && <span className="text-xs text-neutral-400">No tags yet.</span>}
+            {cats.length === 0 && <span className="text-xs text-neutral-400 dark:text-neutral-500">No tags yet.</span>}
           </div>
           <form ref={categoryFormRef} onSubmit={handleCreateCategory} className="flex gap-2">
             <input type="hidden" name="scope" value={selected.id} />
@@ -223,7 +221,7 @@ export function CategoriesSection({
               placeholder="New tag name"
               required
               disabled={isPending}
-              className="max-w-xs flex-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-400 focus:outline-none disabled:opacity-60"
+              className="max-w-xs flex-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-400 focus:outline-none disabled:opacity-60 dark:border-neutral-600 dark:focus:border-neutral-500"
             />
             <button
               type="submit"
@@ -236,7 +234,7 @@ export function CategoriesSection({
           </form>
         </div>
       ) : (
-        <p className="border-t border-neutral-100 pt-4 text-sm text-neutral-400">
+        <p className="border-t border-neutral-100 pt-4 text-sm text-neutral-400 dark:border-neutral-800 dark:text-neutral-500">
           {entities.length === 0
             ? `No ${mode}s available.`
             : `Pick a ${mode} above to see and manage its tags.`}

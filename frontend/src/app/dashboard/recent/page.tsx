@@ -28,13 +28,13 @@ export default async function RecentPage() {
       <SubPageTopBar />
 
       <div className="flex-1 overflow-y-auto p-8">
-        <div className="mx-auto max-w-5xl rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
+        <div className="mx-auto max-w-5xl rounded-lg border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
           <div className="mb-5">
-            <h1 className="text-lg font-semibold text-neutral-900">Recent</h1>
-            <p className="text-sm text-neutral-400">Documents you&apos;ve recently viewed or edited.</p>
+            <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-200">Recent</h1>
+            <p className="text-sm text-neutral-400 dark:text-neutral-500">Documents you&apos;ve recently viewed or edited.</p>
           </div>
           {recentDocs.length === 0 ? (
-            <p className="py-16 text-center text-sm text-neutral-400">Nothing viewed recently.</p>
+            <p className="py-16 text-center text-sm text-neutral-400 dark:text-neutral-500">Nothing viewed recently.</p>
           ) : (
             <SimpleDocumentsTable documents={recentDocs} entityName="Recent" />
           )}

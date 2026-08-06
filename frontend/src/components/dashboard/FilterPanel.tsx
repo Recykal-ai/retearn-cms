@@ -165,7 +165,7 @@ export function FilterPanel({
               <FilterSection title="Status">
                 <div className="flex flex-col gap-1.5">
                   {STATUS_OPTIONS.map((opt) => (
-                    <label key={opt.value} className="flex items-center gap-2 text-sm text-neutral-700">
+                    <label key={opt.value} className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
                       <input
                         type="radio"
                         name="status-filter"
@@ -191,7 +191,7 @@ export function FilterPanel({
               <FilterSection title={`Type${activeTypes.length ? ` (${activeTypes.length})` : ""}`}>
                 <div className="flex flex-col gap-1.5">
                   {TYPE_OPTIONS.map((t) => (
-                    <label key={t} className="flex items-center gap-2 text-sm text-neutral-700">
+                    <label key={t} className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
                       <input
                         type="checkbox"
                         checked={activeTypes.includes(t)}
@@ -230,10 +230,10 @@ export function FilterPanel({
                       value={tagSearch}
                       onChange={(e) => setTagSearch(e.target.value)}
                       placeholder="Search tags…"
-                      className="mb-2 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-700 outline-none focus:border-neutral-400"
+                      className="mb-2 w-full rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-700 outline-none focus:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:focus:border-neutral-600"
                     />
                     {filteredCategories.length === 0 && (
-                      <p className="py-1 text-xs text-neutral-400">No tags match &ldquo;{tagSearch}&rdquo;.</p>
+                      <p className="py-1 text-xs text-neutral-400 dark:text-neutral-500">No tags match &ldquo;{tagSearch}&rdquo;.</p>
                     )}
                     <div className="flex flex-col gap-1.5">
                       {filteredCategories.map((c) => {
@@ -242,7 +242,7 @@ export function FilterPanel({
                         return (
                           <label
                             key={c.id}
-                            className="flex items-center justify-between gap-2 text-sm text-neutral-700"
+                            className="flex items-center justify-between gap-2 text-sm text-neutral-700 dark:text-neutral-300"
                           >
                             <span className="flex items-center gap-2">
                               <input
@@ -257,7 +257,7 @@ export function FilterPanel({
                               />
                               {c.name}
                             </span>
-                            <span className="text-xs text-neutral-400">{count}</span>
+                            <span className="text-xs text-neutral-400 dark:text-neutral-500">{count}</span>
                           </label>
                         );
                       })}

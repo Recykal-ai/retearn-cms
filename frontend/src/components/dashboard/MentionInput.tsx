@@ -92,7 +92,7 @@ export function MentionInput({
           if (e.key === "Escape") setDropdown(null);
         }}
         placeholder={placeholder ?? "Reply…"}
-        className="w-full rounded-md border border-neutral-200 px-2 py-1 text-xs focus:border-neutral-400 focus:outline-none"
+        className="w-full rounded-md border border-neutral-200 px-2 py-1 text-xs focus:border-neutral-400 focus:outline-none dark:border-neutral-700 dark:focus:border-neutral-500"
       />
       <button
         type="button"
@@ -105,13 +105,13 @@ export function MentionInput({
       </button>
 
       {dropdown && filtered.length > 0 && (
-        <div className="absolute bottom-full left-0 z-10 mb-1 w-48 rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
+        <div className="absolute bottom-full left-0 z-10 mb-1 w-48 rounded-md border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
           {filtered.map((m) => (
             <button
               key={m.id}
               type="button"
               onClick={() => selectMember(m)}
-              className="block w-full px-2 py-1 text-left text-xs text-neutral-700 hover:bg-neutral-50"
+              className="block w-full px-2 py-1 text-left text-xs text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
             >
               {m.label}
             </button>

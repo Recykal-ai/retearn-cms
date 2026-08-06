@@ -48,28 +48,28 @@ export function NotificationSettingsModal({ onClose }: { onClose: () => void }) 
       style={{ fontFamily: "var(--font-ui)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-neutral-900">Notification settings</h1>
+          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-200">Notification settings</h1>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="text-xl leading-none text-neutral-400 hover:text-neutral-600"
+            className="text-xl leading-none text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
           >
             ×
           </button>
         </div>
 
-        <p className="mb-4 text-sm text-neutral-500">
+        <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-400">
           Mentions, uploads, and approval decisions always show up in your notification bell. This only controls
           whether we also email you about them.
         </p>
 
-        <div className="mb-5 flex items-center justify-between rounded-md border border-neutral-200 px-3 py-2.5">
+        <div className="mb-5 flex items-center justify-between rounded-md border border-neutral-200 px-3 py-2.5 dark:border-neutral-700">
           <div>
-            <p className="text-sm font-medium text-neutral-800">Email notifications</p>
-            <p className="text-xs text-neutral-500">{enabled ? "On — you'll get an email too" : "Off — in-app only"}</p>
+            <p className="text-sm font-medium text-neutral-800 dark:text-neutral-200">Email notifications</p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">{enabled ? "On — you'll get an email too" : "Off — in-app only"}</p>
           </div>
           <button
             type="button"

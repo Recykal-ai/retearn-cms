@@ -65,8 +65,8 @@ export function AppliedFilters({
       key: "status",
       label: status.charAt(0) + status.slice(1).toLowerCase(),
       href: withoutParam(baseHref, "status"),
-      bg: "#f5f5f5",
-      fg: "#525252",
+      bg: "var(--chip-neutral-bg)",
+      fg: "var(--chip-neutral-fg)",
     });
   }
   if (modifiedSince) {
@@ -74,8 +74,8 @@ export function AppliedFilters({
       key: "modifiedSince",
       label: daysLabel(modifiedSince),
       href: withoutParam(baseHref, "modifiedSince"),
-      bg: "#f5f5f5",
-      fg: "#525252",
+      bg: "var(--chip-neutral-bg)",
+      fg: "var(--chip-neutral-fg)",
     });
   }
   for (const t of types) {
@@ -83,8 +83,8 @@ export function AppliedFilters({
       key: `type-${t}`,
       label: FILE_TYPE_LABEL[t as FileTypeKey] ?? t,
       href: withoutParam(baseHref, "type", t),
-      bg: "#f5f5f5",
-      fg: "#525252",
+      bg: "var(--chip-neutral-bg)",
+      fg: "var(--chip-neutral-fg)",
     });
   }
   for (const id of categoryIds) {
@@ -100,8 +100,8 @@ export function AppliedFilters({
       key: `uploadedBy-${id}`,
       label: uploader.name,
       href: withoutParam(baseHref, "uploadedBy", id),
-      bg: "#f5f5f5",
-      fg: "#525252",
+      bg: "var(--chip-neutral-bg)",
+      fg: "var(--chip-neutral-fg)",
     });
   }
 
@@ -109,10 +109,10 @@ export function AppliedFilters({
 
   return (
     <div
-      className="flex flex-wrap items-center gap-2 border-b border-neutral-100 px-6 py-3"
+      className="flex flex-wrap items-center gap-2 border-b border-neutral-100 px-6 py-3 dark:border-neutral-800"
       style={{ fontFamily: "var(--font-ui)" }}
     >
-      <span className="text-xs font-medium text-neutral-400">Filtered by:</span>
+      <span className="text-xs font-medium text-neutral-400 dark:text-neutral-500">Filtered by:</span>
       {chips.map((chip) => (
         <Link
           key={chip.key}

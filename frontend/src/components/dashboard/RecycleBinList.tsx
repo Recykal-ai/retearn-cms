@@ -183,8 +183,8 @@ export function RecycleBinList({
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
         <Icon name="Interface/Trash_Empty" size={36} style={{ color: "#c9c2ce" }} />
-        <p className="text-sm font-medium text-neutral-600">Recycle Bin is empty.</p>
-        <p className="max-w-xs text-xs text-neutral-400">Documents deleted by an Admin or Super Admin show up here and can be recovered.</p>
+        <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Recycle Bin is empty.</p>
+        <p className="max-w-xs text-xs text-neutral-400 dark:text-neutral-500">Documents deleted by an Admin or Super Admin show up here and can be recovered.</p>
       </div>
     );
   }
@@ -196,13 +196,13 @@ export function RecycleBinList({
           <Icon
             name="Interface/Search_Magnifying_Glass"
             size={13}
-            className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400"
+            className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400 dark:text-neutral-500"
           />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Find in Recycle Bin…"
-            className="w-full rounded-md border border-neutral-200 bg-white py-1.5 pr-3 pl-8 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
+            className="w-full rounded-md border border-neutral-200 bg-white py-1.5 pr-3 pl-8 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:placeholder:text-neutral-500"
           />
         </div>
         <FilterTriggerButton activeCount={activeCount} onClick={() => setOpen(true)} />
@@ -211,14 +211,14 @@ export function RecycleBinList({
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
           <Icon name="Interface/Trash_Empty" size={36} style={{ color: "#c9c2ce" }} />
-          <p className="text-sm font-medium text-neutral-600">
+          <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
             {query || activeCount > 0 ? "No deleted documents match these filters." : "Recycle Bin is empty."}
           </p>
         </div>
       ) : (
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-neutral-100 text-xs font-semibold text-neutral-500">
+            <tr className="border-b border-neutral-100 text-xs font-semibold text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
               <th className="py-3 pr-4 font-semibold">Name</th>
               <th className="py-3 pr-4 font-semibold">Tags</th>
               <th className="w-40 py-3 pr-4 font-semibold">Deleted by</th>
@@ -242,7 +242,7 @@ export function RecycleBinList({
                 <FilterSection title={`Type${selectedTypes.length ? ` (${selectedTypes.length})` : ""}`}>
                   <div className="flex flex-col gap-1.5">
                     {availableTypes.map((t) => (
-                      <label key={t} className="flex items-center gap-2 text-sm text-neutral-700">
+                      <label key={t} className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
                         <input
                           type="checkbox"
                           checked={selectedTypes.includes(t)}
@@ -274,7 +274,7 @@ export function RecycleBinList({
                 <FilterSection title={`Team${selectedTeams.length ? ` (${selectedTeams.length})` : ""}`}>
                   <div className="flex flex-col gap-1.5">
                     {availableTeams.map((t) => (
-                      <label key={t.id} className="flex items-center gap-2 text-sm text-neutral-700">
+                      <label key={t.id} className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
                         <input
                           type="checkbox"
                           checked={selectedTeams.includes(t.id)}
@@ -291,7 +291,7 @@ export function RecycleBinList({
                 <FilterSection title={`Product${selectedProducts.length ? ` (${selectedProducts.length})` : ""}`}>
                   <div className="flex flex-col gap-1.5">
                     {availableProducts.map((p) => (
-                      <label key={p.id} className="flex items-center gap-2 text-sm text-neutral-700">
+                      <label key={p.id} className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
                         <input
                           type="checkbox"
                           checked={selectedProducts.includes(p.id)}
@@ -332,11 +332,11 @@ function RecycleBinRow({ doc }: { doc: DeletedDocumentSummary }) {
   }
 
   return (
-    <tr className="border-b border-neutral-50 last:border-0">
+    <tr className="border-b border-neutral-50 last:border-0 dark:border-neutral-800">
       <td className="py-3 pr-4">
         <div className="flex items-center gap-2">
           <FileTypeIcon type={fileTypeOf(doc.title, doc.sourceType)} externalUrl={doc.externalUrl} />
-          <span className="font-medium text-neutral-800">{doc.title}</span>
+          <span className="font-medium text-neutral-800 dark:text-neutral-200">{doc.title}</span>
         </div>
       </td>
       <td className="py-3 pr-4">
@@ -351,8 +351,8 @@ function RecycleBinRow({ doc }: { doc: DeletedDocumentSummary }) {
           })}
         </div>
       </td>
-      <td className="py-3 pr-4 text-neutral-500">{doc.deletedBy?.name ?? "—"}</td>
-      <td className="py-3 pr-4 text-neutral-500" suppressHydrationWarning>
+      <td className="py-3 pr-4 text-neutral-500 dark:text-neutral-400">{doc.deletedBy?.name ?? "—"}</td>
+      <td className="py-3 pr-4 text-neutral-500 dark:text-neutral-400" suppressHydrationWarning>
         {doc.deletedBy ? relativeTime(doc.deletedBy.at) : "—"}
       </td>
       <td className="py-3">
@@ -360,7 +360,7 @@ function RecycleBinRow({ doc }: { doc: DeletedDocumentSummary }) {
           type="button"
           onClick={handleRecover}
           disabled={isPending}
-          className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-60"
+          className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-60 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
         >
           {isPending ? "Recovering…" : "Recover"}
         </button>

@@ -57,15 +57,15 @@ export function NoteHistoryPanel({
 }) {
   return (
     <div
-      className="absolute top-full right-0 z-20 mt-2 w-80 rounded-lg border border-neutral-200 bg-white shadow-lg"
+      className="absolute top-full right-0 z-20 mt-2 w-80 rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
       style={{ fontFamily: "var(--font-ui)" }}
     >
-      <p className="border-b border-neutral-100 px-3 py-2 text-xs font-semibold tracking-wide text-neutral-400 uppercase">
+      <p className="border-b border-neutral-100 px-3 py-2 text-xs font-semibold tracking-wide text-neutral-400 uppercase dark:border-neutral-800 dark:text-neutral-500">
         Update history
       </p>
       <div className="max-h-80 overflow-y-auto py-1">
-        {loading && <p className="px-3 py-3 text-xs text-neutral-400">Loading…</p>}
-        {!loading && entries.length === 0 && <p className="px-3 py-3 text-xs text-neutral-400">No changes yet</p>}
+        {loading && <p className="px-3 py-3 text-xs text-neutral-400 dark:text-neutral-500">Loading…</p>}
+        {!loading && entries.length === 0 && <p className="px-3 py-3 text-xs text-neutral-400 dark:text-neutral-500">No changes yet</p>}
         {entries.map((entry) => {
           const kind = anchorKindFor(entry.action);
           const clickable = kind !== null && entry.anchorId !== null;
@@ -75,10 +75,10 @@ export function NoteHistoryPanel({
               key={entry.id}
               type={clickable ? "button" : undefined}
               onClick={clickable ? () => onJump(kind!, entry.anchorId!) : undefined}
-              className={`block w-full px-3 py-2 text-left text-xs ${clickable ? "hover:bg-neutral-50" : ""}`}
+              className={`block w-full px-3 py-2 text-left text-xs ${clickable ? "hover:bg-neutral-50 dark:hover:bg-neutral-800" : ""}`}
             >
-              <p className="text-neutral-700">{describeActivity(entry)}</p>
-              <p className="mt-0.5 text-[11px] text-neutral-400">{relativeTime(entry.createdAt)}</p>
+              <p className="text-neutral-700 dark:text-neutral-300">{describeActivity(entry)}</p>
+              <p className="mt-0.5 text-[11px] text-neutral-400 dark:text-neutral-500">{relativeTime(entry.createdAt)}</p>
             </Wrapper>
           );
         })}

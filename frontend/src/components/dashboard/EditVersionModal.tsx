@@ -167,27 +167,27 @@ export function EditVersionModal({
     >
       <form
         onSubmit={handleSubmit}
-        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900"
       >
         <div className="mb-1 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-neutral-900">Edit document</h1>
+          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-200">Edit document</h1>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="text-xl leading-none text-neutral-400 hover:text-neutral-600"
+            className="text-xl leading-none text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
           >
             ×
           </button>
         </div>
-        <p className="mb-5 truncate text-xs text-neutral-400">&ldquo;{doc.title}&rdquo;</p>
+        <p className="mb-5 truncate text-xs text-neutral-400 dark:text-neutral-500">&ldquo;{doc.title}&rdquo;</p>
 
         {!catalog ? (
-          <p className="mb-5 text-sm text-neutral-400">Loading tags…</p>
+          <p className="mb-5 text-sm text-neutral-400 dark:text-neutral-500">Loading tags…</p>
         ) : (
           <>
             <div className="mb-4">
-              <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Team</label>
+              <label className="mb-1.5 block text-xs font-semibold text-neutral-600 dark:text-neutral-400">Team</label>
               <div className="flex flex-wrap gap-2">
                 {catalog.teams.map((t) => {
                   const selected = ownerTeamId === t.id;
@@ -212,7 +212,7 @@ export function EditVersionModal({
 
             {catalog.products.length > 0 && (
               <div className="mb-4">
-                <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Product</label>
+                <label className="mb-1.5 block text-xs font-semibold text-neutral-600 dark:text-neutral-400">Product</label>
                 <div className="flex flex-wrap gap-2">
                   {catalog.products.map((p) => {
                     const selected = productIds.includes(p.id);
@@ -237,9 +237,9 @@ export function EditVersionModal({
             )}
 
             <div className="mb-5">
-              <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Tags</label>
+              <label className="mb-1.5 block text-xs font-semibold text-neutral-600 dark:text-neutral-400">Tags</label>
               {availableCategories.length === 0 ? (
-                <p className="text-xs text-neutral-400">
+                <p className="text-xs text-neutral-400 dark:text-neutral-500">
                   {ownerTeamId || productIds.length > 0
                     ? 'No tags set up here yet — this will be filed under "Others".'
                     : "Pick a team or product above to see its tags."}
@@ -252,12 +252,12 @@ export function EditVersionModal({
                       value={tagQuery}
                       onChange={(e) => setTagQuery(e.target.value)}
                       placeholder="Find a tag"
-                      className="mb-2 w-full rounded-md border border-neutral-200 px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none"
+                      className="mb-2 w-full rounded-md border border-neutral-200 px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none dark:border-neutral-700 dark:text-neutral-300 dark:placeholder:text-neutral-500 dark:focus:border-neutral-600"
                     />
                   )}
                   <div className="flex max-h-36 flex-wrap gap-2 overflow-y-auto">
                     {filteredCategories.length === 0 && (
-                      <p className="text-xs text-neutral-400 italic">No matching tags</p>
+                      <p className="text-xs text-neutral-400 italic dark:text-neutral-500">No matching tags</p>
                     )}
                     {filteredCategories.map((c) => {
                       const selected = c.memberIds.some((id) => selectedCategoryIds.includes(id));
@@ -285,49 +285,49 @@ export function EditVersionModal({
           </>
         )}
 
-        <div className="mb-2 flex items-center gap-3 text-xs font-medium text-neutral-400">
-          <div className="h-px flex-1 bg-neutral-200" />
+        <div className="mb-2 flex items-center gap-3 text-xs font-medium text-neutral-400 dark:text-neutral-500">
+          <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
           Replace the file (optional)
-          <div className="h-px flex-1 bg-neutral-200" />
+          <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
         </div>
 
         <div className="mb-4">
-          <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Replace with a file</label>
+          <label className="mb-1.5 block text-xs font-semibold text-neutral-600 dark:text-neutral-400">Replace with a file</label>
           <input
             ref={fileInputRef}
             type="file"
             name="file"
             onChange={onFileChange}
-            className="w-full rounded-md border border-dashed border-neutral-300 px-3 py-4 text-sm text-neutral-600"
+            className="w-full rounded-md border border-dashed border-neutral-300 px-3 py-4 text-sm text-neutral-600 dark:border-neutral-600 dark:text-neutral-400"
           />
         </div>
 
-        <div className="mb-4 flex items-center gap-3 text-xs font-medium text-neutral-400">
-          <div className="h-px flex-1 bg-neutral-200" />
+        <div className="mb-4 flex items-center gap-3 text-xs font-medium text-neutral-400 dark:text-neutral-500">
+          <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
           or
-          <div className="h-px flex-1 bg-neutral-200" />
+          <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
         </div>
 
         <div className="mb-4">
-          <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Replace with a link</label>
+          <label className="mb-1.5 block text-xs font-semibold text-neutral-600 dark:text-neutral-400">Replace with a link</label>
           <input
             ref={linkUrlRef}
             type="url"
             name="externalUrl"
             placeholder="https://docs.google.com/document/d/…"
             onChange={onLinkChange}
-            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
+            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none dark:border-neutral-600 dark:focus:border-neutral-500"
           />
         </div>
 
         <div className="mb-5">
-          <label className="mb-1.5 block text-xs font-semibold text-neutral-600">Description (optional)</label>
+          <label className="mb-1.5 block text-xs font-semibold text-neutral-600 dark:text-neutral-400">Description (optional)</label>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={3}
             placeholder="Describe what changed in this version, for anyone checking version history later."
-            className="w-full resize-none rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
+            className="w-full resize-none rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none dark:border-neutral-600 dark:focus:border-neutral-500"
           />
         </div>
 

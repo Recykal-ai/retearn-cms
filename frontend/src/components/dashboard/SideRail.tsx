@@ -54,15 +54,15 @@ export function SideRail({
         </button>
 
         {openMenu === "avatar" && (
-          <div className="absolute top-11 left-0 z-20 w-52 rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
-            <div className="border-b border-neutral-100 px-3 py-2">
-              <p className="truncate text-sm font-medium text-neutral-800">{userName}</p>
-              <p className="truncate text-xs text-neutral-500">{userEmail}</p>
+          <div className="absolute top-11 left-0 z-20 w-52 rounded-md border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+            <div className="border-b border-neutral-100 px-3 py-2 dark:border-neutral-800">
+              <p className="truncate text-sm font-medium text-neutral-800 dark:text-neutral-200">{userName}</p>
+              <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">{userEmail}</p>
             </div>
             {isAdmin && (
               <Link
                 href="/dashboard/admin"
-                className="block px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+                className="block px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
                 onClick={() => setOpenMenu(null)}
               >
                 Admin dashboard
@@ -74,14 +74,14 @@ export function SideRail({
                 setOpenMenu(null);
                 setShowNotificationSettings(true);
               }}
-              className="block w-full px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+              className="block w-full px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
             >
               Notification settings
             </button>
             <form action={signOutAction}>
               <button
                 type="submit"
-                className="block w-full px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                className="block w-full px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
               >
                 Sign out
               </button>
@@ -94,7 +94,7 @@ export function SideRail({
         href="/dashboard/recent"
         title="Recent"
         aria-label="Recently viewed or edited documents"
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:border-neutral-600 dark:hover:text-neutral-200"
       >
         <Icon name="Calendar/Clock" size={16} />
       </Link>
@@ -103,7 +103,7 @@ export function SideRail({
         href="/dashboard/pinned"
         title="Pinned"
         aria-label="Documents you've pinned"
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:border-neutral-600 dark:hover:text-neutral-200"
       >
         <Icon name="Interface/Star" size={15} />
       </Link>
@@ -112,7 +112,7 @@ export function SideRail({
         href="/dashboard/notes"
         title="Notes"
         aria-label="Notes — personal and team"
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:border-neutral-600 dark:hover:text-neutral-200"
       >
         <Icon name="File/Note" size={15} />
       </Link>
@@ -122,7 +122,7 @@ export function SideRail({
           href="/dashboard/recycle-bin"
           title="Recycle Bin"
           aria-label="Recycle Bin — deleted documents"
-          className="mt-auto flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700"
+          className="mt-auto flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:border-neutral-600 dark:hover:text-neutral-200"
         >
           <Icon name="Interface/Trash_Empty" size={15} />
         </Link>
