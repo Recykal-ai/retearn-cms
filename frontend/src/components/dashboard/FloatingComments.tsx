@@ -244,13 +244,15 @@ export function FloatingComments({
                 transition={{ type: "spring", stiffness: 500, damping: 40 }}
                 onMouseEnter={() => onHoverThread(root.id)}
                 onMouseLeave={() => onHoverThread(null)}
-                className="pointer-events-auto absolute rounded-lg border shadow-sm transition-colors"
+                className={`pointer-events-auto absolute rounded-lg border shadow-sm transition-colors ${
+                  hoveredThreadId === root.id ? "" : "bg-white dark:bg-neutral-900"
+                }`}
                 style={{
                   top,
                   left: cardLeft,
                   width: CARD_WIDTH,
                   borderColor: hoveredThreadId === root.id ? "var(--brand-purple)" : "var(--canvas-border, #e5e5e5)",
-                  background: hoveredThreadId === root.id ? "var(--brand-purple-tint)" : "white",
+                  background: hoveredThreadId === root.id ? "var(--brand-purple-tint)" : undefined,
                 }}
               >
                 {expandedId === root.id ? (
@@ -401,12 +403,10 @@ function ThreadCardExpanded({
           onClick={handleResolveToggle}
           disabled={busy}
           title={root.resolved ? "Reopen this thread" : "Mark this thread as resolved"}
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs"
-          style={
-            root.resolved
-              ? { background: "var(--brand-purple-tint)", color: "var(--brand-purple)" }
-              : { border: "1px solid #d1d5db", color: "#a3a3a3" }
-          }
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs ${
+            root.resolved ? "" : "border border-neutral-300 text-neutral-400 dark:border-neutral-600 dark:text-neutral-500"
+          }`}
+          style={root.resolved ? { background: "var(--brand-purple-tint)", color: "var(--brand-purple)" } : undefined}
         >
           ✓
         </button>

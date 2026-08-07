@@ -7,6 +7,36 @@
    rather than OS setting. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* Fades the light/dark swap instead of an instant snap — ThemeProvider.tsx
+   stamps this class on <html> for ~300ms around every theme change (its own
+   toggle, and cross-tab sync), so it's a deliberately temporary opt-in
+   window rather than a permanent transition on every element. Permanent
+   would be the easier one-liner, but it'd also slow down every unrelated
+   hover/selected-state color change app-wide (those already have their own
+   short transition-colors timing) to this same duration. !important wins
+   over each element's own (usually untimed) transition so the fade is
+   guaranteed to apply uniformly for the brief window it's active. */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease,
+    fill 0.3s ease,
+    stroke 0.3s ease !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-transition,
+  .theme-transition *,
+  .theme-transition *::before,
+  .theme-transition *::after {
+    transition: none !important;
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
