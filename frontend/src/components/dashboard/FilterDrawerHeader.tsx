@@ -1,10 +1,12 @@
+import { Icon } from "@/components/dashboard/Icon";
+
 // Shared by FilterPanel.tsx, PinnedPageContent.tsx, and RecycleBinList.tsx.
 // "Clear all" is purple/underlined (an action link, matching AppliedFilters'
 // existing "Clear all" treatment) — deliberately a different color from the
-// neutral-gray × close button, since same-color text/icon side by side read
-// as one washed-out block rather than two distinct controls. The × sits in
-// a fixed-size box so its vertical center lines up with "Clear all"'s text
-// regardless of the glyph's own font metrics.
+// neutral-gray close button, since same-color text/icon side by side read
+// as one washed-out block rather than two distinct controls. The close
+// button sits in a fixed-size box so its vertical center lines up with
+// "Clear all"'s text regardless of the icon's own intrinsic size.
 export function FilterDrawerHeader({
   onClose,
   onClear,
@@ -34,7 +36,7 @@ export function FilterDrawerHeader({
           aria-label="Close"
           className="flex h-6 w-6 items-center justify-center rounded text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
         >
-          <span className="text-lg leading-none">×</span>
+          <Icon name="Arrow/Chevron_Right_Duo" size={16} />
         </button>
       </div>
     </div>
