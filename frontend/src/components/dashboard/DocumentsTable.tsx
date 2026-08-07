@@ -40,7 +40,6 @@ export function DocumentsTable({
   restrictToPublished?: boolean;
 }) {
   const PAGE_SIZE = 10;
-  const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const { view, isOpening, viewerNode } = useDocumentViewer();
@@ -70,17 +69,45 @@ export function DocumentsTable({
     <div className="flex-1">
     <table className="w-full text-left text-sm">
       <thead>
+        <tr>
+          <td colSpan={5} className="pb-3">
+            {/* Always visible, its own row above Name/Tags/Modified/Modified
+                by — not gated behind a click, and not swapped in place of
+                the Name header (that briefly replaced this, but reads worse
+                than just always having the box where you'd look for it). */}
+            <div className="relative w-full max-w-xs">
+              <Icon
+                name="Interface/Search_Magnifying_Glass"
+                size={13}
+                style={{ color: "#a3a3a3" }}
+                className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2"
+              />
+              <input
+                value={query}
+                onChange={(e) => onQueryChange(e.target.value)}
+                placeholder={`Search in ${entityName ?? "this list"}`}
+                className="w-full rounded-md border border-neutral-200 bg-white py-1.5 pr-3 pl-8 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:placeholder:text-neutral-500 dark:focus:border-neutral-600"
+              />
+            </div>
+          </td>
+        </tr>
         <tr className="text-xs font-semibold text-neutral-500">
           <th className="sticky top-0 z-10 border-b border-neutral-100 bg-white py-3 font-semibold dark:border-neutral-800 dark:bg-neutral-900">
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setSearchOpen((v) => !v)}
-                title="Find in this list"
-                className="text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
-              >
-                <Icon name="Interface/Search_Magnifying_Glass" size={13} />
-              </button>
+            <div className="flex items-center gap-2">
+              {/* Decorative, not interactive — lines the header up with each
+                  row's own star (pin) + file-type icon columns below it,
+                  same as Tags/Modified/Modified by aligning with their own
+                  columns. */}
+              <Icon name="Interface/Star" size={15} className="shrink-0 text-neutral-300 dark:text-neutral-600" />
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0 text-neutral-300 dark:text-neutral-600">
+                <path
+                  d="M7 3.5h7.5L18 7v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinejoin="round"
+                />
+                <path d="M14 3.5V7h3.5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+              </svg>
               <SortableHeader
                 label="Name"
                 ascHref={nameAscHref}
@@ -100,26 +127,13 @@ export function DocumentsTable({
               descHref={modifiedDescHref}
               ascLabel="Oldest first"
               descLabel="Newest first"
-              active={sort === "modified" || !sort}
+              active={sort === "modified"}
               dir={dir ?? "desc"}
             />
           </th>
           <th className="sticky top-0 z-10 w-40 border-b border-neutral-100 bg-white py-3 font-semibold dark:border-neutral-800 dark:bg-neutral-900">Modified by</th>
           <th className="sticky top-0 z-10 w-28 border-b border-neutral-100 bg-white py-3 font-normal dark:border-neutral-800 dark:bg-neutral-900" />
         </tr>
-        {searchOpen && (
-          <tr>
-            <td colSpan={5} className="bg-neutral-50 px-2 py-2 dark:bg-neutral-800">
-              <input
-                autoFocus
-                value={query}
-                onChange={(e) => onQueryChange(e.target.value)}
-                placeholder={`Find in ${entityName ?? "this list"}…`}
-                className="w-full max-w-xs rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-300 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:placeholder:text-neutral-500 dark:focus:border-neutral-600"
-              />
-            </td>
-          </tr>
-        )}
       </thead>
       <tbody>
         {filtered.length === 0 ? (
