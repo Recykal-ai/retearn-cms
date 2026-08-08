@@ -32,6 +32,7 @@ export default async function DashboardPage({
     sort?: string;
     dir?: string;
     type?: string;
+    pinned?: string;
     view?: string;
   }>;
 }) {
@@ -43,7 +44,7 @@ export default async function DashboardPage({
     redirect("/");
   }
 
-  const { mode: modeParam, entity, category, status, modifiedSince, uploadedBy, sort, dir, type, view } = await searchParams;
+  const { mode: modeParam, entity, category, status, modifiedSince, uploadedBy, sort, dir, type, pinned, view } = await searchParams;
   // No mode param at all (a bare "/dashboard" landing) resolves to "all" —
   // the home view shows every team's and product's documents together,
   // rather than defaulting into whichever team happens to be first.
@@ -162,9 +163,17 @@ export default async function DashboardPage({
       // the filename extension), so it's applied here rather than as a query param.
       // `type` can be a comma-separated list (the Filter panel's Type section is multi-select).
       const selectedTypes = type ? type.split(",").filter(Boolean) : [];
-      const documents = selectedTypes.length
-        ? allDocuments.filter((d) => selectedTypes.includes(fileTypeOf(d.title, d.sourceType)))
-        : allDocuments;
+      // Same reasoning for "pinned only" — every document already carries its
+      // own `pinned` flag (serializeDocument annotates it from the current
+      // user's PinnedDocument rows), so there's no need for a backend query
+      // param just to re-derive something already sitting on the object.
+      // This is what lets "pinned only" work inside whatever team/product/
+      // category folder you're already browsing, instead of only existing
+      // as the separate, folder-less /dashboard/pinned page.
+      const pinnedOnly = pinned === "true";
+      const documents = allDocuments
+        .filter((d) => !selectedTypes.length || selectedTypes.includes(fileTypeOf(d.title, d.sourceType)))
+        .filter((d) => !pinnedOnly || d.pinned);
 
       const categoryCounts: Record<string, number> = {};
       if (isGlobal) {
@@ -277,6 +286,7 @@ export default async function DashboardPage({
             modifiedSince={modifiedSince}
             uploadedBy={uploadedBy}
             type={type}
+            pinned={pinned}
             sort={sort as SortField | undefined}
             dir={dir as SortDir | undefined}
             view={viewMode}

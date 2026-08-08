@@ -20,6 +20,7 @@ export function DocumentsPanel({
   modifiedSince,
   uploadedBy,
   type,
+  pinned,
   sort,
   dir,
   view,
@@ -40,6 +41,7 @@ export function DocumentsPanel({
   modifiedSince?: string;
   uploadedBy?: string;
   type?: string;
+  pinned?: string;
   sort?: SortField;
   dir?: SortDir;
   view: ViewMode;
@@ -87,6 +89,7 @@ export function DocumentsPanel({
     if (modifiedSince) url.searchParams.set("modifiedSince", modifiedSince);
     if (uploadedBy) url.searchParams.set("uploadedBy", uploadedBy);
     if (type) url.searchParams.set("type", type);
+    if (pinned) url.searchParams.set("pinned", pinned);
     return `${url.pathname}${url.search}`;
   })();
 
@@ -107,6 +110,7 @@ export function DocumentsPanel({
     if (modifiedSince) url.searchParams.set("modifiedSince", modifiedSince);
     if (uploadedBy) url.searchParams.set("uploadedBy", uploadedBy);
     if (type) url.searchParams.set("type", type);
+    if (pinned) url.searchParams.set("pinned", pinned);
     return `${url.pathname}${url.search}`;
   })();
 
@@ -132,6 +136,7 @@ export function DocumentsPanel({
     !modifiedSince &&
     !uploadedBy &&
     !type &&
+    !pinned &&
     !sort &&
     !dir &&
     view === "folders";
@@ -150,6 +155,7 @@ export function DocumentsPanel({
     if (modifiedSince) url.searchParams.set("modifiedSince", modifiedSince);
     if (uploadedBy) url.searchParams.set("uploadedBy", uploadedBy);
     if (type) url.searchParams.set("type", type);
+    if (pinned) url.searchParams.set("pinned", pinned);
     if (sort) url.searchParams.set("sort", sort);
     if (dir) url.searchParams.set("dir", dir);
     return `${url.pathname}${url.search}`;
@@ -182,6 +188,7 @@ export function DocumentsPanel({
           uploadedBy={uploadedBy}
           type={type}
           category={filterCategoryId}
+          pinned={pinned}
           uploaders={uploaders}
           categoryGroups={categoryGroups}
           categorySuperGroups={categorySuperGroups}
@@ -213,6 +220,7 @@ export function DocumentsPanel({
         uploadedBy={uploadedBy}
         type={type}
         category={filterCategoryId}
+        pinned={pinned}
         categories={categories}
         uploaders={uploaders}
       />

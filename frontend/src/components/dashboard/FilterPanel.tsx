@@ -6,6 +6,7 @@ import type { Category, DocStatus } from "@/lib/api";
 import { FILE_TYPE_LABEL, type FileTypeKey } from "@/lib/file-type";
 import { FileTypeIcon } from "@/components/dashboard/FileTypeIcon";
 import { colorForCategory } from "@/lib/tag-colors";
+import { Icon } from "@/components/dashboard/Icon";
 import { FilterSection } from "@/components/dashboard/FilterSection";
 import { FilterTriggerButton } from "@/components/dashboard/FilterTriggerButton";
 import { FilterDrawerHeader } from "@/components/dashboard/FilterDrawerHeader";
@@ -35,6 +36,7 @@ export function FilterPanel({
   uploadedBy,
   type,
   category,
+  pinned,
   uploaders,
   categoryGroups,
   categorySuperGroups,
@@ -47,6 +49,7 @@ export function FilterPanel({
   uploadedBy?: string;
   type?: string;
   category?: string;
+  pinned?: string;
   uploaders?: UploaderOption[];
   categoryGroups?: TagGroup[];
   categorySuperGroups?: TagSuperGroup[];
@@ -67,8 +70,15 @@ export function FilterPanel({
   const activeUploaders = uploadedBy ? uploadedBy.split(",").filter(Boolean) : [];
   const activeDays = modifiedSince ? daysFromIso(modifiedSince) : "";
 
+  const isPinnedOnly = pinned === "true";
+
   const activeCount =
-    (status ? 1 : 0) + (modifiedSince ? 1 : 0) + activeTypes.length + activeCategories.length + activeUploaders.length;
+    (status ? 1 : 0) +
+    (modifiedSince ? 1 : 0) +
+    activeTypes.length +
+    activeCategories.length +
+    activeUploaders.length +
+    (isPinnedOnly ? 1 : 0);
 
   const filteredCategories = categories.filter((c) =>
     c.name.toLowerCase().includes(tagSearch.trim().toLowerCase()),
@@ -85,12 +95,23 @@ export function FilterPanel({
   // DocumentsPanel's filterCategoryId) — rewriting it from this panel's own
   // (often-empty) idea of it used to kick you out of whatever folder you
   // were standing in the moment you touched any other filter.
-  function push(next: { status?: string; days?: string; types?: string[]; categories?: string[]; uploadedBy?: string[] }) {
+  function push(next: {
+    status?: string;
+    days?: string;
+    types?: string[];
+    categories?: string[];
+    uploadedBy?: string[];
+    pinnedOnly?: boolean;
+  }) {
     const url = new URL(baseHref, "http://placeholder");
 
     const nextStatus = next.status ?? status ?? "";
     if (nextStatus) url.searchParams.set("status", nextStatus);
     else url.searchParams.delete("status");
+
+    const nextPinnedOnly = next.pinnedOnly ?? isPinnedOnly;
+    if (nextPinnedOnly) url.searchParams.set("pinned", "true");
+    else url.searchParams.delete("pinned");
 
     const nextDays = next.days ?? activeDays;
     if (nextDays) {
@@ -143,6 +164,10 @@ export function FilterPanel({
     push({ uploadedBy: activeUploaders.includes(id) ? activeUploaders.filter((v) => v !== id) : [...activeUploaders, id] });
   }
 
+  function togglePinnedOnly() {
+    push({ pinnedOnly: !isPinnedOnly });
+  }
+
   function clear() {
     const url = new URL(baseHref, "http://placeholder");
     url.searchParams.delete("status");
@@ -150,6 +175,7 @@ export function FilterPanel({
     url.searchParams.delete("type");
     url.searchParams.delete("category");
     url.searchParams.delete("uploadedBy");
+    url.searchParams.delete("pinned");
     router.push(`${url.pathname}${url.search}`);
     setOpen(false);
   }
@@ -162,6 +188,25 @@ export function FilterPanel({
         <FilterDrawerHeader onClose={() => setOpen(false)} onClear={clear} showClear={activeCount > 0} />
 
         <div className="flex-1 px-5 py-4">
+              {/* A quick top-level toggle rather than its own FilterSection —
+                  this is a single yes/no switch, not a group of options to
+                  expand, so it reads more like "Only show published" would:
+                  one line, always visible, no title needed. Lets you narrow
+                  straight to your pinned docs inside whatever team/product/
+                  category you're already browsing, instead of having to
+                  leave for the separate Pinned page (which has no team/
+                  category context of its own). */}
+              <label className="mb-4 flex cursor-pointer items-center gap-2 border-b border-neutral-100 pb-4 text-sm font-medium text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">
+                <input type="checkbox" checked={isPinnedOnly} onChange={togglePinnedOnly} />
+                <Icon
+                  name="Interface/Star"
+                  size={14}
+                  className={isPinnedOnly ? "[&>svg]:fill-current" : undefined}
+                  style={{ color: isPinnedOnly ? "#e0a419" : "#a3a3a3" }}
+                />
+                Pinned only
+              </label>
+
               <FilterSection title="Status">
                 <div className="flex flex-col gap-1.5">
                   {STATUS_OPTIONS.map((opt) => (

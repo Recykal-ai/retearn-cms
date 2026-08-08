@@ -34,15 +34,16 @@ export function AppliedFilters({
   uploadedBy,
   type,
   category,
+  pinned,
   categories,
   uploaders,
 }: {
   // Must already contain the CURRENT status/modifiedSince/type/category/
-  // uploadedBy values (plus view/folder, if any) — each chip's "×" removes
-  // just its own value via withoutParam, which only works if baseHref
-  // carries the sibling values to preserve. A bare identity URL here would
-  // silently wipe an entire multi-select filter (e.g. all Types) when
-  // removing just one.
+  // uploadedBy/pinned values (plus view/folder, if any) — each chip's "×"
+  // removes just its own value via withoutParam, which only works if
+  // baseHref carries the sibling values to preserve. A bare identity URL
+  // here would silently wipe an entire multi-select filter (e.g. all Types)
+  // when removing just one.
   baseHref: string;
   // Where "Clear all" goes — the identity URL with no filters, but still
   // preserving view mode/folder. Falls back to baseHref if omitted.
@@ -52,6 +53,7 @@ export function AppliedFilters({
   uploadedBy?: string;
   type?: string;
   category?: string;
+  pinned?: string;
   categories: Category[];
   uploaders?: UploaderOption[];
 }) {
@@ -100,6 +102,16 @@ export function AppliedFilters({
       key: `uploadedBy-${id}`,
       label: uploader.name,
       href: withoutParam(baseHref, "uploadedBy", id),
+      bg: "var(--chip-neutral-bg)",
+      fg: "var(--chip-neutral-fg)",
+    });
+  }
+
+  if (pinned === "true") {
+    chips.push({
+      key: "pinned",
+      label: "Pinned only",
+      href: withoutParam(baseHref, "pinned"),
       bg: "var(--chip-neutral-bg)",
       fg: "var(--chip-neutral-fg)",
     });
