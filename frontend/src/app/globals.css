@@ -467,12 +467,29 @@ button:not(:disabled) {
 }
 .ProseMirror .column-resize-handle {
   position: absolute;
-  right: -2px;
+  /* prosemirror-tables inserts one of these per ROW along the dragged
+     column's border (see handleDecorations in prosemirror-tables' own
+     source) — they're each only as tall as their own cell (position:
+     relative lives on td/th above), but sitting flush against each other
+     top-to-bottom they visually chain into one continuous guide line down
+     the whole table, by design. The bug was that it rendered fully opaque
+     at 4px wide with z-index 20 — an absolutely-positioned sibling paints
+     above ordinary in-flow content regardless of z-index once it's
+     positioned at all, so it visibly cut through/obscured any text or a
+     mention chip's pill background sitting right at that column border
+     (reported: "Theresa Gigo" reading as "Theresa G go" with the guide line
+     painted over the missing "i"). Thinned + made translucent instead —
+     still clearly readable as a resize guide, but content under it stays
+     legible, matching how .selectedCell:after already handles "overlay
+     without hiding" elsewhere in this file.
+  */
+  right: -1px;
   top: 0;
   bottom: 0;
-  width: 4px;
+  width: 2px;
   z-index: 20;
   background-color: var(--brand-purple-light);
+  opacity: 0.55;
   pointer-events: none;
 }
 .ProseMirror.resize-cursor {

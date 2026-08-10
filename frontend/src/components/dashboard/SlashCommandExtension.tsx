@@ -53,11 +53,12 @@ function buildItems(onInsertImage: () => void): SlashCommandItem[] {
           <Icon name="Edit/Table" size={14} />
         </Badge>
       ),
-      // A 3x3 starting grid with a header row, matching Notion's own
-      // default — row/column controls (add/delete) live in the selection
-      // toolbar once the cursor is inside the table (see SelectionToolbar.tsx).
+      // A plain 3x3 starting grid, matching Notion's own default — Notion's
+      // simple table has no header styling until you explicitly turn on
+      // "Header column"/"Header row" from a grip's menu (see
+      // TableGripControls.tsx), so a table shouldn't start pre-styled either.
       onSelect: (editor, range) =>
-        editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+        editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: false }).run(),
     },
     {
       section: "Basic blocks",

@@ -16,6 +16,9 @@ import {
   moveTableColumn,
   moveTableRow,
   columnResizingPluginKey,
+  columnIsHeader,
+  rowIsHeader,
+  tableNodeTypes,
 } from "@tiptap/pm/tables";
 import { Icon } from "@/components/dashboard/Icon";
 
@@ -72,7 +75,34 @@ function roundedBox(top: number, left: number, width: number, height: number): B
   return { top: t, left: l, width: Math.round(left + width) - l, height: Math.round(top + height) - t };
 }
 
-type MenuState = { kind: "col" | "row"; index: number; top: number; left: number } | null;
+// `view: "color"` swaps the dropdown's contents to the color palette
+// (see the Color MenuItem below) without needing a separate piece of state
+// to track/reset in sync with `menu` itself opening, moving, and closing.
+type MenuState = {
+  kind: "col" | "row";
+  index: number;
+  top: number;
+  left: number;
+  isHeader: boolean;
+  view?: "color";
+} | null;
+
+// Notion's own named swatches, kept as translucent overlays (rather than
+// solid hex) so the same set works against both this app's light and dark
+// surfaces without a separate dark-mode palette — the same trick the
+// existing drag-highlight band already uses via --brand-purple-tint.
+const CELL_COLORS: { name: string; value: string | null }[] = [
+  { name: "Default", value: null },
+  { name: "Gray", value: "rgba(145,145,145,0.18)" },
+  { name: "Brown", value: "rgba(140,100,75,0.18)" },
+  { name: "Orange", value: "rgba(245,150,60,0.2)" },
+  { name: "Yellow", value: "rgba(235,200,60,0.22)" },
+  { name: "Green", value: "rgba(80,180,120,0.18)" },
+  { name: "Blue", value: "rgba(80,150,230,0.18)" },
+  { name: "Purple", value: "rgba(150,110,230,0.18)" },
+  { name: "Pink", value: "rgba(230,120,180,0.18)" },
+  { name: "Red", value: "rgba(230,90,90,0.18)" },
+];
 type DragState = { kind: "col" | "row"; index: number } | null;
 
 interface Computed {
@@ -100,9 +130,50 @@ const EMPTY_COMPUTED: Computed = { info: null, tableBox: null, colBoxes: [], row
 // DOM that often collided with the library's OWN live per-column-drag
 // preview (which never dispatches a transaction until mouseup, only writes
 // the DOM directly) — see that effect's comment for the full story.
-function computeAll(editor: Editor): Computed {
+// Which table the grips should track. Previously this was ALWAYS
+// findTable(selection) — meaning the grips didn't exist at all (computeAll
+// returned EMPTY_COMPUTED, so not even the invisible hover-zone divs got
+// rendered) until the user had already clicked into a table once. Notion
+// shows its grip on pure hover, no prior click needed. Fixed by hit-testing
+// the mouse's last known position (tracked via a window "mousemove"
+// listener, see the effect below) against every table's own DOM rect,
+// padded out by the grip-zone margin so the strip just above/left of the
+// table (where the grip glyph itself renders) counts too — falling back to
+// the old selection-based lookup so a table stays "active" while the caret
+// is in it even if the mouse has since moved elsewhere (e.g. right after
+// typing), which matches the pre-existing behavior exactly.
+function findHoveredTablePos(editor: Editor, mouse: { x: number; y: number } | null): number | null {
+  if (!mouse) return null;
   const { state } = editor.view;
-  const found = findTable(state.selection.$from);
+  const pad = ZONE_SIZE + GRIP_GAP + 4;
+  let hit: number | null = null;
+  state.doc.descendants((node, pos) => {
+    if (hit !== null) return false;
+    if (node.type.name !== "table") return true;
+    const dom = editor.view.nodeDOM(pos) as HTMLElement | null;
+    const tableEl = dom?.querySelector("table");
+    if (!tableEl) return true;
+    const r = tableEl.getBoundingClientRect();
+    if (mouse.x >= r.left - pad && mouse.x <= r.right + 4 && mouse.y >= r.top - pad && mouse.y <= r.bottom + 4) {
+      hit = pos;
+      return false;
+    }
+    // Keep descending — a cell can contain a nested table (see this file's
+    // other descendants() walks for the same case).
+    return true;
+  });
+  return hit;
+}
+
+function computeAll(editor: Editor, mouse: { x: number; y: number } | null = null): Computed {
+  const { state } = editor.view;
+  const hoveredPos = findHoveredTablePos(editor, mouse);
+  let found = null;
+  if (hoveredPos !== null) {
+    const $pos = state.doc.resolve(Math.min(hoveredPos + 1, state.doc.content.size));
+    found = findTable($pos);
+  }
+  if (!found) found = findTable(state.selection.$from);
   if (!found) return EMPTY_COMPUTED;
   const dom = editor.view.nodeDOM(found.pos) as HTMLElement | null;
   const tableEl = dom?.querySelector("table") ?? null;
@@ -174,6 +245,16 @@ function cacheAllTableWidths(editor: Editor, cache: Map<number, number[]>) {
 // absurd value.
 const MIN_TABLE_WIDTH = 150;
 const MAX_TABLE_WIDTH = 3000;
+// Height works the same way, but there's no equivalent "just becomes
+// scrollable" backstop for going too tall — a table has no vertical
+// wrapper/overflow, so these bounds matter a bit more than the width ones.
+// Setting an explicit height on a <table> is standard, well-supported CSS:
+// browsers distribute the extra space across rows (auto rows share it
+// proportionally) — this is what actually makes a row look "stretched"
+// taller, since row height is otherwise purely content-driven and can't be
+// set directly.
+const MIN_TABLE_HEIGHT = 60;
+const MAX_TABLE_HEIGHT = 3000;
 
 function sameStructure(a: TableInfo | null, b: TableInfo | null): boolean {
   if (a === b) return true;
@@ -203,7 +284,19 @@ export function TableGripControls({ editor }: { editor: Editor }) {
   // True for the duration of a startTableResize drag — see the width-heal
   // effect below for why it stands down while this is set.
   const resizingRef = useRef(false);
-  const [computed, setComputed] = useState<Computed>(() => computeAll(editor));
+  // Last known mouse position, updated on every "mousemove" — read by the
+  // RAF loop below (findHoveredTablePos) rather than re-hit-testing on the
+  // mousemove event itself, same "measure once per frame" philosophy as
+  // everything else in this file.
+  const mouseRef = useRef<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      mouseRef.current = { x: e.clientX, y: e.clientY };
+    }
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, []);
+  const [computed, setComputed] = useState<Computed>(() => computeAll(editor, null));
   const { info, colBoxes, rowBoxes } = computed;
   const [menu, setMenu] = useState<MenuState>(null);
   const [drag, setDrag] = useState<DragState>(null);
@@ -325,8 +418,21 @@ export function TableGripControls({ editor }: { editor: Editor }) {
 
   useEffect(() => {
     let raf = 0;
-    function tick() {
-      const next = computeAll(editor);
+    // Shared by the RAF loop below AND a direct "scroll" listener (see
+    // further down) — requestAnimationFrame is a great source of "every
+    // frame while the tab has focus," but browsers throttle or fully pause
+    // it once a tab loses focus (a real thing during e.g. a trackpad
+    // horizontal-scroll gesture that briefly hands focus elsewhere, or any
+    // background tab). When that happens mid-scroll, this loop's own
+    // positioning quietly stalls until focus returns — every ref-driven
+    // element (grips, drag bands, the corner resize handle) freezes at
+    // wherever it last was, completely disconnected from the table's actual
+    // current position, exactly the "grip/pointer doesn't move with the
+    // table" bug reported after horizontally scrolling a wide table. A
+    // direct scroll-event listener is not subject to that throttling, so it
+    // catches the case rAF alone misses.
+    function reposition() {
+      const next = computeAll(editor, mouseRef.current);
       latestComputedRef.current = next;
       // Cached every frame EXCEPT while a native column-resize drag is
       // actually in progress — this is what the "transaction" effect's
@@ -366,10 +472,56 @@ export function TableGripControls({ editor }: { editor: Editor }) {
       } else if (next.info) {
         applyPositions(next);
       }
+    }
+    function tick() {
+      // An uncaught throw anywhere in reposition() would stop this line
+      // from ever running again — requestAnimationFrame is only scheduled
+      // AFTER reposition() returns — permanently killing the whole overlay
+      // for the rest of the session (every grip, drop band, and resize
+      // handle would freeze at wherever it last was, looking exactly like
+      // the "disconnected from the table" desync bug this file already
+      // fights elsewhere). Caught here so a bug in any one frame's work is
+      // just a skipped frame, never a dead loop.
+      try {
+        reposition();
+      } catch (err) {
+        console.error("[TableGripControls] reposition() failed", err);
+      }
       raf = requestAnimationFrame(tick);
     }
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    // Capture phase so this fires for a scroll on ANY ancestor — the
+    // tableWrapper's own overflow-x (a horizontally-scrolled wide table)
+    // AND the note pane's own vertical scroll both need to trigger this,
+    // and neither necessarily bubbles through a plain (non-capturing)
+    // window listener depending on where the scroll actually originates.
+    // Passive since this only reads layout and writes to refs — never
+    // calls preventDefault, so there's no reason to block the scroll on it.
+    //
+    // Deferred to the next animation frame rather than calling reposition()
+    // directly from the event: a native "scroll" event can be dispatched
+    // SYNCHRONOUSLY as a side effect of a DOM mutation — which can happen
+    // while React's own commit phase is still on the call stack (inserting/
+    // removing nodes can shift a scroll container enough to fire one
+    // immediately, no user input involved). reposition() can call
+    // setComputed(), a React state setter; calling that synchronously from
+    // inside a scroll handler that itself fired mid-commit is exactly what
+    // produces React's "flushSync was called from inside a lifecycle
+    // method" error — hit live after this listener was added. Bouncing
+    // through rAF moves the state update to its own turn, off whatever
+    // stack the scroll happened to interrupt, while still firing far sooner
+    // than waiting for the next natural tick() frame.
+    let scrollRaf = 0;
+    function onScroll() {
+      cancelAnimationFrame(scrollRaf);
+      scrollRaf = requestAnimationFrame(reposition);
+    }
+    window.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      cancelAnimationFrame(scrollRaf);
+      window.removeEventListener("scroll", onScroll, { capture: true });
+    };
   }, [editor]);
 
   // Whole-table-width persistence — for EVERY table in the doc, not just
@@ -499,7 +651,23 @@ export function TableGripControls({ editor }: { editor: Editor }) {
         // at its small natural size on load, correcting only once some
         // later edit happened to trigger a second pass through here.
         if (prevWidths !== undefined && existingColumnResized(prevWidths, widths)) {
-          if (styleAttr) {
+          // Gated on the style actually containing a WIDTH (not just
+          // `styleAttr` being truthy) — a table that's ever been corner-
+          // resized keeps a `height:...px` portion in its style permanently
+          // (see the heightMatch preservation a few lines down), so
+          // `styleAttr` alone stays truthy forever after that, even once
+          // its width portion has already been cleared by an earlier column
+          // drag. Gating on bare `styleAttr` here (the previous version of
+          // this check) meant EVERY later column drag on such a table fell
+          // into this branch with no width to parse, hit the `else`
+          // fallback below, and got overwritten with lastGoodColWidthsRef's
+          // stale PRE-drag snapshot — silently reverting the drag the user
+          // just made. That was the real "column resize snaps back to
+          // original" bug, unrelated to the chip-clamp code removed
+          // earlier: it fires on ANY column of ANY table that has ever been
+          // diagonal-resized, not just chip-bearing ones.
+          const totalMatch = styleAttr ? /\bwidth\s*:\s*([\d.]+)px/i.exec(styleAttr) : null;
+          if (totalMatch) {
             // See this effect's own comment (point 1) for why every OTHER
             // column's phantom-stretched width needs persisting here too,
             // not just cleared.
@@ -516,20 +684,21 @@ export function TableGripControls({ editor }: { editor: Editor }) {
             // practice (still saw a case where the persisted widths didn't
             // match what was on screen) — this has no such dependency, it's
             // pure arithmetic on values we already have.
-            const totalMatch = /\bwidth\s*:\s*([\d.]+)px/i.exec(styleAttr);
-            const total = totalMatch ? parseFloat(totalMatch[1]) : null;
-            let widthsByCol: number[];
-            if (total && total > 0) {
-              const explicitSum = widths.reduce((sum: number, w) => sum + (w ?? 0), 0);
-              const unsetCount = widths.filter((w) => w == null).length;
-              const remaining = Math.max(0, total - explicitSum);
-              const fairShare = unsetCount > 0 ? Math.max(40, Math.floor(remaining / unsetCount)) : 0;
-              widthsByCol = widths.map((w) => w ?? fairShare);
-            } else {
-              widthsByCol = lastGoodColWidthsRef.current.get(pos) ?? [];
-            }
+            const total = parseFloat(totalMatch[1]);
+            const explicitSum = widths.reduce((sum: number, w) => sum + (w ?? 0), 0);
+            const unsetCount = widths.filter((w) => w == null).length;
+            const remaining = Math.max(0, total - explicitSum);
+            const fairShare = unsetCount > 0 ? Math.max(40, Math.floor(remaining / unsetCount)) : 0;
+            const widthsByCol = widths.map((w) => w ?? fairShare);
             persistAllColumnWidths(tr, node, pos + 1, widthsByCol);
-            tr.setNodeMarkup(pos, undefined, { ...node.attrs, style: null });
+            // Only the WIDTH portion of a corner-resize's style is stale
+            // here (superseded by the more specific per-column drag that
+            // just landed) — a HEIGHT set by the same corner-resize is
+            // unrelated to column width and must survive, otherwise
+            // dragging any single column border afterward would silently
+            // wipe out a deliberately-stretched table height.
+            const heightMatch = /\bheight\s*:\s*[\d.]+px/i.exec(styleAttr ?? "");
+            tr.setNodeMarkup(pos, undefined, { ...node.attrs, style: heightMatch ? heightMatch[0] : null });
             lastColWidthsByTableRef.current.set(pos, widthsByCol);
           } else {
             lastColWidthsByTableRef.current.set(pos, widths);
@@ -689,6 +858,175 @@ export function TableGripControls({ editor }: { editor: Editor }) {
     setMenu(null);
   }
 
+  // Header column/row toggle. NOT the same as Tiptap's own built-in
+  // toggleHeaderColumn()/toggleHeaderRow() commands — those always target
+  // column/row index 0 specifically (prosemirror-tables' toggleHeader()
+  // hardcodes { left: 0, right: 1, ... } for "column", { top: 0, bottom: 1,
+  // ... } for "row" — it's a whole-table "first column/row" toggle, not an
+  // arbitrary-index one), which doesn't fit a grip that can be anywhere in
+  // the table. Hand-rolled the same way duplicate/clearContents below are:
+  // rebuild the table as a fresh node (swapping just the target column/row's
+  // cell type between tableCell and tableHeader) and replace the whole table
+  // atomically in one step, rather than juggling per-cell positions that
+  // shift as siblings change.
+  function toggleColumnHeader(index: number) {
+    withFreshTable(({ tr, map, table, tableStart }) => {
+      const types = tableNodeTypes(table.type.schema);
+      const isHeader = columnIsHeader(map, table, index);
+      const targetType = isHeader ? types.cell : types.header_cell;
+      const rows: ProseMirrorNode[] = [];
+      table.forEach((row) => {
+        const cells: ProseMirrorNode[] = [];
+        row.forEach((cell, _offset, colIdx) => {
+          cells.push(colIdx === index ? targetType.create(cell.attrs, cell.content, cell.marks) : cell);
+        });
+        rows.push(row.type.create(row.attrs, cells, row.marks));
+      });
+      const newTable = table.type.create(table.attrs, rows, table.marks);
+      tr.replaceWith(tableStart - 1, tableStart - 1 + table.nodeSize, newTable);
+    });
+    setMenu(null);
+  }
+
+  function toggleRowHeader(index: number) {
+    withFreshTable(({ tr, map, table, tableStart }) => {
+      const types = tableNodeTypes(table.type.schema);
+      const isHeader = rowIsHeader(map, table, index);
+      const targetType = isHeader ? types.cell : types.header_cell;
+      const rows: ProseMirrorNode[] = [];
+      table.forEach((row, _offset, rowIdx) => {
+        if (rowIdx !== index) {
+          rows.push(row);
+          return;
+        }
+        const cells: ProseMirrorNode[] = [];
+        row.forEach((cell) => cells.push(targetType.create(cell.attrs, cell.content, cell.marks)));
+        rows.push(row.type.create(row.attrs, cells, row.marks));
+      });
+      const newTable = table.type.create(table.attrs, rows, table.marks);
+      tr.replaceWith(tableStart - 1, tableStart - 1 + table.nodeSize, newTable);
+    });
+    setMenu(null);
+  }
+
+  // Tints every cell in a column/row via the `background` attr ColorableTable
+  // Cell/Header add (see TableExtension.tsx) — applied uniformly across the
+  // whole column/row in one transaction, same rebuild-and-replace approach
+  // as everything else here that touches more than one cell at once.
+  function setColumnColor(index: number, color: string | null) {
+    withFreshTable(({ tr, table, tableStart }) => {
+      const rows: ProseMirrorNode[] = [];
+      table.forEach((row) => {
+        const cells: ProseMirrorNode[] = [];
+        row.forEach((cell, _offset, colIdx) => {
+          cells.push(colIdx === index ? cell.type.create({ ...cell.attrs, background: color }, cell.content, cell.marks) : cell);
+        });
+        rows.push(row.type.create(row.attrs, cells, row.marks));
+      });
+      const newTable = table.type.create(table.attrs, rows, table.marks);
+      tr.replaceWith(tableStart - 1, tableStart - 1 + table.nodeSize, newTable);
+    });
+    setMenu(null);
+  }
+
+  function setRowColor(index: number, color: string | null) {
+    withFreshTable(({ tr, table, tableStart }) => {
+      const rows: ProseMirrorNode[] = [];
+      table.forEach((row, _offset, rowIdx) => {
+        if (rowIdx !== index) {
+          rows.push(row);
+          return;
+        }
+        const cells: ProseMirrorNode[] = [];
+        row.forEach((cell) => cells.push(cell.type.create({ ...cell.attrs, background: color }, cell.content, cell.marks)));
+        rows.push(row.type.create(row.attrs, cells, row.marks));
+      });
+      const newTable = table.type.create(table.attrs, rows, table.marks);
+      tr.replaceWith(tableStart - 1, tableStart - 1 + table.nodeSize, newTable);
+    });
+    setMenu(null);
+  }
+
+  // Inserts a copy of the column/row immediately after itself, content and
+  // all. No built-in prosemirror-tables helper for this (only insert-blank
+  // exists — addColumn/addRow) — built the same rebuild-and-replace way as
+  // the header toggle above, since copying content via incremental
+  // tr.replaceWith calls on individual cells would mean re-deriving every
+  // later row/column's position after each one shifts, for no real benefit
+  // over just constructing the whole new table node up front.
+  function duplicateColumn(index: number) {
+    withFreshTable(({ tr, table, tableStart }) => {
+      const rows: ProseMirrorNode[] = [];
+      table.forEach((row) => {
+        const cells: ProseMirrorNode[] = [];
+        row.forEach((cell, _offset, colIdx) => {
+          cells.push(cell);
+          if (colIdx === index) cells.push(cell.type.create(cell.attrs, cell.content, cell.marks));
+        });
+        rows.push(row.type.create(row.attrs, cells, row.marks));
+      });
+      const newTable = table.type.create(table.attrs, rows, table.marks);
+      tr.replaceWith(tableStart - 1, tableStart - 1 + table.nodeSize, newTable);
+    });
+    setMenu(null);
+  }
+
+  function duplicateRow(index: number) {
+    withFreshTable(({ tr, table, tableStart }) => {
+      const rows: ProseMirrorNode[] = [];
+      table.forEach((row, _offset, rowIdx) => {
+        rows.push(row);
+        if (rowIdx === index) {
+          const cells: ProseMirrorNode[] = [];
+          row.forEach((cell) => cells.push(cell.type.create(cell.attrs, cell.content, cell.marks)));
+          rows.push(row.type.create(row.attrs, cells, row.marks));
+        }
+      });
+      const newTable = table.type.create(table.attrs, rows, table.marks);
+      tr.replaceWith(tableStart - 1, tableStart - 1 + table.nodeSize, newTable);
+    });
+    setMenu(null);
+  }
+
+  // Empties every cell's text in the column/row without removing the
+  // column/row itself. createAndFill() (rather than an empty content array)
+  // is what actually produces a valid empty cell — a cell's content
+  // expression requires at least one block (e.g. "paragraph+"), and
+  // createAndFill knows how to satisfy that minimum on its own.
+  function clearColumnContents(index: number) {
+    withFreshTable(({ tr, table, tableStart }) => {
+      const rows: ProseMirrorNode[] = [];
+      table.forEach((row) => {
+        const cells: ProseMirrorNode[] = [];
+        row.forEach((cell, _offset, colIdx) => {
+          cells.push(colIdx === index ? (cell.type.createAndFill(cell.attrs) ?? cell) : cell);
+        });
+        rows.push(row.type.create(row.attrs, cells, row.marks));
+      });
+      const newTable = table.type.create(table.attrs, rows, table.marks);
+      tr.replaceWith(tableStart - 1, tableStart - 1 + table.nodeSize, newTable);
+    });
+    setMenu(null);
+  }
+
+  function clearRowContents(index: number) {
+    withFreshTable(({ tr, table, tableStart }) => {
+      const rows: ProseMirrorNode[] = [];
+      table.forEach((row, _offset, rowIdx) => {
+        if (rowIdx !== index) {
+          rows.push(row);
+          return;
+        }
+        const cells: ProseMirrorNode[] = [];
+        row.forEach((cell) => cells.push(cell.type.createAndFill(cell.attrs) ?? cell));
+        rows.push(row.type.create(row.attrs, cells, row.marks));
+      });
+      const newTable = table.type.create(table.attrs, rows, table.marks);
+      tr.replaceWith(tableStart - 1, tableStart - 1 + table.nodeSize, newTable);
+    });
+    setMenu(null);
+  }
+
   // Reordering via the grips used to be native HTML5 drag-and-drop
   // (draggable/onDragStart/onDragOver/onDrop) — replaced with raw pointer
   // events for the same reason startTableResize below already uses them:
@@ -758,27 +1096,41 @@ export function TableGripControls({ editor }: { editor: Editor }) {
   }
 
   // Whole-table resize (not a per-column drag — that's the separate
-  // built-in handle from TableKit's own `resizable: true`). Applies the
-  // width directly to the table DOM element on every pointer move for
-  // immediate visual feedback rather than dispatching a transaction per
-  // pixel, then commits it as an inline `style="width:…"` on the table
-  // node's own attrs once on release — see TableExtension.tsx for why it
-  // has to be a `style` attr specifically.
+  // built-in handle from TableKit's own `resizable: true`). Free diagonal
+  // drag — width tracks horizontal movement and height tracks vertical
+  // movement independently (not locked together, and not horizontal-only
+  // like the previous version), the same "resize: both" feel as a textarea
+  // corner handle. Applies both directly to the table DOM element on every
+  // pointer move for immediate visual feedback rather than dispatching a
+  // transaction per pixel, then commits both into one inline
+  // `style="width:…; height:…"` on the table node's own attrs once on
+  // release — see TableExtension.tsx for why it has to be a `style` attr
+  // specifically. Setting an explicit table height is ordinary CSS; browsers
+  // distribute the extra space across rows, which is what actually stretches
+  // them taller (row height otherwise has no direct handle — it's purely
+  // content-driven).
   function startTableResize(e: React.PointerEvent) {
     e.preventDefault();
     e.stopPropagation();
     if (!info) return;
     const tableEl = info.tableEl;
     const startX = e.clientX;
-    const startWidth = tableEl.getBoundingClientRect().width;
-    function clamp(w: number) {
+    const startY = e.clientY;
+    const startRect = tableEl.getBoundingClientRect();
+    const startWidth = startRect.width;
+    const startHeight = startRect.height;
+    function clampWidth(w: number) {
       return Math.round(Math.min(MAX_TABLE_WIDTH, Math.max(MIN_TABLE_WIDTH, w)));
+    }
+    function clampHeight(h: number) {
+      return Math.round(Math.min(MAX_TABLE_HEIGHT, Math.max(MIN_TABLE_HEIGHT, h)));
     }
     // Suspended for the drag's duration — see computeAll's width-heal
     // comment. Re-armed on release regardless of how the drag ends.
     resizingRef.current = true;
     function onMove(ev: PointerEvent) {
-      tableEl.style.width = `${clamp(startWidth + (ev.clientX - startX))}px`;
+      tableEl.style.width = `${clampWidth(startWidth + (ev.clientX - startX))}px`;
+      tableEl.style.height = `${clampHeight(startHeight + (ev.clientY - startY))}px`;
     }
     // pointercancel needs the same cleanup as pointerup (see startGripDrag's
     // comment above) — without it, resizingRef.current can get stuck `true`
@@ -790,12 +1142,16 @@ export function TableGripControls({ editor }: { editor: Editor }) {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
       resizingRef.current = false;
-      if (ev.type === "pointercancel") return; // aborted — don't commit a width
-      const next = clamp(startWidth + (ev.clientX - startX));
+      if (ev.type === "pointercancel") return; // aborted — don't commit a size
+      const nextWidth = clampWidth(startWidth + (ev.clientX - startX));
+      const nextHeight = clampHeight(startHeight + (ev.clientY - startY));
       const { state } = editor.view;
       const node = info ? state.doc.nodeAt(info.tablePos) : null;
       if (!node) return;
-      const tr = state.tr.setNodeMarkup(info!.tablePos, undefined, { ...node.attrs, style: `width: ${next}px` });
+      const tr = state.tr.setNodeMarkup(info!.tablePos, undefined, {
+        ...node.attrs,
+        style: `width: ${nextWidth}px; height: ${nextHeight}px`,
+      });
       editor.view.dispatch(tr);
       editor.view.focus();
     }
@@ -827,8 +1183,11 @@ export function TableGripControls({ editor }: { editor: Editor }) {
                 return;
               }
               selectColumn(i);
+              const { state } = editor.view;
+              const found = findTable(state.selection.$from);
+              const isHeader = found ? columnIsHeader(TableMap.get(found.node), found.node, i) : false;
               const r = e.currentTarget.getBoundingClientRect();
-              setMenu({ kind: "col", index: i, top: r.bottom + 4, left: r.left });
+              setMenu({ kind: "col", index: i, top: r.bottom + 4, left: r.left, isHeader });
             }}
             title={`Column ${i + 1}`}
             className={`flex h-full w-full items-center justify-center rounded text-neutral-500 transition-opacity hover:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-700 ${
@@ -874,8 +1233,11 @@ export function TableGripControls({ editor }: { editor: Editor }) {
                 return;
               }
               selectRow(i);
+              const { state } = editor.view;
+              const found = findTable(state.selection.$from);
+              const isHeader = found ? rowIsHeader(TableMap.get(found.node), found.node, i) : false;
               const r = e.currentTarget.getBoundingClientRect();
-              setMenu({ kind: "row", index: i, top: r.top, left: r.right + 4 });
+              setMenu({ kind: "row", index: i, top: r.top, left: r.right + 4, isHeader });
             }}
             title={`Row ${i + 1}`}
             className={`flex h-full w-full items-center justify-center rounded text-neutral-500 transition-opacity hover:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-700 ${
@@ -964,27 +1326,77 @@ export function TableGripControls({ editor }: { editor: Editor }) {
         <div
           ref={menuRef}
           onClick={(e) => e.stopPropagation()}
-          className="z-50 w-40 rounded-md border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
+          className="z-50 w-48 rounded-md border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
           style={{ position: "fixed", top: menu.top, left: menu.left, fontFamily: "var(--font-ui)" }}
         >
-          <MenuItem
-            icon={menu.kind === "col" ? "Arrow/Chevron_Left" : "Arrow/Chevron_Up"}
-            label={menu.kind === "col" ? "Insert left" : "Insert above"}
-            onClick={() => (menu.kind === "col" ? insertColumn(menu.index) : insertRow(menu.index))}
-          />
-          <MenuItem
-            icon={menu.kind === "col" ? "Arrow/Chevron_Right" : "Arrow/Chevron_Down"}
-            label={menu.kind === "col" ? "Insert right" : "Insert below"}
-            onClick={() => (menu.kind === "col" ? insertColumn(menu.index + 1) : insertRow(menu.index + 1))}
-          />
-          <div className="my-1 border-t border-neutral-100 dark:border-neutral-800" />
-          <MenuItem
-            icon="Interface/Trash_Empty"
-            label={menu.kind === "col" ? "Delete column" : "Delete row"}
-            danger
-            onClick={() => (menu.kind === "col" ? removeColumnAt(menu.index) : removeRowAt(menu.index))}
-          />
-          <MenuItem icon="Interface/Trash_Empty" label="Delete table" danger onClick={deleteWholeTable} />
+          {menu.view === "color" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setMenu({ ...menu, view: undefined })}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+              >
+                <Icon name="Arrow/Chevron_Left" size={13} />
+                Color
+              </button>
+              <div className="my-1 border-t border-neutral-100 dark:border-neutral-800" />
+              {CELL_COLORS.map((c) => (
+                <button
+                  key={c.name}
+                  type="button"
+                  onClick={() =>
+                    menu.kind === "col" ? setColumnColor(menu.index, c.value) : setRowColor(menu.index, c.value)
+                  }
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                >
+                  <span
+                    className="h-3.5 w-3.5 rounded-full border border-neutral-300 dark:border-neutral-600"
+                    style={{ background: c.value ?? "transparent" }}
+                  />
+                  {c.name}
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              <MenuItem
+                icon="Edit/Table"
+                label={menu.kind === "col" ? "Header column" : "Header row"}
+                checked={menu.isHeader}
+                onClick={() => (menu.kind === "col" ? toggleColumnHeader(menu.index) : toggleRowHeader(menu.index))}
+              />
+              <MenuItem icon="Shape/Circle" label="Color" onClick={() => setMenu({ ...menu, view: "color" })} />
+              <div className="my-1 border-t border-neutral-100 dark:border-neutral-800" />
+              <MenuItem
+                icon={menu.kind === "col" ? "Arrow/Chevron_Left" : "Arrow/Chevron_Up"}
+                label={menu.kind === "col" ? "Insert left" : "Insert above"}
+                onClick={() => (menu.kind === "col" ? insertColumn(menu.index) : insertRow(menu.index))}
+              />
+              <MenuItem
+                icon={menu.kind === "col" ? "Arrow/Chevron_Right" : "Arrow/Chevron_Down"}
+                label={menu.kind === "col" ? "Insert right" : "Insert below"}
+                onClick={() => (menu.kind === "col" ? insertColumn(menu.index + 1) : insertRow(menu.index + 1))}
+              />
+              <MenuItem
+                icon="Edit/Copy"
+                label="Duplicate"
+                onClick={() => (menu.kind === "col" ? duplicateColumn(menu.index) : duplicateRow(menu.index))}
+              />
+              <MenuItem
+                icon="Menu/Close_SM"
+                label="Clear contents"
+                onClick={() => (menu.kind === "col" ? clearColumnContents(menu.index) : clearRowContents(menu.index))}
+              />
+              <div className="my-1 border-t border-neutral-100 dark:border-neutral-800" />
+              <MenuItem
+                icon="Interface/Trash_Empty"
+                label={menu.kind === "col" ? "Delete column" : "Delete row"}
+                danger
+                onClick={() => (menu.kind === "col" ? removeColumnAt(menu.index) : removeRowAt(menu.index))}
+              />
+              <MenuItem icon="Interface/Trash_Empty" label="Delete table" danger onClick={deleteWholeTable} />
+            </>
+          )}
         </div>
       )}
     </>,
@@ -997,11 +1409,13 @@ function MenuItem({
   label,
   onClick,
   danger,
+  checked,
 }: {
   icon: string;
   label: string;
   onClick: () => void;
   danger?: boolean;
+  checked?: boolean;
 }) {
   return (
     <button
@@ -1012,7 +1426,8 @@ function MenuItem({
       }`}
     >
       <Icon name={icon} size={13} />
-      {label}
+      <span className="flex-1">{label}</span>
+      {checked && <Icon name="Interface/Check" size={13} />}
     </button>
   );
 }

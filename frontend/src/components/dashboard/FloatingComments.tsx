@@ -512,6 +512,14 @@ function MessageMenu({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
+  // Nothing this menu could ever show (not the comment's author, and no
+  // copy-link to offer — the bio thread's Message never passes one) — the
+  // "..." trigger itself has to disappear, not just open onto an empty
+  // dropdown. That empty-box-on-click was the actual bug reported: someone
+  // else's bio comment showed a "..." that opened onto a blank block with
+  // no Edit/Delete, since only the comment's own author gets those.
+  const hasAnyOption = canEdit || !!onCopyLink;
+
   useEffect(() => {
     if (!open) return;
     function onMouseDown(e: MouseEvent) {
@@ -520,6 +528,8 @@ function MessageMenu({
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [open]);
+
+  if (!hasAnyOption) return null;
 
   return (
     <div ref={ref} className="relative">

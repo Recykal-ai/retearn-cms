@@ -11,7 +11,7 @@ import Highlight from "@tiptap/extension-highlight";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Placeholder from "@tiptap/extension-placeholder";
-import { TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import { DocumentEmbed } from "@/components/dashboard/DocumentEmbedExtension";
 import { AtMentionMenu, type AtMenuSelection } from "@/components/dashboard/AtMentionMenu";
@@ -20,7 +20,7 @@ import { CommentMark, commentHighlightPluginKey } from "@/components/dashboard/C
 import { SlashCommand } from "@/components/dashboard/SlashCommandExtension";
 import { SelectionToolbar } from "@/components/dashboard/SelectionToolbar";
 import { TableGripControls } from "@/components/dashboard/TableGripControls";
-import { ResizableTable } from "@/components/dashboard/TableExtension";
+import { ResizableTable, ColorableTableCell, ColorableTableHeader } from "@/components/dashboard/TableExtension";
 import { NonInclusiveLink } from "@/components/dashboard/LinkExtension";
 import { createSuggestionDismissTracker } from "@/lib/tiptap-suggestion-dismiss";
 import { uploadNoteImageAction } from "@/app/dashboard/notes-actions";
@@ -316,8 +316,8 @@ export const RichTextEditor = forwardRef<
       // the same ones TableKit would otherwise register for you.
       ResizableTable.configure({ resizable: true }),
       TableRow,
-      TableCell,
-      TableHeader,
+      ColorableTableCell,
+      ColorableTableHeader,
       Placeholder.configure({
         placeholder: ({ editor: e }) => (e.isEmpty ? `${placeholder ?? "Write something…"} Press '/' for commands` : ""),
       }),

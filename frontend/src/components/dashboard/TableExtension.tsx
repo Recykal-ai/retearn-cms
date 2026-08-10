@@ -1,4 +1,4 @@
-import { Table } from "@tiptap/extension-table";
+import { Table, TableCell, TableHeader } from "@tiptap/extension-table";
 
 // @tiptap/extension-table's own Table node has no persisted attributes at
 // all by default — but its TableView (node_modules/@tiptap/extension-table/
@@ -24,5 +24,32 @@ export const ResizableTable = Table.extend({
         renderHTML: (attributes) => (attributes.style ? { style: attributes.style as string } : {}),
       },
     };
+  },
+});
+
+// A per-cell background tint (Notion's grip-menu "Color" item, applied to
+// every cell in a column/row at once — see TableGripControls' setColor).
+// Stored as a raw CSS color value on the cell node itself, rendered as an
+// inline background-color — Tiptap's own mergeAttributes concatenates this
+// with any other attribute's "style" output (there isn't one on cells today,
+// but this doesn't assume that stays true).
+const backgroundAttr = {
+  background: {
+    default: null,
+    parseHTML: (element: HTMLElement) => element.style.backgroundColor || null,
+    renderHTML: (attributes: Record<string, unknown>) =>
+      attributes.background ? { style: `background-color: ${attributes.background as string}` } : {},
+  },
+};
+
+export const ColorableTableCell = TableCell.extend({
+  addAttributes() {
+    return { ...this.parent?.(), ...backgroundAttr };
+  },
+});
+
+export const ColorableTableHeader = TableHeader.extend({
+  addAttributes() {
+    return { ...this.parent?.(), ...backgroundAttr };
   },
 });
