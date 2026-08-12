@@ -23,7 +23,7 @@ import { SelectionToolbar } from "@/components/dashboard/SelectionToolbar";
 import { TableGripControls } from "@/components/dashboard/TableGripControls";
 import { ResizableTable, ColorableTableCell, ColorableTableHeader } from "@/components/dashboard/TableExtension";
 import { NonInclusiveLink } from "@/components/dashboard/LinkExtension";
-import { createSuggestionDismissTracker } from "@/lib/tiptap-suggestion-dismiss";
+import { createSuggestionDismissTracker, notInCodeBlock } from "@/lib/tiptap-suggestion-dismiss";
 import { uploadNoteImageAction } from "@/app/dashboard/notes-actions";
 import { useToast } from "@/components/ToastProvider";
 
@@ -116,7 +116,7 @@ function buildAtMenuSuggestion(
   // the menu the moment the cursor comes back to sit next to it.
   const dismissTracker = createSuggestionDismissTracker();
   return {
-    allow: dismissTracker.allow,
+    allow: (props) => dismissTracker.allow(props) && notInCodeBlock(props),
     // Reads via a getter (backed by a ref, see the call site) rather than
     // closing over a plain array — useEditor only builds this extension
     // config once, at mount, so a bare closed-over array would freeze

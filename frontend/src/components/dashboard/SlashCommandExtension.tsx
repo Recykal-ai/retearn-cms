@@ -6,7 +6,7 @@ import Suggestion from "@tiptap/suggestion";
 import { ReactRenderer } from "@tiptap/react";
 import { forwardRef, useImperativeHandle, useState } from "react";
 import { Icon } from "@/components/dashboard/Icon";
-import { createSuggestionDismissTracker } from "@/lib/tiptap-suggestion-dismiss";
+import { createSuggestionDismissTracker, notInCodeBlock } from "@/lib/tiptap-suggestion-dismiss";
 
 export interface SlashCommandItem {
   section: string;
@@ -246,7 +246,7 @@ export const SlashCommand = Extension.create<{ onInsertImage: () => void }>({
         // line immediately before "/") is exactly what's wanted: "abcdef/"
         // typed mid-word must never open the menu, only "abcdef /" or "/"
         // at the start of a line, matching Notion's own behavior.
-        allow: dismissTracker.allow,
+        allow: (props) => dismissTracker.allow(props) && notInCodeBlock(props),
         command: ({ editor, range, props }) => props.onSelect(editor, range),
         items: ({ query }) => items.filter((i) => i.label.toLowerCase().includes(query.toLowerCase())),
         render: () => {

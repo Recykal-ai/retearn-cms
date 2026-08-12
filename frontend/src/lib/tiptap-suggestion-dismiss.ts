@@ -47,3 +47,12 @@ export function createSuggestionDismissTracker() {
     },
   };
 }
+
+// Notion never opens "/" or "@" while typing inside a code block — code text
+// is meant to stay literal, not trigger rich-text pickers mid-snippet. Meant
+// to be ANDed with dismissTracker.allow (or used alone) as a Suggestion's
+// `allow` option: `allow: (props) => dismissTracker.allow(props) &&
+// notInCodeBlock(props)`.
+export function notInCodeBlock({ editor }: { editor: Editor }): boolean {
+  return !editor.isActive("codeBlock");
+}
