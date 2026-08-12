@@ -1,3 +1,5 @@
+import { Icon } from "@/components/dashboard/Icon";
+
 // Shared by DocumentsTable.tsx, ApprovalsAdmin.tsx, and DeletionRequestsAdmin.tsx.
 export function Pagination({
   page,
@@ -14,9 +16,10 @@ export function Pagination({
         type="button"
         onClick={() => onChange(page - 1)}
         disabled={page === 1}
-        className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:hover:bg-transparent dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
+        aria-label="Previous page"
+        className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-neutral-100 disabled:opacity-30 disabled:hover:bg-transparent dark:hover:bg-neutral-800"
       >
-        Prev
+        <Icon name="Arrow/Chevron_Left" size={14} style={{ color: "var(--brand-purple)" }} />
       </button>
       {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
         <button
@@ -24,7 +27,7 @@ export function Pagination({
           type="button"
           onClick={() => onChange(n)}
           aria-current={n === page ? "page" : undefined}
-          className={`min-w-7 rounded-md px-2 py-1 text-xs font-medium transition-colors ${n === page ? "" : "text-neutral-600 dark:text-neutral-400"}`}
+          className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium transition-colors ${n === page ? "" : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"}`}
           style={n === page ? { background: "var(--brand-purple)", color: "white" } : undefined}
         >
           {n}
@@ -34,9 +37,10 @@ export function Pagination({
         type="button"
         onClick={() => onChange(page + 1)}
         disabled={page === pageCount}
-        className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-40 disabled:hover:bg-transparent dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
+        aria-label="Next page"
+        className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-neutral-100 disabled:opacity-30 disabled:hover:bg-transparent dark:hover:bg-neutral-800"
       >
-        Next
+        <Icon name="Arrow/Chevron_Right" size={14} style={{ color: "var(--brand-purple)" }} />
       </button>
     </div>
   );
