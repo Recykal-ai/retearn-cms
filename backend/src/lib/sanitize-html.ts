@@ -40,9 +40,22 @@ const ALLOWED_TAGS = [
 ];
 const ALLOWED_ATTR = [
   "data-type", "data-id", "data-label", "data-mention-suggestion-char",
+  // Per-chip identity, not per-person — see RichTextEditor.tsx's Mention
+  // extension for why: without this, two chips mentioning the same person
+  // are indistinguishable, and the "only notify on a genuinely new mention"
+  // diff below can't tell "already mentioned earlier in this note" apart
+  // from "a fresh chip just got added right now."
+  "data-mention-instance-id",
   "data-checked", "type", "checked",
   "href", "target", "rel",
   "data-image-key",
+  // A code block's language, stored by @tiptap/extension-code-block as
+  // class="language-xxx" on its <code> element (see CodeBlockExtension.tsx)
+  // — without this the class (and so the language) got silently stripped
+  // on every save. Only ever used on our own editor's <code>/<pre> output;
+  // a bare class name carries no script-injection risk DOMPurify needs to
+  // guard against here.
+  "class",
   // <span data-comment-id="…"> — see CommentMarkExtension.tsx. Written once
   // at comment-creation time and never touched again (resolve/reopen only
   // update the TeamNoteComment row, never this mark), so it needs no
@@ -63,13 +76,30 @@ export function sanitizeNoteHtml(html: string): string {
 // Parses with a real DOM (jsdom) rather than a regex — attribute order and
 // spacing in Tiptap's rendered mention spans aren't guaranteed, so a regex
 // would be fragile in a way a real parser isn't.
-export function extractMentionIds(html: string): string[] {
+//
+// Keyed by CHIP (data-mention-instance-id), not by person (data-id) — see
+// RichTextEditor.tsx's Mention extension for why. A chip with no instance
+// id (content saved before this field existed) falls back to using its own
+// data-id as the key, same net effect as the old person-keyed behavior for
+// any note that predates this change, rather than treating every
+// un-migrated chip as "brand new" the first time it's next diffed.
+export interface MentionInstance {
+  instanceId: string;
+  userId: string;
+}
+
+export function extractMentionInstances(html: string): MentionInstance[] {
   const dom = new JSDOM(sanitizeNoteHtml(html));
   const spans = dom.window.document.querySelectorAll('span[data-type="mention"]');
-  const ids = new Set<string>();
+  const instances: MentionInstance[] = [];
+  const seenInstanceIds = new Set<string>();
   spans.forEach((el) => {
-    const id = el.getAttribute("data-id");
-    if (id) ids.add(id);
+    const userId = el.getAttribute("data-id");
+    if (!userId) return;
+    const instanceId = el.getAttribute("data-mention-instance-id") || userId;
+    if (seenInstanceIds.has(instanceId)) return;
+    seenInstanceIds.add(instanceId);
+    instances.push({ instanceId, userId });
   });
-  return [...ids];
+  return instances;
 }

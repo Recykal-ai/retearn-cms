@@ -123,9 +123,25 @@ function buildItems(onInsertImage: () => void): SlashCommandItem[] {
     },
     {
       section: "Format",
-      label: "Code",
+      label: "Inline code",
       icon: <Badge style={{ fontFamily: "ui-monospace, monospace" }}>{"</>"}</Badge>,
       onSelect: (editor, range) => editor.chain().focus().deleteRange(range).toggleCode().run(),
+    },
+    {
+      // A separate, block-level command from "Inline code" above — toggleCode()
+      // only wraps a text *selection* in the inline <code> mark, which is a
+      // no-op with nothing selected (the reported bug: picking "Code" on an
+      // empty new line visibly did nothing). toggleCodeBlock() is the actual
+      // block command, matching Notion's own "Code" — see CodeBlockExtension.tsx
+      // for the block's own dark card + language/copy toolbar.
+      section: "Basic blocks",
+      label: "Code",
+      icon: (
+        <Badge style={{ fontFamily: "ui-monospace, monospace", background: "#2b2b2b", borderColor: "#2b2b2b", color: "#e5e5e5" }}>
+          {"</>"}
+        </Badge>
+      ),
+      onSelect: (editor, range) => editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
     },
   ];
 }

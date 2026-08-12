@@ -6,7 +6,7 @@ import { BubbleMenu } from "@tiptap/react/menus";
 import { NodeSelection } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import StarterKit from "@tiptap/starter-kit";
-import Mention, { type MentionNodeAttrs } from "@tiptap/extension-mention";
+import MentionExtension, { type MentionNodeAttrs } from "@tiptap/extension-mention";
 import Highlight from "@tiptap/extension-highlight";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
@@ -16,6 +16,7 @@ import type { SuggestionOptions } from "@tiptap/suggestion";
 import { DocumentEmbed } from "@/components/dashboard/DocumentEmbedExtension";
 import { AtMentionMenu, type AtMenuSelection } from "@/components/dashboard/AtMentionMenu";
 import { NoteImage } from "@/components/dashboard/NoteImageExtension";
+import { CodeBlock } from "@/components/dashboard/CodeBlockExtension";
 import { CommentMark, commentHighlightPluginKey } from "@/components/dashboard/CommentMarkExtension";
 import { SlashCommand } from "@/components/dashboard/SlashCommandExtension";
 import { SelectionToolbar } from "@/components/dashboard/SelectionToolbar";
@@ -63,6 +64,34 @@ export interface MentionCandidate {
   id: string;
   label: string;
 }
+
+// Stock Mention only tracks WHO a chip points at (data-id, the user's own
+// id) — every chip mentioning the same person is indistinguishable from
+// every other, so the backend's "only notify on a genuinely new mention"
+// diff (team-notes.ts's PUT route) could only compare "is this person
+// mentioned ANYWHERE in the note," not "was THIS SPECIFIC chip just added."
+// A note re-mentioning someone weeks after their first mention elsewhere in
+// the same note silently never re-notified them — reported as "mails are
+// not getting sent" when it was actually working exactly as coded, just not
+// as anyone wanted. `instanceId` gives each chip its own stable identity,
+// assigned once at insertion (below) and preserved verbatim across saves
+// (Tiptap never touches a node's other attributes just because surrounding
+// text changed) — so the backend can now diff on "which chip", not "which
+// person," and a second, later chip for the same person is correctly a new
+// mention even though an old chip for them is still sitting elsewhere in
+// the note.
+const Mention = MentionExtension.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      instanceId: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-mention-instance-id"),
+        renderHTML: (attributes) => (attributes.instanceId ? { "data-mention-instance-id": attributes.instanceId } : {}),
+      },
+    };
+  },
+});
 
 // The "@" dropdown mentions people *and* references a portal document from
 // one combined menu (Notion's own trigger does People + Link-to-page the
@@ -144,7 +173,10 @@ function buildAtMenuSuggestion(
 
       const node =
         selection.kind === "person"
-          ? { type: "mention", attrs: { id: selection.id, label: selection.label, mentionSuggestionChar: "@" } }
+          ? {
+              type: "mention",
+              attrs: { id: selection.id, label: selection.label, mentionSuggestionChar: "@", instanceId: crypto.randomUUID() },
+            }
           : { type: "documentEmbed", attrs: { documentId: selection.id } };
 
       editor
@@ -283,8 +315,12 @@ export const RichTextEditor = forwardRef<
       // inheriting the link mark, since autolink:true also makes the
       // stock extension's mark "inclusive" of its own end boundary.
       // underline isn't configured here at all — StarterKit registers it
-      // by default.
-      StarterKit.configure({ link: false }),
+      // by default. codeBlock: false — replaced below by our own CodeBlock
+      // (CodeBlockExtension.tsx), a NodeView wrapping the same stock
+      // extension to add Notion's dark card + language/copy/more toolbar;
+      // StarterKit's own plain version would otherwise win the node-name
+      // collision silently.
+      StarterKit.configure({ link: false, codeBlock: false }),
       // autolink turns a pasted or typed URL into a real <a> automatically,
       // and the same extension's setLink/unsetLink commands back the
       // selection toolbar's manual "Link" button below. openOnClick: true
@@ -301,6 +337,7 @@ export const RichTextEditor = forwardRef<
         HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" },
       }),
       Highlight,
+      CodeBlock,
       TaskList,
       TaskItem.configure({ nested: true }),
       DocumentEmbed,

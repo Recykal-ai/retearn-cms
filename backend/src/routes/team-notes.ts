@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
-import { sanitizeNoteHtml, extractMentionIds } from "../lib/sanitize-html.js";
+import { sanitizeNoteHtml, extractMentionInstances } from "../lib/sanitize-html.js";
 import { extractImageKeys, extractDocumentEmbedIds, stripStructuralNodes } from "../lib/note-content-diff.js";
 import { isTeamNoteMember, canCurateTeamNotes, canCurateTeamNote } from "../lib/notes-access.js";
 import { loadAdminScope } from "../lib/admin-scope.js";
@@ -228,21 +228,32 @@ teamNotesRouter.put<{ id: string }>("/:id", requireAuth, async (req, res) => {
   const members = await prisma.teamNoteMembership.findMany({ where: { teamNoteId: id }, select: { userId: true } });
   const memberIds = new Set(members.map((m) => m.userId));
 
-  // "all" (see the frontend's TeamNoteEditor.tsx mentionCandidates) is a
-  // reserved sentinel id, not a real user — @mentioning it expands to every
-  // current member instead of being matched (and dropped) as an unknown id.
-  // Both old and new content resolve against the *same* current member set,
-  // so re-saving with an unchanged "@All members" mention never re-notifies
-  // — identical to how re-saving an unchanged single-person mention doesn't.
-  function resolveMentionIds(html: string): Set<string> {
-    const raw = extractMentionIds(html);
-    if (raw.includes("all")) return new Set(memberIds);
-    return new Set(raw.filter((mid) => memberIds.has(mid)));
-  }
+  // Diffed by CHIP (data-mention-instance-id), not by person — see
+  // sanitize-html.ts's extractMentionInstances and RichTextEditor.tsx's
+  // Mention extension for why. Comparing "which people are mentioned
+  // anywhere in the note" (the old approach) meant a genuinely new mention
+  // of someone already mentioned earlier in the same note — e.g. tagging
+  // them again days later on a new task — silently never notified them,
+  // since they were already in both the old and new "mentioned somewhere"
+  // sets. Diffing chip identities instead means only a chip that's
+  // genuinely new to this save counts, regardless of whether that same
+  // person has other, older chips elsewhere in the note — while a plain
+  // re-save that doesn't touch any mention still changes nothing (every
+  // chip's instance id survives untouched), so it still never re-notifies.
+  const oldInstances = extractMentionInstances(existing.content);
+  const newInstances = extractMentionInstances(sanitized);
+  const oldInstanceIds = new Set(oldInstances.map((i) => i.instanceId));
+  const newlyAddedInstances = newInstances.filter((i) => !oldInstanceIds.has(i.instanceId));
 
-  const oldMentions = resolveMentionIds(existing.content);
-  const newMentions = resolveMentionIds(sanitized);
-  const newlyMentioned = [...newMentions].filter((mid) => !oldMentions.has(mid) && mid !== req.user!.userId);
+  // "all" (see the frontend's TeamNoteEditor.tsx mentionCandidates) is a
+  // reserved sentinel id, not a real user — a newly-added "@All members"
+  // chip expands to every current member; any other newly-added chip only
+  // counts if it actually points at a current member.
+  const newlyMentioned = [
+    ...new Set(
+      newlyAddedInstances.flatMap((i) => (i.userId === "all" ? [...memberIds] : memberIds.has(i.userId) ? [i.userId] : [])),
+    ),
+  ].filter((uid) => uid !== req.user!.userId);
 
   // Structured "what changed" detection for the update-history feature — see
   // note-content-diff.ts. One activity row per distinguishable change in
