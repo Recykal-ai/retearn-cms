@@ -23,6 +23,7 @@ export function DocumentsTable({
   isAdmin,
   currentUserId,
   restrictToPublished,
+  scopeColors,
 }: {
   documents: DocumentSummary[];
   mode: "team" | "product" | "all";
@@ -38,6 +39,7 @@ export function DocumentsTable({
   isAdmin?: boolean;
   currentUserId?: string;
   restrictToPublished?: boolean;
+  scopeColors?: Record<string, { bg: string; fg: string }>;
 }) {
   const PAGE_SIZE = 10;
   const [query, setQuery] = useState("");
@@ -167,6 +169,7 @@ export function DocumentsTable({
               onView={view}
               opening={isOpening(doc.id)}
               restrictToPublished={restrictToPublished}
+              scopeColors={scopeColors}
             />
           ))
         )}

@@ -35,11 +35,13 @@ export function DocumentsCardGrid({
   entityName,
   showStatus,
   restrictToPublished,
+  scopeColors,
 }: {
   documents: DocumentSummary[];
   entityName?: string;
   showStatus?: boolean;
   restrictToPublished?: boolean;
+  scopeColors?: Record<string, { bg: string; fg: string }>;
 }) {
   const [query, setQuery] = useState("");
   const { view, isOpening, viewerNode } = useDocumentViewer();
@@ -86,6 +88,7 @@ export function DocumentsCardGrid({
               onView={view}
               opening={isOpening(doc.id)}
               restrictToPublished={restrictToPublished}
+              scopeColors={scopeColors}
             />
           ))}
         </div>
@@ -101,12 +104,14 @@ function DocumentCard({
   onView,
   opening,
   restrictToPublished,
+  scopeColors,
 }: {
   doc: DocumentSummary;
   showStatus?: boolean;
   onView: (doc: DocumentSummary) => void;
   opening: boolean;
   restrictToPublished?: boolean;
+  scopeColors?: Record<string, { bg: string; fg: string }>;
 }) {
   const status = STATUS_STYLE[doc.status];
   const isDeleted = Boolean(doc.deletedAt);
@@ -171,7 +176,7 @@ function DocumentCard({
             ...(doc.ownerTeam ? [{ key: `team-${doc.ownerTeam.id}`, label: doc.ownerTeam.name, bg: TEAM_TAG_COLOR.bg, fg: TEAM_TAG_COLOR.fg }] : []),
             ...doc.products.map((p) => ({ key: `product-${p.id}`, label: p.name, bg: PRODUCT_TAG_COLOR.bg, fg: PRODUCT_TAG_COLOR.fg })),
             ...dedupeGlobalCategories(doc.categories).map((c) => {
-              const color = colorForCategory(c);
+              const color = colorForCategory(c, scopeColors);
               return { key: `cat-${c.id}`, label: c.name, bg: color.bg, fg: color.fg };
             }),
           ];

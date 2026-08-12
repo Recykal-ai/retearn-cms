@@ -26,6 +26,7 @@ export function DocumentsPanel({
   documents,
   categoryCounts,
   uploaders,
+  scopeColors,
   categoryGroups,
   categorySuperGroups,
   isAdmin,
@@ -47,6 +48,12 @@ export function DocumentsPanel({
   documents: DocumentSummary[];
   categoryCounts?: Record<string, number>;
   uploaders?: UploaderOption[];
+  // Every team/product's assigned color, built once from the FULL list (see
+  // buildScopeColorMap in tag-colors.ts) — passed down instead of having
+  // FolderGrid/DocumentsTable/FilterPanel each hash a bare scope id
+  // independently, which is what let two different teams collide onto the
+  // same color (confirmed: "AI" and "SDE" hashed identically).
+  scopeColors?: Record<string, { bg: string; fg: string }>;
   categoryGroups?: TagGroup[];
   categorySuperGroups?: TagSuperGroup[];
   isAdmin?: boolean;
@@ -208,6 +215,7 @@ export function DocumentsPanel({
           category={filterCategoryId}
           pinned={pinned}
           uploaders={uploaders}
+          scopeColors={scopeColors}
           categoryGroups={categoryGroups}
           categorySuperGroups={categorySuperGroups}
         />
@@ -241,13 +249,19 @@ export function DocumentsPanel({
         pinned={pinned}
         categories={categories}
         uploaders={uploaders}
+        scopeColors={scopeColors}
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
         {isFolderView && !selectedCategory ? (
-          <FolderGrid categories={categories} documents={documents} baseHref={folderUpHref} />
+          <FolderGrid categories={categories} documents={documents} baseHref={folderUpHref} scopeColors={scopeColors} />
         ) : view === "tabs" ? (
-          <DocumentsCardGrid documents={documents} entityName={selectedCategory ? selectedCategory.name : entityName} restrictToPublished />
+          <DocumentsCardGrid
+            documents={documents}
+            entityName={selectedCategory ? selectedCategory.name : entityName}
+            scopeColors={scopeColors}
+            restrictToPublished
+          />
         ) : (
           <DocumentsTable
             documents={documents}
@@ -262,6 +276,7 @@ export function DocumentsPanel({
             modifiedDescHref={modifiedDescHref}
             isAdmin={isAdmin}
             currentUserId={currentUserId}
+            scopeColors={scopeColors}
             restrictToPublished
           />
         )}

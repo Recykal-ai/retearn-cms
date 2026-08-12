@@ -11,10 +11,26 @@ export const productsRouter = Router();
 productsRouter.get("/", requireAuth, async (_req, res) => {
   const products = await prisma.product.findMany({
     orderBy: { name: "asc" },
+    // True total — see teams.ts's matching comment for why this stays
+    // unfiltered by status (DeleteTagModal's safety warning needs it).
     include: { _count: { select: { documents: { where: { document: { deletedAt: null } } } } } },
   });
+  // What the dashboard's Product sidebar badge shows instead — see teams.ts
+  // for the full reasoning. Grouped on the join table (DocumentProduct),
+  // not Document directly, since that's the many-to-many relation Product
+  // actually has.
+  const visibleCounts = await prisma.documentProduct.groupBy({
+    by: ["productId"],
+    where: { document: { deletedAt: null, status: "PUBLISHED" }, productId: { in: products.map((p) => p.id) } },
+    _count: true,
+  });
+  const visibleCountByProduct = new Map(visibleCounts.map((v) => [v.productId, v._count]));
   res.json(
-    products.map(({ _count, ...product }) => ({ ...product, documentCount: _count.documents })),
+    products.map(({ _count, ...product }) => ({
+      ...product,
+      documentCount: _count.documents,
+      visibleDocumentCount: visibleCountByProduct.get(product.id) ?? 0,
+    })),
   );
 });
 

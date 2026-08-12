@@ -38,6 +38,7 @@ export function FilterPanel({
   category,
   pinned,
   uploaders,
+  scopeColors,
   categoryGroups,
   categorySuperGroups,
 }: {
@@ -51,6 +52,7 @@ export function FilterPanel({
   category?: string;
   pinned?: string;
   uploaders?: UploaderOption[];
+  scopeColors?: Record<string, { bg: string; fg: string }>;
   categoryGroups?: TagGroup[];
   categorySuperGroups?: TagSuperGroup[];
 }) {
@@ -261,6 +263,7 @@ export function FilterPanel({
                       selected={activeCategories}
                       onToggle={toggleCategory}
                       counts={categoryCounts}
+                      scopeColors={scopeColors}
                     />
                   </FilterSection>
                 )
@@ -282,7 +285,7 @@ export function FilterPanel({
                     )}
                     <div className="flex flex-col gap-1.5">
                       {filteredCategories.map((c) => {
-                        const color = colorForCategory(c);
+                        const color = colorForCategory(c, scopeColors);
                         const count = categoryCounts?.[c.id] ?? 0;
                         return (
                           <label

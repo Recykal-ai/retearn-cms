@@ -115,7 +115,7 @@ export function NavSidebar({
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${isSelected ? "" : "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"}`}
                     style={isSelected ? { background: "var(--brand-purple-tint)", color: "var(--brand-purple)" } : undefined}
                   >
-                    {entity.documentCount}
+                    {entity.visibleDocumentCount}
                   </span>
                 </Link>
               );

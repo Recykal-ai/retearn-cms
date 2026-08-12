@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import { withSessionGuard } from "@/lib/session-guard";
 import { fileTypeOf } from "@/lib/file-type";
+import { buildScopeColorMap } from "@/lib/tag-colors";
 import { TopBar } from "@/components/dashboard/TopBar";
 import { ActionBar } from "@/components/dashboard/ActionBar";
 import { SideRail } from "@/components/dashboard/SideRail";
@@ -68,10 +69,19 @@ export default async function DashboardPage({
     uploaders,
     categoryGroups,
     categorySuperGroups,
+    scopeColors,
   } = await withSessionGuard(async () => {
       const [teams, products] = await Promise.all([getTeams(appToken), getProducts(appToken)]);
 
       const allEntities = [...teams, ...products];
+      // Built from EVERY team+product that exists, not just the ones with
+      // categories or the ones in play for this particular page load — a
+      // stable, sorted-id assignment (see buildScopeColorMap's own comment)
+      // that's the same regardless of which mode/entity you're currently
+      // browsing, so a team's folders are the same color here as they are
+      // inside that team's own view, in the Tags filter, and in the upload
+      // tag picker.
+      const scopeColors = buildScopeColorMap(allEntities.map((e) => e.id));
       const categoryLists = await Promise.all(allEntities.map((e) => getCategories(appToken, e.id)));
       const categoriesByScope: Record<string, Category[]> = {};
       allEntities.forEach((e, i) => {
@@ -115,11 +125,23 @@ export default async function DashboardPage({
       function mergeCategories(scopeEntities: { id: string }[]) {
         const nameToIds = new Map<string, string[]>();
         const nameIsGlobal = new Map<string, boolean>();
+        // The real scope of the FIRST row seen for a name — only actually
+        // used below for a non-global entry (a global one always renders in
+        // the reserved gold color regardless of scope, see colorForCategory),
+        // where it's typically the category's one and only real scope
+        // anyway. Without this, every non-global category folder on this
+        // merged view got the same "all" placeholder as its `scope`,
+        // hashing to one identical color for every team/product instead of
+        // each getting its own — the folder colors here need to match
+        // exactly what that same category renders as inside its own
+        // team/product's dedicated view.
+        const nameScope = new Map<string, string>();
         for (const e of scopeEntities) {
           for (const c of categoriesByScope[e.id] ?? []) {
             const ids = nameToIds.get(c.name) ?? [];
             ids.push(c.id);
             nameToIds.set(c.name, ids);
+            if (!nameScope.has(c.name)) nameScope.set(c.name, c.scope);
             // Only true when every real row sharing this name was created by
             // the "create under every team/product" flow — a name that
             // coincidentally collides with an unrelated, manually-created
@@ -135,7 +157,13 @@ export default async function DashboardPage({
             const globalDiff = Number(nameIsGlobal.get(b) ?? false) - Number(nameIsGlobal.get(a) ?? false);
             return globalDiff !== 0 ? globalDiff : a.localeCompare(b);
           })
-          .map((name) => ({ id: name, name, scope: "all", documentCount: 0, isGlobal: nameIsGlobal.get(name) ?? false }));
+          .map((name) => ({
+            id: name,
+            name,
+            scope: nameIsGlobal.get(name) ? "all" : (nameScope.get(name) ?? "all"),
+            documentCount: 0,
+            isGlobal: nameIsGlobal.get(name) ?? false,
+          }));
         return { nameToIds, nameIsGlobal, merged };
       }
 
@@ -279,6 +307,7 @@ export default async function DashboardPage({
           uploaders,
           categoryGroups: undefined,
           categorySuperGroups: undefined,
+          scopeColors,
         };
       }
       const teamGroups = isFullyGlobal || mode === "team" ? teams.map(groupFor).filter((g) => g.categories.length > 0) : [];
@@ -300,6 +329,7 @@ export default async function DashboardPage({
         uploaders,
         categoryGroups,
         categorySuperGroups,
+        scopeColors,
       };
     });
 
@@ -332,6 +362,7 @@ export default async function DashboardPage({
             documents={documents}
             categoryCounts={categoryCounts}
             uploaders={uploaders}
+            scopeColors={scopeColors}
             categoryGroups={categoryGroups}
             categorySuperGroups={categorySuperGroups}
             isAdmin={isAdmin}

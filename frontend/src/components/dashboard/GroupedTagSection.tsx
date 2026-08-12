@@ -39,18 +39,20 @@ export function GroupedTagSection({
   selected,
   onToggle,
   counts,
+  scopeColors,
 }: {
   groups: TagGroup[];
   superGroups?: TagSuperGroup[];
   selected: string[];
   onToggle: (id: string) => void;
   counts?: Record<string, number>;
+  scopeColors?: Record<string, { bg: string; fg: string }>;
 }) {
   const [search, setSearch] = useState("");
   const q = search.trim().toLowerCase();
 
   const checkbox = (c: GroupableCategory) => {
-    const color = colorForCategory(c);
+    const color = colorForCategory(c, scopeColors);
     const count = counts?.[c.id] ?? 0;
     return (
       <label key={c.id} className="flex items-center justify-between gap-2 text-sm text-neutral-700 dark:text-neutral-300">

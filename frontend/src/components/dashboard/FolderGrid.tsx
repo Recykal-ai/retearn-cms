@@ -10,10 +10,12 @@ export function FolderGrid({
   categories,
   documents,
   baseHref,
+  scopeColors,
 }: {
   categories: Category[];
   documents: DocumentSummary[];
   baseHref: string;
+  scopeColors?: Record<string, { bg: string; fg: string }>;
 }) {
   const [query, setQuery] = useState("");
 
@@ -65,7 +67,7 @@ export function FolderGrid({
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {filtered.map(({ category: c, count }) => {
-            const color = colorForCategory(c);
+            const color = colorForCategory(c, scopeColors);
             // Categories are flat — opening one has no further folder
             // structure to show, so this always lands in list view, not
             // folder view. Built via the URL API (not template-string

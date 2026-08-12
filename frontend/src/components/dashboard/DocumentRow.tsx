@@ -55,6 +55,7 @@ export function DocumentRow({
   onView,
   opening,
   restrictToPublished,
+  scopeColors,
 }: {
   doc: DocumentSummary;
   mode: "team" | "product" | "all";
@@ -65,6 +66,7 @@ export function DocumentRow({
   onView: (doc: DocumentSummary) => void;
   opening?: boolean;
   restrictToPublished?: boolean;
+  scopeColors?: Record<string, { bg: string; fg: string }>;
 }) {
   const status = STATUS_STYLE[doc.status];
   const isDeleted = Boolean(doc.deletedAt);
@@ -104,7 +106,7 @@ export function DocumentRow({
       : []),
     ...productTags.map((p) => ({ key: `product-${p.id}`, label: p.name, bg: PRODUCT_TAG_COLOR.bg, fg: PRODUCT_TAG_COLOR.fg, href: p.href })),
     ...dedupeGlobalCategories(doc.categories).map((c) => {
-      const color = colorForCategory(c);
+      const color = colorForCategory(c, scopeColors);
       return {
         key: `cat-${c.id}`,
         label: c.name,

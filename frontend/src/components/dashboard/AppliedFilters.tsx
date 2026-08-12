@@ -37,6 +37,7 @@ export function AppliedFilters({
   pinned,
   categories,
   uploaders,
+  scopeColors,
 }: {
   // Must already contain the CURRENT status/modifiedSince/type/category/
   // uploadedBy/pinned values (plus view/folder, if any) — each chip's "×"
@@ -56,6 +57,7 @@ export function AppliedFilters({
   pinned?: string;
   categories: Category[];
   uploaders?: UploaderOption[];
+  scopeColors?: Record<string, { bg: string; fg: string }>;
 }) {
   const types = type ? type.split(",").filter(Boolean) : [];
   const categoryIds = category ? category.split(",").filter(Boolean) : [];
@@ -92,7 +94,7 @@ export function AppliedFilters({
   for (const id of categoryIds) {
     const cat = categories.find((c) => c.id === id);
     if (!cat) continue;
-    const color = colorForCategory(cat);
+    const color = colorForCategory(cat, scopeColors);
     chips.push({ key: `category-${id}`, label: cat.name, href: withoutParam(baseHref, "category", id), bg: color.bg, fg: color.fg });
   }
   for (const id of uploaderIds) {

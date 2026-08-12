@@ -11,10 +11,31 @@ export const teamsRouter = Router();
 teamsRouter.get("/", requireAuth, async (_req, res) => {
   const teams = await prisma.team.findMany({
     orderBy: { name: "asc" },
+    // True total — every non-deleted doc regardless of review status. Used
+    // where undercounting would be unsafe (e.g. DeleteTagModal's "N
+    // documents affected" warning before deleting a team) — a Pending/
+    // Rejected doc still needs to show up there even though it's not in
+    // anyone's everyday browse view.
     include: { _count: { select: { documents: { where: { deletedAt: null } } } } },
   });
+  // What the dashboard's Team sidebar badge shows instead — Published only,
+  // via a separate groupBy (not a second _count.select key: Prisma can't
+  // count the same relation twice with two different filters in one query)
+  // so it matches what browsing into that team's own folders actually
+  // displays. A Pending upload or an old Rejected doc isn't there, so it
+  // shouldn't be sitting in the sidebar's count either.
+  const visibleCounts = await prisma.document.groupBy({
+    by: ["ownerTeamId"],
+    where: { deletedAt: null, status: "PUBLISHED", ownerTeamId: { in: teams.map((t) => t.id) } },
+    _count: true,
+  });
+  const visibleCountByTeam = new Map(visibleCounts.map((v) => [v.ownerTeamId, v._count]));
   res.json(
-    teams.map(({ _count, ...team }) => ({ ...team, documentCount: _count.documents })),
+    teams.map(({ _count, ...team }) => ({
+      ...team,
+      documentCount: _count.documents,
+      visibleDocumentCount: visibleCountByTeam.get(team.id) ?? 0,
+    })),
   );
 });
 

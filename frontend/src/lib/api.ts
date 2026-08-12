@@ -3,13 +3,20 @@ const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:4000";
 export interface Team {
   id: string;
   name: string;
+  // True total — every non-deleted doc regardless of review status. Used
+  // for the "N documents affected" delete-safety warning, where
+  // undercounting would be unsafe.
   documentCount: number;
+  // Published-only — what the dashboard sidebar badge shows, since that's
+  // what browsing into this team's own folders actually displays.
+  visibleDocumentCount: number;
 }
 
 export interface Product {
   id: string;
   name: string;
   documentCount: number;
+  visibleDocumentCount: number;
 }
 
 export interface Category {

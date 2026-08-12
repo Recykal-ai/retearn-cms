@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DocumentSummary, Team, Product, Category } from "@/lib/api";
 import { pushVersionAction, updateDocumentTagsAction, getTagCatalogAction } from "@/app/dashboard/documents-actions";
-import { colorForCategory, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
+import { colorForCategory, buildScopeColorMap, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
 
 // See UploadModal.tsx for why global categories (one row per team/product,
 // Category.isGlobal) need grouping rather than a flat per-id list here too,
@@ -82,6 +82,14 @@ export function EditVersionModal({
     const scopes = [ownerTeamId, ...productIds].filter((v): v is string => Boolean(v));
     return groupCategories(catalog.categoriesByScope, scopes);
   }, [catalog, ownerTeamId, productIds]);
+
+  // Every team/product's own tag chip color, same assignment page.tsx uses
+  // for the dashboard — keeps a tag's color consistent between browsing it
+  // and re-tagging an existing document with it.
+  const scopeColors = useMemo(
+    () => (catalog ? buildScopeColorMap([...catalog.teams, ...catalog.products].map((e) => e.id)) : undefined),
+    [catalog],
+  );
 
   // The real ids actually submitted — re-derived every render from
   // availableCategories (itself scope-derived), so a global group's
@@ -271,7 +279,7 @@ export function EditVersionModal({
                     )}
                     {filteredCategories.map((c) => {
                       const selected = selectedKeys.includes(c.key);
-                      const color = colorForCategory(c);
+                      const color = colorForCategory(c, scopeColors);
                       return (
                         <button
                           key={c.id}

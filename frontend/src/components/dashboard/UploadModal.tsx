@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import type { Team, Product, Category } from "@/lib/api";
-import { colorForCategory, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
+import { colorForCategory, buildScopeColorMap, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
 import { Icon } from "@/components/dashboard/Icon";
 
 // A global category is one row per team/product (Category.isGlobal), so
@@ -105,6 +105,11 @@ export function UploadModal({
     const scopes = [ownerTeamId, ...productIds].filter((v): v is string => Boolean(v));
     return groupCategories(categoriesByScope, scopes);
   }, [ownerTeamId, productIds, categoriesByScope]);
+
+  // Every team/product's own tag chip color, same assignment page.tsx uses
+  // for the dashboard — keeps a tag's color consistent between browsing it
+  // and tagging a new upload with it.
+  const scopeColors = useMemo(() => buildScopeColorMap([...teams, ...products].map((e) => e.id)), [teams, products]);
 
   // The real ids actually submitted — re-derived from availableCategories
   // (itself scope-derived) every render, so a global group's expanded/
@@ -301,7 +306,7 @@ export function UploadModal({
                     )}
                     {filteredCategories.map((c) => {
                       const selected = selectedKeys.includes(c.key);
-                      const color = colorForCategory(c);
+                      const color = colorForCategory(c, scopeColors);
                       return (
                         <button
                           key={c.id}
