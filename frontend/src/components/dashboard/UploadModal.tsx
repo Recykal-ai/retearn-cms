@@ -11,8 +11,25 @@ import { Icon } from "@/components/dashboard/Icon";
 // selects/deselects every underlying row currently in play, so the document
 // still ends up correctly tagged (and findable) in every selected scope,
 // not just whichever row happened to render first.
+//
+// `key` (not `id`) is what selection state is tracked by — see
+// `selectedKeys` below. A global group's key is stable across whatever
+// scopes happen to be selected (`global:Goa DRS`, regardless of whether
+// that's currently 1 scope's row or 5), while its `memberIds` is
+// recomputed fresh from the CURRENT scopes on every render. Tracking
+// selection by id instead (an earlier version of this) meant picking
+// "Goa DRS" while only Team Marketing was selected, then adding Products
+// Ace and Fastscan afterward, left the document tagged with only
+// Marketing's row — the chip still LOOKED selected (one of its now-3
+// memberIds happened to still be in the old id list), but Ace's and
+// Fastscan's own Goa DRS rows never actually got added, so the document
+// was invisible browsing either product's own Goa DRS folder despite
+// being tagged Ace/Fastscan. Keying by name and re-deriving memberIds
+// every render fixes that: the moment a new scope is added, an
+// already-on global group's real ids expand to include it too.
 interface CategoryOption {
   id: string;
+  key: string;
   name: string;
   scope: string;
   isGlobal: boolean;
@@ -29,7 +46,7 @@ function groupCategories(categoriesByScope: Record<string, Category[]>, scopes: 
     const key = c.isGlobal ? `global:${c.name}` : c.id;
     const existing = groups.get(key);
     if (existing) existing.memberIds.push(c.id);
-    else groups.set(key, { id: c.id, name: c.name, scope: c.scope, isGlobal: c.isGlobal, memberIds: [c.id] });
+    else groups.set(key, { id: c.id, key, name: c.name, scope: c.scope, isGlobal: c.isGlobal, memberIds: [c.id] });
   }
   // Global tags first, alphabetical within each group — merging across
   // multiple scopes above can otherwise interleave them with per-scope tags
@@ -74,7 +91,7 @@ export function UploadModal({
   const setOpen = isControlled ? (v: boolean) => onOpenChange?.(v) : setInternalOpen;
   const [ownerTeamId, setOwnerTeamId] = useState<string | null>(null);
   const [productIds, setProductIds] = useState<string[]>([]);
-  const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [fileName, setFileName] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [tagQuery, setTagQuery] = useState("");
@@ -89,8 +106,11 @@ export function UploadModal({
     return groupCategories(categoriesByScope, scopes);
   }, [ownerTeamId, productIds, categoriesByScope]);
 
-  const availableCategoryIds = new Set(availableCategories.flatMap((c) => c.memberIds));
-  const selectedCategoryIds = categoryIds.filter((id) => availableCategoryIds.has(id));
+  // The real ids actually submitted — re-derived from availableCategories
+  // (itself scope-derived) every render, so a global group's expanded/
+  // shrunk memberIds are always reflected without needing to separately
+  // sync anything when ownerTeamId/productIds change.
+  const selectedCategoryIds = availableCategories.filter((c) => selectedKeys.includes(c.key)).flatMap((c) => c.memberIds);
   const filteredCategories = tagQuery.trim()
     ? availableCategories.filter((c) => c.name.toLowerCase().includes(tagQuery.trim().toLowerCase()))
     : availableCategories;
@@ -101,12 +121,7 @@ export function UploadModal({
   }
 
   function toggleCategoryGroup(c: CategoryOption) {
-    const anySelected = c.memberIds.some((id) => categoryIds.includes(id));
-    setCategoryIds(
-      anySelected
-        ? categoryIds.filter((id) => !c.memberIds.includes(id))
-        : [...categoryIds, ...c.memberIds.filter((id) => !categoryIds.includes(id))],
-    );
+    setSelectedKeys(selectedKeys.includes(c.key) ? selectedKeys.filter((k) => k !== c.key) : [...selectedKeys, c.key]);
   }
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -132,7 +147,7 @@ export function UploadModal({
     setOpen(false);
     setOwnerTeamId(null);
     setProductIds([]);
-    setCategoryIds([]);
+    setSelectedKeys([]);
     setFileName("");
     setLinkUrl("");
     setTagQuery("");
@@ -285,7 +300,7 @@ export function UploadModal({
                       <p className="text-xs text-neutral-400 italic dark:text-neutral-500">No matching tags</p>
                     )}
                     {filteredCategories.map((c) => {
-                      const selected = c.memberIds.some((id) => selectedCategoryIds.includes(id));
+                      const selected = selectedKeys.includes(c.key);
                       const color = colorForCategory(c);
                       return (
                         <button

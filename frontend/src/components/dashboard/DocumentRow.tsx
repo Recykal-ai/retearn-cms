@@ -79,9 +79,16 @@ export function DocumentRow({
   const teamHref =
     doc.ownerTeam && !teamIsCurrent ? `/dashboard?mode=team&entity=${doc.ownerTeam.id}` : undefined;
 
-  const productTags = doc.products
-    .filter((p) => !(mode === "product" && entityId === p.id))
-    .map((p) => ({ id: p.id, name: p.name, href: `/dashboard?mode=product&entity=${p.id}` }));
+  // Always shown, current-product tag included — same treatment as the team
+  // chip above (still rendered when it's the entity you're already inside,
+  // just not a link to itself). Previously hidden entirely, which read as
+  // "this document has no Ace tag" when browsing Ace's own folder, when
+  // really it just wasn't being drawn.
+  const productTags = doc.products.map((p) => ({
+    id: p.id,
+    name: p.name,
+    href: mode === "product" && entityId === p.id ? undefined : `/dashboard?mode=product&entity=${p.id}`,
+  }));
 
   // In "all" mode there's no single entity to build a category link off of
   // — the home view's category filter works by NAME across every scope

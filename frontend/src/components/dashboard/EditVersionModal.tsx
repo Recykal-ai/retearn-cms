@@ -6,9 +6,14 @@ import { pushVersionAction, updateDocumentTagsAction, getTagCatalogAction } from
 import { colorForCategory, TEAM_TAG_COLOR, PRODUCT_TAG_COLOR } from "@/lib/tag-colors";
 
 // See UploadModal.tsx for why global categories (one row per team/product,
-// Category.isGlobal) need grouping rather than a flat per-id list here too.
+// Category.isGlobal) need grouping rather than a flat per-id list here too,
+// and for why selection is tracked by `key` (stable per group name) rather
+// than by raw member id — the same "adding a new product later doesn't
+// retroactively re-tag an already-checked global category for it" bug
+// applied here too, on every existing doc's tag-edit flow, not just upload.
 interface CategoryOption {
   id: string;
+  key: string;
   name: string;
   scope: string;
   isGlobal: boolean;
@@ -25,7 +30,7 @@ function groupCategories(categoriesByScope: Record<string, Category[]>, scopes: 
     const key = c.isGlobal ? `global:${c.name}` : c.id;
     const existing = groups.get(key);
     if (existing) existing.memberIds.push(c.id);
-    else groups.set(key, { id: c.id, name: c.name, scope: c.scope, isGlobal: c.isGlobal, memberIds: [c.id] });
+    else groups.set(key, { id: c.id, key, name: c.name, scope: c.scope, isGlobal: c.isGlobal, memberIds: [c.id] });
   }
   // Global tags first, alphabetical within each group — merging across
   // multiple scopes above can otherwise interleave them with per-scope tags
@@ -34,6 +39,13 @@ function groupCategories(categoriesByScope: Record<string, Category[]>, scopes: 
     const globalDiff = Number(b.isGlobal) - Number(a.isGlobal);
     return globalDiff !== 0 ? globalDiff : a.name.localeCompare(b.name);
   });
+}
+
+// Same key shape groupCategories uses (`global:<name>` for a global
+// category, the raw id otherwise) — how an existing document's already-
+// tagged categories seed the initial selectedKeys state below.
+function keyFor(c: { id: string; name: string; isGlobal: boolean }): string {
+  return c.isGlobal ? `global:${c.name}` : c.id;
 }
 
 export function EditVersionModal({
@@ -58,7 +70,7 @@ export function EditVersionModal({
   } | null>(null);
   const [ownerTeamId, setOwnerTeamId] = useState<string | null>(doc.ownerTeam?.id ?? null);
   const [productIds, setProductIds] = useState<string[]>(doc.products.map((p) => p.id));
-  const [categoryIds, setCategoryIds] = useState<string[]>(doc.categories.map((c) => c.id));
+  const [selectedKeys, setSelectedKeys] = useState<string[]>(doc.categories.map(keyFor));
   const [tagQuery, setTagQuery] = useState("");
 
   useEffect(() => {
@@ -71,8 +83,11 @@ export function EditVersionModal({
     return groupCategories(catalog.categoriesByScope, scopes);
   }, [catalog, ownerTeamId, productIds]);
 
-  const availableCategoryIds = new Set(availableCategories.flatMap((c) => c.memberIds));
-  const selectedCategoryIds = categoryIds.filter((id) => availableCategoryIds.has(id));
+  // The real ids actually submitted — re-derived every render from
+  // availableCategories (itself scope-derived), so a global group's
+  // expanded/shrunk memberIds are always reflected without needing to
+  // separately sync anything when ownerTeamId/productIds change.
+  const selectedCategoryIds = availableCategories.filter((c) => selectedKeys.includes(c.key)).flatMap((c) => c.memberIds);
   const filteredCategories = tagQuery.trim()
     ? availableCategories.filter((c) => c.name.toLowerCase().includes(tagQuery.trim().toLowerCase()))
     : availableCategories;
@@ -82,12 +97,7 @@ export function EditVersionModal({
   }
 
   function toggleCategoryGroup(c: CategoryOption) {
-    const anySelected = c.memberIds.some((id) => categoryIds.includes(id));
-    setCategoryIds(
-      anySelected
-        ? categoryIds.filter((id) => !c.memberIds.includes(id))
-        : [...categoryIds, ...c.memberIds.filter((id) => !categoryIds.includes(id))],
-    );
+    setSelectedKeys(selectedKeys.includes(c.key) ? selectedKeys.filter((k) => k !== c.key) : [...selectedKeys, c.key]);
   }
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -260,7 +270,7 @@ export function EditVersionModal({
                       <p className="text-xs text-neutral-400 italic dark:text-neutral-500">No matching tags</p>
                     )}
                     {filteredCategories.map((c) => {
-                      const selected = c.memberIds.some((id) => selectedCategoryIds.includes(id));
+                      const selected = selectedKeys.includes(c.key);
                       const color = colorForCategory(c);
                       return (
                         <button

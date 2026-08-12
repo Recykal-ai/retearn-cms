@@ -12,7 +12,24 @@ const VIEWS = [
 
 export type ViewMode = (typeof VIEWS)[number]["value"];
 
-export function ViewSwitcher({ baseHref, view }: { baseHref: string; view: ViewMode }) {
+export function ViewSwitcher({
+  baseHref,
+  view,
+  hideFolders,
+}: {
+  baseHref: string;
+  view: ViewMode;
+  // True while a single category is the current location (a folder tile
+  // click, or the equivalent single-category filter — see DocumentsPanel's
+  // own selectedCategory). Categories are flat, so "Folders" has nothing to
+  // show once inside one — offering it anyway was what silently bounced you
+  // back out to the top-level folder grid on click, discarding exactly
+  // where you were. Dropped from the list entirely rather than shown
+  // disabled — a struck-through/greyed option users can't act on is its own
+  // kind of confusing.
+  hideFolders?: boolean;
+}) {
+  const visibleViews = hideFolders ? VIEWS.filter((v) => v.value !== "folders") : VIEWS;
   const current = VIEWS.find((v) => v.value === view) ?? VIEWS[0];
   const detailsRef = useRef<HTMLDetailsElement>(null);
 
@@ -45,7 +62,7 @@ export function ViewSwitcher({ baseHref, view }: { baseHref: string; view: ViewM
         className="absolute top-8 left-0 z-20 w-32 rounded-md border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
         style={{ fontFamily: "var(--font-ui)" }}
       >
-        {VIEWS.map((v) => (
+        {visibleViews.map((v) => (
           <Link
             key={v.value}
             href={hrefFor(v.value)}

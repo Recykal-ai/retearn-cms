@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import type { AppUser, Team, Product, Role } from "@/lib/api";
 import { relativeTime } from "@/lib/relative-time";
 import { Icon } from "@/components/dashboard/Icon";
@@ -35,16 +35,18 @@ export function UsersSection({
   products: Product[];
 }) {
   const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<Role | "ALL">("ALL");
   const [grantTarget, setGrantTarget] = useState<
     { kind: "promote"; userId: string; userName: string } | { kind: "invite"; email: string } | null
   >(null);
 
   const trimmed = query.trim();
-  const filtered = trimmed
+  const byQuery = trimmed
     ? users.filter(
         (u) => u.name.toLowerCase().includes(trimmed.toLowerCase()) || u.email.toLowerCase().includes(trimmed.toLowerCase()),
       )
     : users;
+  const filtered = roleFilter === "ALL" ? byQuery : byQuery.filter((u) => u.role === roleFilter);
 
   const looksLikeNewInvite =
     RECYKAL_EMAIL_RE.test(trimmed) && !users.some((u) => u.email.toLowerCase() === trimmed.toLowerCase());
@@ -76,7 +78,9 @@ export function UsersSection({
           <tr className="border-b border-neutral-100 text-xs font-semibold text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
             <th className="min-w-40 py-2.5 pr-4 font-semibold">Name</th>
             <th className="py-2.5 pr-4 font-semibold">Email</th>
-            <th className="w-36 py-2.5 pr-4 font-semibold">Role</th>
+            <th className="w-36 py-2.5 pr-4 font-semibold">
+              <RoleFilterHeader value={roleFilter} onChange={setRoleFilter} />
+            </th>
             <th className="w-48 py-2.5 pr-4 font-semibold">Access</th>
             <th className="w-24 py-2.5 pr-4 font-semibold">Joined</th>
             <th className="w-64 py-2.5 font-normal" />
@@ -122,7 +126,11 @@ export function UsersSection({
           {filtered.length === 0 && !looksLikeNewInvite && (
             <tr>
               <td colSpan={6} className="py-6 text-center text-sm text-neutral-400 dark:text-neutral-500">
-                No matches for &ldquo;{query}&rdquo;.
+                {trimmed
+                  ? `No matches for “${query}”.`
+                  : roleFilter === "ALL"
+                    ? "No one found."
+                    : `No ${ROLE_LABEL[roleFilter]}s found.`}
               </td>
             </tr>
           )}
@@ -155,6 +163,45 @@ export function UsersSection({
         />
       )}
     </div>
+  );
+}
+
+// Same "click the column header, pick from a dropdown" pattern as the
+// document table's own SortableHeader (DocumentsTable.tsx) — buttons over a
+// local roleFilter state instead of Links over an href, since this table has
+// no URL-driven sort/filter, but visually it's the identical affordance.
+function RoleFilterHeader({ value, onChange }: { value: Role | "ALL"; onChange: (v: Role | "ALL") => void }) {
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const active = value !== "ALL";
+
+  function pick(v: Role | "ALL") {
+    onChange(v);
+    if (detailsRef.current) detailsRef.current.open = false;
+  }
+
+  return (
+    <details ref={detailsRef} className="relative inline-block">
+      <summary
+        className={`inline-flex cursor-pointer list-none items-center gap-1 hover:text-neutral-700 dark:hover:text-neutral-300 ${active ? "text-neutral-700 dark:text-neutral-300" : ""}`}
+      >
+        {active ? ROLE_LABEL[value] : "Role"}
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden className={active ? "text-neutral-600 dark:text-neutral-400" : "text-neutral-400 dark:text-neutral-500"}>
+          <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </summary>
+      <div className="absolute top-full left-0 z-10 mt-1 w-36 rounded-md border border-neutral-200 bg-white py-1 text-xs font-normal text-neutral-700 shadow-lg dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+        {(["ALL", "SUPER_ADMIN", "ADMIN", "USER"] as const).map((r) => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => pick(r)}
+            className={`block w-full px-3 py-1.5 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 ${value === r ? "font-semibold text-neutral-900 dark:text-neutral-200" : ""}`}
+          >
+            {r === "ALL" ? "All" : ROLE_LABEL[r]}
+          </button>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -357,9 +404,11 @@ function ScopeButton({ user, teams, products }: { user: AppUser; teams: Team[]; 
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
+        title="Manage access"
+        aria-label="Manage access"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-neutral-200 text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
       >
-        Manage access
+        <Icon name="Interface/Settings" size={13} />
       </button>
       {open && <ScopeModal user={user} teams={teams} products={products} onClose={() => setOpen(false)} />}
     </>

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Category, DocumentSummary, SortField, SortDir } from "@/lib/api";
 import { FilterPanel } from "@/components/dashboard/FilterPanel";
 import { AppliedFilters } from "@/components/dashboard/AppliedFilters";
@@ -142,11 +141,33 @@ export function DocumentsPanel({
     view === "folders";
   const documentsCrumbHref = isAtGlobalHome ? undefined : "/dashboard";
 
-  // While drilled into a folder, the category is where you navigated, not a
-  // removable filter — hide it from the Filter panel/chip row so that state
-  // doesn't look identical to a plain list-view category filter (it's shown
-  // once, correctly, as the bold breadcrumb crumb instead).
-  const filterCategoryId = isFolderView && selectedCategory ? undefined : selectedCategoryId;
+  // The page title itself now tracks wherever you actually are — a selected
+  // category/tag first (e.g. "Goa DRS", clicked as a global chip right on
+  // the "all" home view, per CategoriesSection's "All" tag option — mode
+  // stays "all" the whole time, only selectedCategoryId changes, so mode
+  // alone isn't enough to decide this), then whichever team/product is open
+  // ("AI", "Fastscan", ...), then "All documents" only at the true, filter-
+  // free home. The breadcrumb row right below already spells out
+  // "Documents" as its own first crumb, so a title that never changed
+  // regardless of what was open was pure redundant chrome, not a helpful
+  // "where am I" signal.
+  const titleLabel = selectedCategory
+    ? selectedCategory.name
+    : mode === "all"
+      ? "All documents"
+      : (entityName ?? (mode === "team" ? "Team" : "Product"));
+
+  // A single selected category (whether reached by clicking a folder tile
+  // or by checking exactly one box in the Filter panel — both produce the
+  // exact same state, `category=<one id>`, so there's no real difference to
+  // preserve between them) is where you ARE, not a removable filter — hide
+  // it from the Filter panel/chip row so that state doesn't show up twice,
+  // once as the bold breadcrumb crumb and again as a chip. `selectedCategory`
+  // alone (not `isFolderView`) is what actually distinguishes this from a
+  // genuine multi-category filter: `category=id1,id2` never resolves to a
+  // single Category via categories.find, so selectedCategory stays undefined
+  // for a real multi-select and this correctly falls through to a filter chip.
+  const filterCategoryId = selectedCategory ? undefined : selectedCategoryId;
 
   // Preserves every active filter/sort param when switching List <-> Tabs.
   const viewSwitcherHref = (() => {
@@ -168,16 +189,13 @@ export function DocumentsPanel({
     >
       <div className="flex items-center justify-between border-b border-neutral-100 px-6 py-4 dark:border-neutral-800">
         <div className="flex items-center gap-2">
-          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-200">
-            {documentsCrumbHref ? (
-              <Link href={documentsCrumbHref} className="hover:text-neutral-600 hover:underline dark:hover:text-neutral-400">
-                Documents
-              </Link>
-            ) : (
-              "Documents"
-            )}
-          </h1>
-          <ViewSwitcher baseHref={viewSwitcherHref} view={view} />
+          {/* Static, not a link — the breadcrumb row right below already
+              has "Documents" as a clickable go-home crumb, so making the
+              title clickable too was a second way to do the same thing,
+              redundant and one more thing that looked interactive for no
+              reason. */}
+          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-200">{titleLabel}</h1>
+          <ViewSwitcher baseHref={viewSwitcherHref} view={view} hideFolders={!!selectedCategory} />
         </div>
         <FilterPanel
           baseHref={identityHref}
@@ -205,10 +223,10 @@ export function DocumentsPanel({
             : [
                 {
                   label: entityName ?? (mode === "team" ? "Team" : "Product"),
-                  href: isFolderView && selectedCategory ? folderUpHref : undefined,
+                  href: selectedCategory ? folderUpHref : undefined,
                 },
               ]),
-          ...(isFolderView && selectedCategory ? [{ label: selectedCategory.name }] : []),
+          ...(selectedCategory ? [{ label: selectedCategory.name }] : []),
         ]}
       />
 
@@ -229,13 +247,13 @@ export function DocumentsPanel({
         {isFolderView && !selectedCategory ? (
           <FolderGrid categories={categories} documents={documents} baseHref={folderUpHref} />
         ) : view === "tabs" ? (
-          <DocumentsCardGrid documents={documents} entityName={entityName} restrictToPublished />
+          <DocumentsCardGrid documents={documents} entityName={selectedCategory ? selectedCategory.name : entityName} restrictToPublished />
         ) : (
           <DocumentsTable
             documents={documents}
             mode={mode}
             entityId={entityId}
-            entityName={isFolderView && selectedCategory ? selectedCategory.name : entityName}
+            entityName={selectedCategory ? selectedCategory.name : entityName}
             sort={sort}
             dir={dir}
             nameAscHref={nameAscHref}

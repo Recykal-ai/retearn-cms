@@ -16,6 +16,7 @@ import {
   notifyDeletionRejected,
 } from "../lib/notification-emails.js";
 import { getOrCreateOthersCategory } from "../lib/fallback-entities.js";
+import { expandGlobalCategoryIds } from "../lib/global-categories.js";
 import { isOfficePreviewCandidate, convertOfficeToPdf } from "../lib/office-preview.js";
 import {
   getDriveExportTarget,
@@ -101,6 +102,14 @@ documentsRouter.get("/", requireAuth, async (req, res) => {
     where.ownerTeamId = entityId;
   } else if (mode === "product" && entityId) {
     where.products = { some: { productId: entityId } };
+  } else if (mode === "team") {
+    // Team mode with no specific entity picked yet (just the toggle) still
+    // scopes to "has a team tag at all" — without this, the dashboard's
+    // Team toggle showed literally every document, product-only ones
+    // included, identical to bare "all" mode.
+    where.ownerTeamId = { not: null };
+  } else if (mode === "product") {
+    where.products = { some: {} };
   }
 
   if (category) {
@@ -454,7 +463,7 @@ documentsRouter.post("/", requireAuth, upload.single("file"), async (req, res) =
   const ownerTeamId = body.ownerTeamId?.trim() || null;
   const sourceType = body.sourceType === "LINK" ? "LINK" : "FILE";
   const productIds = parseIdArray((req.body as Record<string, unknown>).productIds);
-  const categoryIds = parseIdArray((req.body as Record<string, unknown>).categoryIds);
+  let categoryIds = parseIdArray((req.body as Record<string, unknown>).categoryIds);
 
   if (!ownerTeamId && productIds.length === 0) {
     return res.status(400).json({ error: "at least one tag (team or product) is required" });
@@ -468,6 +477,11 @@ documentsRouter.post("/", requireAuth, upload.single("file"), async (req, res) =
     const scope = ownerTeamId ?? productIds[0];
     categoryIds.push(await getOrCreateOthersCategory(scope));
   }
+  // Backstop expansion (see expandGlobalCategoryIds' own comment) — the
+  // upload modal already sends the fully expanded set, this just makes sure
+  // a document can never end up under-linked regardless of caller.
+  const uploadScopes = [ownerTeamId, ...productIds].filter((v): v is string => Boolean(v));
+  categoryIds = await expandGlobalCategoryIds(categoryIds, uploadScopes);
   if (sourceType === "FILE" && !req.file) {
     return res.status(400).json({ error: "file is required when sourceType is FILE" });
   }
@@ -780,7 +794,7 @@ documentsRouter.patch<{ id: string }>("/:id/tags", requireAuth, async (req, res)
   const body = req.body as { ownerTeamId?: string | null; productIds?: unknown; categoryIds?: unknown };
   const ownerTeamId = body.ownerTeamId?.trim() || null;
   const productIds = parseIdArray(body.productIds);
-  const categoryIds = parseIdArray(body.categoryIds);
+  let categoryIds = parseIdArray(body.categoryIds);
 
   if (!ownerTeamId && productIds.length === 0) {
     return res.status(400).json({ error: "at least one tag (team or product) is required" });
@@ -791,6 +805,11 @@ documentsRouter.patch<{ id: string }>("/:id/tags", requireAuth, async (req, res)
     const fallbackScope = ownerTeamId ?? productIds[0];
     categoryIds.push(await getOrCreateOthersCategory(fallbackScope));
   }
+  // Backstop expansion (see expandGlobalCategoryIds' own comment) — the edit
+  // modal already sends the fully expanded set, this just makes sure a
+  // document can never end up under-linked regardless of caller.
+  const editScopes = [ownerTeamId, ...productIds].filter((v): v is string => Boolean(v));
+  categoryIds = await expandGlobalCategoryIds(categoryIds, editScopes);
 
   const [team, products, categories] = await Promise.all([
     ownerTeamId ? prisma.team.findUnique({ where: { id: ownerTeamId } }) : null,

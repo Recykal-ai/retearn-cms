@@ -66,10 +66,25 @@ export function FolderGrid({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {filtered.map(({ category: c, count }) => {
             const color = colorForCategory(c);
+            // Categories are flat — opening one has no further folder
+            // structure to show, so this always lands in list view, not
+            // folder view. Built via the URL API (not template-string
+            // concatenation) specifically to overwrite baseHref's own
+            // `view=folders`, not append a second, ambiguous `view` param
+            // alongside it — the previous plain-concat version left the URL
+            // still saying `view=folders` once inside a category, which is
+            // exactly what left the ViewSwitcher showing "Folders" as active
+            // while a document list was actually on screen.
+            const tileHref = (() => {
+              const url = new URL(baseHref, "http://placeholder");
+              url.searchParams.set("category", c.id);
+              url.searchParams.set("view", "list");
+              return `${url.pathname}${url.search}`;
+            })();
             return (
               <Link
                 key={c.id}
-                href={`${baseHref}&category=${c.id}`}
+                href={tileHref}
                 className="flex flex-col items-start gap-2 rounded-lg border border-neutral-200 p-4 transition-colors hover:border-neutral-300 hover:shadow-sm dark:border-neutral-700 dark:hover:border-neutral-600"
               >
                 <FolderIcon size={28} color={color.fg} />

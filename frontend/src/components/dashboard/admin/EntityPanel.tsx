@@ -42,7 +42,7 @@ export function EntityPanel({
   }
 
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900">
+    <div className="flex h-full flex-col rounded-lg border border-neutral-200 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900">
       <h2 className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-200">{title}</h2>
       <div className="mb-4 flex flex-wrap gap-1.5">
         {items.map((it) => (
@@ -67,7 +67,7 @@ export function EntityPanel({
         {items.length === 0 && <span className="text-xs text-neutral-400 dark:text-neutral-500">None yet.</span>}
       </div>
       {canCreate ? (
-        <form ref={formRef} onSubmit={handleSubmit} className="flex gap-2">
+        <form ref={formRef} onSubmit={handleSubmit} className="mt-auto flex gap-2">
           <input
             name="name"
             placeholder={placeholder}
@@ -85,7 +85,7 @@ export function EntityPanel({
           </button>
         </form>
       ) : (
-        <p className="text-xs text-neutral-400 dark:text-neutral-500">Only a global Admin or Super Admin can create new {title.toLowerCase()}.</p>
+        <p className="mt-auto text-xs text-neutral-400 dark:text-neutral-500">Only a global Admin or Super Admin can create new {title.toLowerCase()}.</p>
       )}
 
       {pendingDelete && (
